@@ -39,6 +39,9 @@ class Semaphore(AIServiceBase):
 
 
         # SEMAPHORE_BASE_URL OR TOKEN_ENDPOINT Goes Here
+        self.base_url =  os.getenv('SEMAPHORE_BASE_URL')
+
+        # SEMAPHORE_BASE_URL OR TOKEN_ENDPOINT Goes Here
         self.base_url =  os.getenv("SEMAPHORE_BASE_URL")
 
 	    #  SEMAPHORE_ANALYZE_URL Goes Here
@@ -59,10 +62,10 @@ class Semaphore(AIServiceBase):
 	#  SEMAPHORE_CREATE_TAG_TASK Goes Here
         self.create_tag_task = os.getenv("SEMAPHORE_CREATE_TAG_TASK")
 
-    #  SEMAPHORE_CREATE_TAG_QUERY Goes Here
-        self.create_tag_query = os.getenv("SEMAPHORE_CREATE_TAG_QUERY")
+        #  SEMAPHORE_CREATE_TAG_QUERY Goes Here
+        self.create_tag_query = os.getenv('SEMAPHORE_CREATE_TAG_QUERY')
 
-
+        # self.index_file_path = "Index.json"
         
 
         self.output = self.analyze(data)
@@ -404,8 +407,7 @@ class Semaphore(AIServiceBase):
 
                             try:
                                 updated_output = replace_qcodes(self.output)
-
-                        
+                                
                                 return updated_output
                             
                             except Exception as e:
@@ -570,7 +572,7 @@ class Semaphore(AIServiceBase):
 
             try:
                 updated_output = replace_qcodes(json_response)
-
+                
                 return updated_output
             
             except Exception as e:
