@@ -466,32 +466,10 @@ class JimiFormatter(Formatter):
             
             if item:
                 name = _get_name(item, language)
-                
             else:
                 name = None
 
             if name is not None and name not in names:
-                names.append(name)
-        
-        
-        return names
-    
-
-    def _resolve_names_categories(self, selected_items, language, cv_id, jimi_only=True):
-        cv = superdesk.get_resource_service("vocabularies").find_one(
-            req=None, _id=cv_id
-        )
-        names = []
-        if not cv:
-            return names
-        for selected_item in selected_items:
-            item = _find_qcode_item(selected_item["qcode"], cv["items"], jimi_only)
-            name = (
-                _get_name(item, language)
-                if item
-                else _get_name(selected_item, language)
-            )
-            if name and name not in names:
                 names.append(name)
         return names
     
@@ -774,13 +752,6 @@ def filter_items_by_jimi(items, jimi_only=True):
         return [item for item in items if item.get("in_jimi", False)]
     return items
 
-def filter_items_by_jimi(items, jimi_only=True):
-    """Filter items where 'in_jimi' is true."""
-    if jimi_only:
-        return [item for item in items if item.get("in_jimi", False)]
-    return items
-
-
 def _find_qcode_item(code, items, jimi_only=True):
     for item in items:
         if item.get("qcode") == code:
@@ -794,6 +765,7 @@ def _find_qcode_item(code, items, jimi_only=True):
             break
 
         elif item.get("semaphore_id") == code:
+            
             if not jimi_only:
                 pass
             if item.get("in_jimi"):
