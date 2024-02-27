@@ -474,6 +474,25 @@ class JimiFormatter(Formatter):
         return names
     
 
+    def _resolve_names_categories(self, selected_items, language, cv_id, jimi_only=True):
+        cv = superdesk.get_resource_service("vocabularies").find_one(
+            req=None, _id=cv_id
+        )
+        names = []
+        if not cv:
+            return names
+        for selected_item in selected_items:
+            item = _find_qcode_item(selected_item["qcode"], cv["items"], jimi_only)
+            name = (
+                _get_name(item, language)
+                if item
+                else _get_name(selected_item, language)
+            )
+            if name and name not in names:
+                names.append(name)
+        return names
+    
+
 
     def _get_categories(self, item):
         if not item.get("anpa_category"):
