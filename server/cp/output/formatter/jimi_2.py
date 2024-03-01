@@ -466,11 +466,14 @@ class JimiFormatter(Formatter):
             
             if item:
                 name = _get_name(item, language)
+                
             else:
                 name = None
 
             if name is not None and name not in names:
                 names.append(name)
+        
+        
         return names
     
 
