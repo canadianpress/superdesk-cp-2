@@ -9,23 +9,21 @@
 # at https://www.sourcefabric.org/superdesk/license
 
 
+from .ninjs_formatter import NINJSFormatter
 import superdesk
-import logging
+import elasticapm
 import json
-
-from superdesk.publish.formatters import NewsroomNinjsFormatter
-
-from cp import is_broadcast
-
+import logging
 
 logger = logging.getLogger(__name__)
 
 
-class CPNewsroomNinjsFormatter(NewsroomNinjsFormatter):
+class NewsroomNinjsFormatter(NINJSFormatter):
     name = "CP Newsroom NINJS"
     type = "cp newsroom ninjs"
 
     def __init__(self):
+        self.format_type = "cp newsroom ninjs"
         self.can_preview = False
         self.can_export = False
         self.internal_renditions = ["original", "viewImage", "baseImage"]
@@ -42,37 +40,31 @@ class CPNewsroomNinjsFormatter(NewsroomNinjsFormatter):
             vocab_mapping_all = {}
 
             for item in vocab_items:
+                if item.get("in_jimi") is True:
+                    name_in_vocab = item.get("name")
+                    qcode = item.get("qcode")
+                    translated_name = (
+                        item.get("translations", {})
+                        .get("name", {})
+                        .get(language, name_in_vocab)
+                    )
+                    vocab_mapping[name_in_vocab.lower()] = (qcode, translated_name)
+
+            for item in vocab_items:
                 name_in_vocab = item.get("name")
                 qcode = item.get("qcode")
-                # Prepare the translated name, defaulting to the original name if the translation is not available
                 translated_name = (
                     item.get("translations", {})
                     .get("name", {})
                     .get(language, name_in_vocab)
                 )
-
-                # Always populate vocab_mapping_all
                 vocab_mapping_all[name_in_vocab.lower()] = (qcode, translated_name)
 
-                # Only populate vocab_mapping if "in_jimi" is True
-                if item.get("in_jimi") is True:
-                    vocab_mapping[name_in_vocab.lower()] = (qcode, translated_name)
-
             updated_subjects = list(ninjs["subject"])
-            # Setting a Pre defined Allowed Scheme Vocabulary Mapping
-
-            allowed_schemes = [
-                "http://cv.iptc.org/newscodes/mediatopic/",
-                "subject_custom",
-                "subject",
-                "http://cv.cp.org/cp-subject-legacy/",
-            ]
 
             for subject in ninjs["subject"]:
                 subject_name = subject.get("name").lower()
-                subject_scheme = subject.get("scheme", "")
-
-                if subject_name in vocab_mapping and subject_scheme in allowed_schemes:
+                if subject_name in vocab_mapping:
                     qcode, translated_name = vocab_mapping[subject_name]
                     updated_subjects.append(
                         {
@@ -82,10 +74,7 @@ class CPNewsroomNinjsFormatter(NewsroomNinjsFormatter):
                         }
                     )
                 else:
-                    if (
-                        subject_name in vocab_mapping_all
-                        and subject_scheme in allowed_schemes
-                    ):
+                    if subject_name in vocab_mapping_all:
                         qcode, translated_name = vocab_mapping_all[subject_name]
                         updated_subjects.append(
                             {
@@ -123,15 +112,48 @@ class CPNewsroomNinjsFormatter(NewsroomNinjsFormatter):
 
         except Exception as e:
             logger.error(
-                f"An error occurred. We are in NewsRoom Ninjs Formatter Ninjs Subjects exception: {str(e)}"
+                f"An error occurred. We are in CP NewsRoom Ninjs Formatter Ninjs Subjects exception:  {str(e)}"
             )
 
+    @elasticapm.capture_span()
+    def _format_products(self, article):
+        """
+        Return a list of API product id's that the article matches.
+
+        :param article:
+        :return:
+        """
+        result = superdesk.get_resource_service("product_tests").test_products(article)
+        return [
+            {"code": p["product_id"], "name": p.get("name")}
+            for p in result
+            if p.get("matched", False)
+        ]
+
+    @elasticapm.capture_span()
     def _transform_to_ninjs(self, article, subscriber, recursive=True):
         ninjs = super()._transform_to_ninjs(article, subscriber, recursive)
 
-        self.update_ninjs_subjects(ninjs, "en-CA")
+        if article.get("ingest_id") and article.get("auto_publish"):
+            ninjs["guid"] = article.get("ingest_id")
+            if article.get("ingest_version"):
+                ninjs["version"] = article["ingest_version"]
 
-        if is_broadcast(article) and ninjs["guid"] == article.get("ingest_id"):
-            ninjs["guid"] = ninjs["guid"] + "-br"
+        ninjs["products"] = self._format_products(article)
+
+        if article.get("assignment_id"):
+            assignment = superdesk.get_resource_service("assignments").find_one(
+                req=None, _id=article["assignment_id"]
+            )
+            if assignment is not None:
+                if assignment.get("coverage_item"):
+                    ninjs.setdefault("coverage_id", assignment["coverage_item"])
+                if assignment.get("planning_item"):
+                    ninjs.setdefault("planning_id", assignment["planning_item"])
+
+        if article.get("refs"):
+            ninjs["refs"] = article["refs"]
+
+        self.update_ninjs_subjects(ninjs, "en-CA")
 
         return ninjs
