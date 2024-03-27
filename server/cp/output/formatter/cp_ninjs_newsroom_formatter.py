@@ -30,6 +30,7 @@ class NewsroomNinjsFormatter(NINJSFormatter):
 
     def update_ninjs_subjects(self, ninjs, language="en-CA"):
         try:
+
             # Fetch the vocabulary
             cv = superdesk.get_resource_service("vocabularies").find_one(
                 req=None, _id="subject_custom"
@@ -61,10 +62,18 @@ class NewsroomNinjsFormatter(NINJSFormatter):
                 vocab_mapping_all[name_in_vocab.lower()] = (qcode, translated_name)
 
             updated_subjects = list(ninjs["subject"])
+            allowed_schemes = [
+                "http://cv.iptc.org/newscodes/mediatopic/",
+                "subject_custom",
+                "subject",
+                "http://cv.cp.org/cp-subject-legacy/",
+            ]
 
             for subject in ninjs["subject"]:
                 subject_name = subject.get("name").lower()
-                if subject_name in vocab_mapping:
+                subject_scheme = subject.get("scheme", "")
+
+                if subject_name in vocab_mapping and subject_scheme in allowed_schemes:
                     qcode, translated_name = vocab_mapping[subject_name]
                     updated_subjects.append(
                         {
@@ -74,7 +83,10 @@ class NewsroomNinjsFormatter(NINJSFormatter):
                         }
                     )
                 else:
-                    if subject_name in vocab_mapping_all:
+                    if (
+                        subject_name in vocab_mapping_all
+                        and subject_scheme in allowed_schemes
+                    ):
                         qcode, translated_name = vocab_mapping_all[subject_name]
                         updated_subjects.append(
                             {
@@ -112,7 +124,7 @@ class NewsroomNinjsFormatter(NINJSFormatter):
 
         except Exception as e:
             logger.error(
-                f"An error occurred. We are in CP NewsRoom Ninjs Formatter Ninjs Subjects exception:  {str(e)}"
+                f"An error occurred. We are in NewsRoom Ninjs Formatter Ninjs Subjects exception:  {str(e)}"
             )
 
     @elasticapm.capture_span()
