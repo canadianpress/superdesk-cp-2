@@ -18,11 +18,11 @@ msgstr "Ajouter une nouvelle étiquette"
 
 #: /home/tomas/superdesk-repos/superdesk-cp/client/extensions/auto-tagger/src/new-item.tsx:84
 msgid "Add tag"
-msgstr "jouter une nouvelle étiquette"
+msgstr "Ajouter étiquette"
 
 #: /home/tomas/superdesk-repos/superdesk-cp/client/extensions/auto-tagger/src/tag-popover.tsx:26
 msgid "Aliases:"
-msgstr ""
+msgstr "Alias:"
 
 #: /home/tomas/superdesk-repos/superdesk-cp/client/extensions/auto-tagger/src/extension.tsx:8
 msgid "Autotagger"
@@ -44,11 +44,11 @@ msgstr "Annuler"
 
 #: /home/tomas/superdesk-repos/superdesk-cp/client/extensions/auto-tagger/src/auto-tagging.tsx:642
 msgid "Click \"Run\" to test Autotagger"
-msgstr "Cliquez sur Exécuter pour tester l'Étiquetage automatique"
+msgstr "Cliquez sur \"Exécuter\" pour tester l'Étiquetage automatique"
 
 #: /home/tomas/superdesk-repos/superdesk-cp/client/extensions/auto-tagger/src/auto-tagging.tsx:103
 msgid "close"
-msgstr "Fermer"
+msgstr "fermer"
 
 #: /home/tomas/superdesk-repos/superdesk-cp/client/extensions/auto-tagger/src/new-item.tsx:168
 msgid "Description"
@@ -56,7 +56,7 @@ msgstr "Description"
 
 #: /home/tomas/superdesk-repos/superdesk-cp/client/extensions/auto-tagger/src/auto-tagging.tsx:449
 msgid "details"
-msgstr "Détails"
+msgstr "détails"
 
 #: /home/tomas/superdesk-repos/superdesk-cp/client/extensions/auto-tagger/src/auto-tagging.tsx:695
 msgid "Entities"
@@ -104,7 +104,7 @@ msgstr "Organisations"
 
 #: /home/tomas/superdesk-repos/superdesk-cp/client/extensions/auto-tagger/src/auto-tagging.tsx:125
 msgid "parent ID"
-msgstr ""
+msgstr "ID parent"
 
 #: /home/tomas/superdesk-repos/superdesk-cp/client/extensions/auto-tagger/src/groups.ts:21
 msgid "People"
@@ -124,7 +124,7 @@ msgstr "Endroits"
 
 #: /home/tomas/superdesk-repos/superdesk-cp/client/extensions/auto-tagger/src/auto-tagging.tsx:650
 msgid "Please use the Index field to add tags manually"
-msgstr ""
+msgstr "Veuillez utiliser le champ Index pour ajouter des étiquettes manuellement."
 
 #: /home/tomas/superdesk-repos/superdesk-cp/client/extensions/auto-tagger/src/auto-tagging.tsx:124
 msgid "qcode"
@@ -148,15 +148,15 @@ msgstr "Enregistrer"
 
 #: /home/tomas/superdesk-repos/superdesk-cp/client/extensions/auto-tagger/src/new-item.tsx:151
 msgid "Select type"
-msgstr "électionner le type"
+msgstr "Sélectionner le type"
 
 #: /home/tomas/superdesk-repos/superdesk-cp/client/extensions/auto-tagger/src/auto-tagging.tsx:110
 msgid "Some tags can not be displayed"
-msgstr ""
+msgstr "Certains tags ne peuvent pas être affichés."
 
 #: /home/tomas/superdesk-repos/superdesk-cp/client/extensions/auto-tagger/src/tag-popover.tsx:29
 msgid "Source:"
-msgstr ""
+msgstr "Source:"
 
 #: /home/tomas/superdesk-repos/superdesk-cp/client/extensions/auto-tagger/src/groups.ts:40
 msgid "Subject"
@@ -170,7 +170,7 @@ msgstr "Sujets"
 
 #: /home/tomas/superdesk-repos/superdesk-cp/client/extensions/auto-tagger/src/auto-tagging.tsx:123
 msgid "tag name"
-msgstr ""
+msgstr "nom de l'étiquette"
 
 #: /home/tomas/superdesk-repos/superdesk-cp/client/extensions/auto-tagger/src/new-item.tsx:145
 msgid "Tag type"
@@ -182,7 +182,7 @@ msgstr "Un type d'entité est requis."
 
 #: /home/tomas/superdesk-repos/superdesk-cp/client/extensions/auto-tagger/src/extension.tsx:25
 msgid "Tags"
-msgstr "Mots clés"
+msgstr "Étiquettes"
 
 #: /home/tomas/superdesk-repos/superdesk-cp/client/extensions/auto-tagger/src/new-item.tsx:201
 msgid "Type is required."
@@ -190,10 +190,4 @@ msgstr "Le type est requis."
 
 #: /home/tomas/superdesk-repos/superdesk-cp/client/extensions/auto-tagger/src/auto-tagging.tsx:649
 msgid "Unable to use Autotagger service"
-msgstr "Erreur du service d'étiquetage automatique"
-
-msgid: "Click "Run" to test Autotagger"
-msgstr: "Cliquez sur Exécuter pour tester l'Étiquetage automatique"
-
-msgid: "Search for an entity or subject"
-msgstr: "Rechercher une entité ou un sujet"
+msgstr "Impossible d'utiliser le service Autotagger"
