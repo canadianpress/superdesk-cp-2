@@ -421,22 +421,6 @@ class Semaphore(AIServiceBase):
             root = response.text
 
             def transform_xml_response(xml_data):
-                # Parse the XML data
-                root = ET.fromstring(xml_data)
-
-                # Initialize a dictionary to hold the transformed data
-                response_dict = {
-                    "subject": [],
-                    "organisation": [],
-                    "person": [],
-                    "event": [],
-                    "place": [],
-                }
-
-                # Temporary storage for path labels and GUIDs
-                path_labels = {}
-                path_guids = {}
-
                 # Helper function to add data to the dictionary if it's not a duplicate and has a qcode
                 def add_to_dict(group, tag_data):
                     if tag_data["qcode"] and tag_data not in response_dict[group]:
@@ -454,8 +438,28 @@ class Semaphore(AIServiceBase):
                         )  # Keep score to three decimal places
                     return score
 
-                # Iterate through the XML elements and populate the dictionary
-                for element in root.iter():
+                # Parse the XML data
+                root = ET.fromstring(xml_data)
+
+                # Find the ARTICLE element
+                article_element = root.find('STRUCTUREDDOCUMENT/ARTICLE')
+
+                # Initialize a dictionary to hold the transformed data
+                response_dict = {
+                    "subject": [],
+                    "organisation": [],
+                    "person": [],
+                    "event": [],
+                    "place": [],
+                }
+
+                # Temporary storage for path labels and GUIDs
+                path_labels = {}
+                path_guids = {}
+
+
+                # Iterate through the XML ARTICLE elements and populate the dictionary
+                for element in article_element.iter():
                     if element.tag == "META":
                         meta_name = element.get("name")
                         meta_value = element.get("value")
