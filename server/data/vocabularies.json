@@ -22710,7 +22710,7 @@
         "unique_field": "qcode"
     },
     {
-        "_id": "abstract",
+        "_id": "headline_extended",
         "field_type": "text",
         "items": [],
         "type": "manageable",
@@ -22722,7 +22722,7 @@
         "service": {
             "all": 1
         },
-        "display_name": "Abstract",
+        "display_name": "Extended headline",
         "description": "",
         "helper_text": "",
         "field_options": {
