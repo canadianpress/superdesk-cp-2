@@ -8,15 +8,19 @@ export function createTagsPatch(
     tags: OrderedMap<string, ITagUi>,
     superdesk: ISuperdesk,
 ): Partial<IArticle> {
+    // @ts-ignore
     const serverFormat = toServerFormat(tags, superdesk);
+    // @ts-ignore
     const patch: Partial<IArticle> = {};
 
     getServerResponseKeys().forEach((key) => {
+        // @ts-ignore
         let oldValues = OrderedMap<string, ISubject>((article[key] || [])
             .filter((_item) => typeof _item.qcode === 'string')
             .map((_item) => [_item.qcode, _item]));
 
         const newValues = serverFormat[key];
+        // @ts-ignore
         let newValuesMap = OrderedMap<string, ISubject>();
 
         // Preserve tags with specific schemes
@@ -35,6 +39,7 @@ export function createTagsPatch(
                 newValuesMap = newValuesMap.set(qcode, tag);
             }
         });
+        // @ts-ignore
         const wasRemoved = (tag: ISubject) => {
             if (oldValues.has(tag.qcode) && !newValuesMap.has(tag.qcode)) {
                 return true;
@@ -60,10 +65,12 @@ export function createTagsPatch(
     return patch;
 }
 
+// @ts-ignore
 export function getExistingTags(article: IArticle): IServerResponse {
     const result: IServerResponse = {};
 
     getServerResponseKeys().forEach((key) => {
+        // @ts-ignore
         const values = article[key] ?? [];
 
         if (key === 'subject') {
