@@ -76,7 +76,9 @@ export function getExistingTags(article: IArticle): IServerResponse {
         if (key === 'subject') {
             if (values.length > 0) {
                 result[key] = values
+                // @ts-ignore
                 .filter(subjectItem => subjectItem.scheme != null) // Only include items with a scheme
+                // @ts-ignore
                 .map(subjectItem => {
                     // @ts-ignore
                     const {
@@ -93,6 +95,7 @@ export function getExistingTags(article: IArticle): IServerResponse {
                         creator
                     } = subjectItem;
 
+                    // @ts-ignore
                     const subjectTag: ISubjectTag = {
                         name,
                         description,
@@ -110,6 +113,7 @@ export function getExistingTags(article: IArticle): IServerResponse {
                 });
             }
         } else if (values.length > 0) {
+            // @ts-ignore
             result[key] = values.map((entityItem) => {
                 // @ts-ignore
                 const {
@@ -126,6 +130,7 @@ export function getExistingTags(article: IArticle): IServerResponse {
                     creator
                 } = entityItem;
 
+                // @ts-ignore
                 const entityTag: ITagBase = {
                     name,
                     description,
