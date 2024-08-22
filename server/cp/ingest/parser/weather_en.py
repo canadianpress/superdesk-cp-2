@@ -113,7 +113,8 @@ class WeatherParserEN(FeedParser):
         sections = '\n'.join(content.split('\n')[3:]).split('\n\n\n')
         
         # Append descriptive section to html
-        html += f'<p>{sections[0].replace('\n','<br>')}</p>\n'
+        descriptive_section = sections[0].replace('\n','<br>')
+        html += f'<p>{descriptive_section}</p>\n'
         for section in sections[1:-1]:
             # Clean up the section
             section = section.replace('$$', '').strip()
