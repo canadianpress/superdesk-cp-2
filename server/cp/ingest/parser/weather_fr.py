@@ -24,18 +24,22 @@ class WeatherParserFR(FeedParser):
         self.load_filenames()
             
     def can_parse(self, file_path):
-        filename = file_path.split('.')[0]
+        filename = file_path.split('.')[0].split('/')[-1]
+        filename = filename[:12].replace('_',' ')
 
         if filename in self.english_filenames:
+            print('filename is english')
             return False
         elif filename in self.french_filenames:
+            print('filename is french')
             True
             
         # Read the file and check for English keywords
         with open(file_path, "r", encoding='windows-1252') as file:
             article = file.read()
-            is_english = any(keyword in article for keyword in ['\nEND', 'FORECAST','==DISCUSSION==' 'Tabular State Forecast'])
-    
+            is_english = any(keyword in article for keyword in ['\nEND', 'FORECAST','==DISCUSSION==', 'Tabular State Forecast','PRELIMINARY DATA'])
+            print('English keywords detected: ', is_english)
+
             # Update the appropriate list and save
             (self.english_filenames if is_english else self.french_filenames).append(filename)
             self.save_filenames()
@@ -56,24 +60,25 @@ class WeatherParserFR(FeedParser):
 
             if 'Tabular' in article:
                 body = self.format_tabular_data(article)
-            elif 'PREVISIONS' in article:
+            elif 'PREVISIONS MISES A JOUR' in article:
                 body = self.format_prevision_data(article)
+            
+            # Article does not contain paragraphs
+            elif len(paragraphs) ==1:
+                lines = article.split('\n')
+                lines.pop(0)
+                body = '<br>'.join(lines)
+            
             else:
                 # Isolate the body, by joining all paragraphs after the first
                 body = '<br><br>'.join(paragraphs[1:]) 
-
-            body = body.replace('\n','<br>') 
-            
-            description = ''
-            # Extract description of non-tabular data
-            if 'FIN' in article:
-                description = '\n'.join(paragraphs[0][1:]) 
+                body = body.replace('\n','<br>')
             
 
             # Populate item dictionary
             item['headline'] =  'Test Headline'
             item['slugline'] = f"{slugline} kad"
-            item['description_text'] = description
+            item['description_text'] = ''
             item['body_html'] = f"<p>{body}</p>"
             item["source"] =  'Environnement Canada'
             item["language"] = 'fr-CA'
@@ -87,11 +92,12 @@ class WeatherParserFR(FeedParser):
         try:
             with open(cls.filenames_path, 'r', encoding='windows-1252') as file:
                 filenames = json.load(file)
-                cls.english_filenames = filenames.get('English', [])
-                cls.french_filenames = filenames.get('French', [])
+                cls.english_filenames = filenames['English']
+                cls.french_filenames = filenames['French']
         except FileNotFoundError:
-            cls.english_filenames = []
-            cls.french_filenames = []
+            pass
+            #cls.english_filenames = []
+            #cls.french_filenames = []
     
     @classmethod
     def save_filenames(cls):
@@ -106,8 +112,8 @@ class WeatherParserFR(FeedParser):
     @classmethod
     def format_tabular_data(cls,content):
         html = '' 
-        # Remove first three lines, then split by triple-newlines to get list of sections
-        sections = '\n'.join(content.split('\n')[3:]).split('\n\n\n')
+        # Remove first four lines, then split by triple-newlines to get list of sections
+        sections = '\n'.join(content.split('\n')[4:]).split('\n\n\n')
         
         # Append descriptive section to html
         html += f'<p>{sections[0]}</p>\n'
@@ -153,6 +159,7 @@ class WeatherParserFR(FeedParser):
             lines = paragraph.split('\n')
             lines[0] = f'<b>{lines[0]}<b>'
             # Join updates lines to form updates paragraph
-            updated_paragraphs.append('\n'.join(lines))
+            joined_lines = '\n'.join(lines)
+            updated_paragraphs.append(f'<p>{joined_lines}</p>')
         all_paragraphs = [original_paragraphs[0]] + updated_paragraphs + original_paragraphs[-2:]
-        return ('<br><br>'.join(all_paragraphs))
+        return '<br><br>'.join(all_paragraphs)

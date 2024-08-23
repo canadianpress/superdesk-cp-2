@@ -23,24 +23,23 @@ class WeatherParserEN(FeedParser):
     def __init__(self):
         super().__init__()
         self.load_filenames()
-    
             
     def can_parse(self, file_path):
         filename = file_path.split('.')[0].split('/')[-1]
-        
+        filename = filename[:12].replace('_',' ')
+
         if filename in self.english_filenames:
             return True
         elif filename in self.french_filenames:
             False
-
-        # Filename does not exist in weather_filenames.json. Must detect language using keywords.
-        with open(file_path, "r", encoding='windows-1252') as file: # Read the file and check for English keywords
+            
+        # Read the file and check for English keywords
+        with open(file_path, "r", encoding='windows-1252') as file:
             article = file.read()
-            is_english = any(keyword in article for keyword in ['\nEND', 'FORECAST','==DISCUSSION==', 'PRELIMINARY DATA','Tabular State Forecast'])
-    
-            # Append filename to appropriate language's list 
+            is_english = any(keyword in article for keyword in ['\nEND', 'FORECAST','==DISCUSSION==', 'Tabular State Forecast','PRELIMINARY DATA'])
+
+            # Update the appropriate list and save
             (self.english_filenames if is_english else self.french_filenames).append(filename)
-            # Save filenames
             self.save_filenames()
         
         return is_english
@@ -48,6 +47,7 @@ class WeatherParserEN(FeedParser):
 
         
     def parse(self, file_path, provider=None):
+
         item = {}     
         with open(file_path, "r", encoding='windows-1252') as file:
 
@@ -60,28 +60,27 @@ class WeatherParserEN(FeedParser):
                 body = self.format_tabular_data(article)
             elif 'PREVISIONS' in article:
                 body = self.format_prevision_data(article)
-                
+            
+            # Article does not contain paragraphs
+            elif len(paragraphs) ==1:
+                lines = article.split('\n')
+                lines.pop(0)
+                body = '<br>'.join(lines)
+            
             else:
                 # Isolate the body, by joining all paragraphs after the first
                 body = '<br><br>'.join(paragraphs[1:]) 
                 body = body.replace('\n','<br>')
-
-            #body = body.replace('\n','<br>') 
-            description = ''
-            # Extract description of non-tabular data
-            if 'END' in article:
-                description = '\n'.join(paragraphs[0][1:]) 
             
-
             # Populate item dictionary
-            item['headline'] =  'Test headline'
+            item['headline'] =  'Test Headline'
             item['slugline'] = f"{slugline} kad"
-            item['description_text'] = description
+            item['description_text'] = ''
             item['body_html'] = f"<p>{body}</p>"
-            item["source"] =  'Environment Canada'
+            item["source"] =  'Environement Canada'
             item["language"] = 'en-CA'
-            item["guid"] =  str(uuid.uuid4())
-        
+            item["guid"] =   str(uuid.uuid4())
+            
         return item 
     
     @classmethod
@@ -90,11 +89,12 @@ class WeatherParserEN(FeedParser):
         try:
             with open(cls.filenames_path, 'r', encoding='windows-1252') as file:
                 filenames = json.load(file)
-                cls.english_filenames = filenames.get('English', [])
-                cls.french_filenames = filenames.get('French', [])
+                cls.english_filenames = filenames['English']
+                cls.french_filenames = filenames['French']
         except FileNotFoundError:
-            cls.english_filenames = []
-            cls.french_filenames = []
+            pass
+            #cls.english_filenames = []
+            #cls.french_filenames = []
     
     @classmethod
     def save_filenames(cls):
@@ -105,16 +105,15 @@ class WeatherParserEN(FeedParser):
         }
         with open(cls.filenames_path, 'w', encoding='windows-1252') as file:
             json.dump(data, file, indent=4)
-
+            
     @classmethod
     def format_tabular_data(cls,content):
         html = '' 
-        # Remove first three lines, then split by triple-newlines to get list of sections
-        sections = '\n'.join(content.split('\n')[3:]).split('\n\n\n')
+        # Remove first four lines, then split by triple-newlines to get list of sections
+        sections = '\n'.join(content.split('\n')[4:]).split('\n\n\n')
         
         # Append descriptive section to html
-        descriptive_section = sections[0].replace('\n','<br>')
-        html += f'<p>{descriptive_section}</p>\n'
+        html += f'<p>{sections[0]}</p>\n'
         for section in sections[1:-1]:
             # Clean up the section
             section = section.replace('$$', '').strip()
@@ -128,7 +127,7 @@ class WeatherParserEN(FeedParser):
                 lines = [line for line in table.split('\n') if line.strip()]
 
                 html += '<table>\n'
-                # Handle the state name 
+                # Handle the state label 
                 if table_index == 0 and '...' in lines[0]:
                     html += f"<p>{lines.pop(0)}</p>\n"
 
@@ -157,6 +156,8 @@ class WeatherParserEN(FeedParser):
             lines = paragraph.split('\n')
             lines[0] = f'<b>{lines[0]}<b>'
             # Join updates lines to form updates paragraph
-            updated_paragraphs.append('\n'.join(lines))
+            joined_lines = '\n'.join(lines)
+            updated_paragraphs.append(f'<p>{joined_lines}</p>')
         all_paragraphs = [original_paragraphs[0]] + updated_paragraphs + original_paragraphs[-2:]
-        return ('<br><br>'.join(all_paragraphs))
+        result = '<br><br>'.join(all_paragraphs)
+        return f'<p>{result}</p>'
