@@ -794,7 +794,11 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
                                             )
                                         }
 
-                                        <div className="widget-content__main">
+                                        <div className="widget-content__main" style={{
+                                            width: '100%',
+                                            overflowX: 'auto',  // Enable horizontal scrolling
+                                            whiteSpace: 'nowrap',  // Prevent content from wrapping
+                                        }}>
                                             {allGroupedAndSorted.map((item) => item).toArray()}
                                         </div>
                                     </React.Fragment>
