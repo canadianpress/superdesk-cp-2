@@ -402,14 +402,13 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
             Promise.all([
                 getAutoTaggingVocabularyLabels(superdesk),
                 preferences.get(RUN_AUTOMATICALLY_PREFERENCE),
-                // Need to remove false from the line below to run the analysis automatically
-            ]).then(([vocabularyLabels, runAutomatically = false]) => {
+            ]).then(([vocabularyLabels, runAutomaticallyPreference]) => {
                 this.setState({
                     vocabularyLabels,
-                    runAutomaticallyPreference: runAutomatically,
+                    runAutomaticallyPreference,
                 });
 
-                this.initializeData(runAutomatically);
+                this.initializeData(runAutomaticallyPreference);
             });
         }
         componentWillUnmount() {
@@ -503,8 +502,7 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
                     </AuthoringWidgetHeading>
                     <div className="widget-content sd-padding-all--2">
                         <div>
-                            {/* Run automatically button is hidden for the next release */}
-                            <div className="form__row form__row--flex sd-padding-b--1" style={{ display: 'none' }}>
+                            <div className="form__row form__row--flex sd-padding-b--1">
                                 <ButtonGroup align="start">
                                     <Switch
                                         value={runAutomaticallyPreference}
