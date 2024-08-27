@@ -161,7 +161,7 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
         }
         private updateTagsWithNewRelevance = (existingTags: OrderedMap<string, ITagUi>, resClient: OrderedMap<string, ITagUi>) => {
             return existingTags.map((tag) => {
-                const matchingNewTag = resClient.find((newTag) => newTag.name === tag.name);
+                const matchingNewTag = resClient.find((newTag) => newTag && newTag.name === tag.name);
                 if (matchingNewTag && matchingNewTag.relevance !== tag.relevance) {
                     return {...tag, relevance: matchingNewTag.relevance};
                 }
