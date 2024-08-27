@@ -159,6 +159,15 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
         private replaceAmpersand(input: string) {
             return input.replace(/&/g, 'and');
         }
+        private updateTagsWithNewRelevance = (existingTags, resClient) => {
+            return existingTags.map((tag) => {
+                const matchingNewTag = resClient.find((newTag) => newTag.name === tag.name);
+                if (matchingNewTag && matchingNewTag.relevance !== tag.relevance) {
+                    return {...tag, relevance: matchingNewTag.relevance};
+                }
+                return tag;
+            });
+        };
 
         constructor(props: IProps) {
             super(props);
@@ -217,8 +226,11 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
                             ? dataBeforeLoading.changes.analysis // keep existing tags
                             : OrderedMap<string, ITagUi>();
 
-                        // Merge new analysis with existing tags
-                        const mergedTags = existingTags.merge(resClient);
+
+                        const updatedExistingTags = this.updateTagsWithNewRelevance(existingTags, resClient);
+
+                        // Merge updated existing tags with new tags
+                        const mergedTags = updatedExistingTags.merge(resClient);
 
                         this.setState({
                             data: {
