@@ -161,7 +161,7 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
         }
         private updateTagsWithNewRelevance = (existingTags: OrderedMap<string, ITagUi>, resClient: OrderedMap<string, ITagUi>) => {
             return existingTags.map((tag) => {
-                const matchingNewTag = resClient.find((newTag) => newTag && newTag.name === tag.name);
+                const matchingNewTag = resClient.find((newTag) => newTag && newTag.name === tag.name) || undefined;
                 if (matchingNewTag && matchingNewTag.relevance !== tag.relevance) {
                     return {...tag, relevance: matchingNewTag.relevance};
                 }
@@ -230,7 +230,7 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
                         const updatedExistingTags = this.updateTagsWithNewRelevance(existingTags, resClient);
 
                         // Merge updated existing tags with new tags
-                        const mergedTags = updatedExistingTags.merge(resClient);
+                        const mergedTags = updatedExistingTags.concat(resClient);
 
                         this.setState({
                             data: {
