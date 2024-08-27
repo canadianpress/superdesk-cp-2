@@ -159,7 +159,7 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
         private replaceAmpersand(input: string) {
             return input.replace(/&/g, 'and');
         }
-        private updateTagsWithNewRelevance = (existingTags, resClient) => {
+        private updateTagsWithNewRelevance = (existingTags: OrderedMap<string, ITagUi>, resClient: OrderedMap<string, ITagUi>) => {
             return existingTags.map((tag) => {
                 const matchingNewTag = resClient.find((newTag) => newTag.name === tag.name);
                 if (matchingNewTag && matchingNewTag.relevance !== tag.relevance) {
