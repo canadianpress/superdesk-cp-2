@@ -159,15 +159,15 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
         private replaceAmpersand(input: string) {
             return input.replace(/&/g, 'and');
         }
-        private updateTagsWithNewRelevance = (existingTags: OrderedMap<string, ITagUi>, resClient: OrderedMap<string, ITagUi>) => {
-            return existingTags.map((tag) => {
-                const matchingNewTag = resClient.find((newTag) => newTag != null && newTag.name === tag.name);
-                if (matchingNewTag && matchingNewTag.relevance !== tag.relevance) {
-                    return {...tag, relevance: matchingNewTag.relevance};
-                }
-                return tag;
-            });
-        };
+        // private updateTagsWithNewRelevance = (existingTags: OrderedMap<string, ITagUi>, resClient: OrderedMap<string, ITagUi>) => {
+        //     return existingTags.map((tag) => {
+        //         const matchingNewTag = resClient.find((newTag) => newTag != null && newTag.name === tag.name);
+        //         if (matchingNewTag && matchingNewTag.relevance !== tag.relevance) {
+        //             return {...tag, relevance: matchingNewTag.relevance};
+        //         }
+        //         return tag;
+        //     });
+        // };
 
         constructor(props: IProps) {
             super(props);
@@ -228,8 +228,8 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
 
                         // const updatedExistingTags = this.updateTagsWithNewRelevance(existingTags, resClient);
                         // Update existing tags with relevance from resClient
-                        const updatedExistingTags = existingTags.map((existingTag, key) => {
-                            const matchingTag = resClient.find(resTag => resTag.name === existingTag.name);
+                        const updatedExistingTags = existingTags.map((existingTag) => {
+                            const matchingTag = resClient.find(resTag => resTag?.name === existingTag.name);
 
                             if (matchingTag && matchingTag.relevance !== existingTag.relevance) {
                                 return {
@@ -249,7 +249,7 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
                                 original: dataBeforeLoading === 'loading' || dataBeforeLoading === 'not-initialized'
                                     ? { analysis: OrderedMap<string, ITagUi>() } // initialize empty data
                                     : dataBeforeLoading.original, // use previous data
-                                changes: { analysis: OrderedMap<string, ITagUi>(mergedTags as Iterable<[string, ITagUi]>) },
+                                    changes: { analysis: OrderedMap<string, ITagUi>(mergedTags.entries()) },
                             },
                         });
                     }
