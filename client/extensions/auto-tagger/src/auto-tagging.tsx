@@ -157,7 +157,10 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
         private _mounted: boolean;
         private semaphoreFields = superdesk.instance.config.semaphoreFields ?? { entities: {}, others: {} };
         private replaceAmpersand(input: string) {
-            return input.replace(/&/g, 'and');
+            if (input) {
+                return input.replace(/&/g, 'and');
+            }
+            return input;
         }
         // private updateTagsWithNewRelevance = (existingTags: OrderedMap<string, ITagUi>, resClient: OrderedMap<string, ITagUi>) => {
         //     return existingTags.map((tag) => {
@@ -201,7 +204,7 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
                 // Apply the ampersand replacement
                 const safeHeadline = this.replaceAmpersand(headline);
                 const safeSlugline = this.replaceAmpersand(slugline);
-                const safeHeadlineExtended = extra ? this.replaceAmpersand(extra.headline_extended) : undefined;
+                const safeHeadlineExtended = this.replaceAmpersand(extra?.headline_extended);
 
                 httpRequestJsonLocal<{ analysis: IServerResponse }>({
                     method: 'POST',
@@ -215,7 +218,6 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
                             headline: safeHeadline,
                             body_html,
                             abstract: safeHeadlineExtended,
-                            headline_extended: extra ? extra.headline_extended : undefined,
                         },
                     },
                 }).then((res) => {
@@ -413,7 +415,7 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
                             language,
                             headline,
                             body_html,
-                            headline_extended: extra ? extra.headline_extended : undefined,
+                            abstract: extra?.headline_extended,
                         },
                         tags: toServerFormat(tags, superdesk),
                     },
