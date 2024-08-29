@@ -292,22 +292,10 @@ class Semaphore(AIServiceBase):
                             capitalize_name_if_parent_none(tag)
                             for tag in input_data["subject"]
                         ],
-                        "organisation": [
-                            capitalize_name_if_parent_none(tag)
-                            for tag in input_data["organisation"]
-                        ],
-                        "person": [
-                            capitalize_name_if_parent_none(tag)
-                            for tag in input_data["person"]
-                        ],
-                        "event": [
-                            capitalize_name_if_parent_none(tag)
-                            for tag in input_data["event"]
-                        ],
-                        "place": [
-                            capitalize_name_if_parent_none(tag)
-                            for tag in input_data["place"]
-                        ],
+                        "organisation": input_data["organisation"],
+                        "person": input_data["person"],
+                        "event": input_data["event"],
+                        "place": input_data["place"],
                         "object": [],
                     },
                     "broader": {
@@ -764,9 +752,8 @@ def capitalize_name_if_parent_none(tag):
 
 
 def capitalize_name_if_parent_none_for_analyze(response):
-    for category in ["subject", "organisation", "person", "event", "place"]:
-        for item in response.get(category, []):
-            item = capitalize_name_if_parent_none(item)
+    for item in response.get("subject", []):
+        item = capitalize_name_if_parent_none(item)
     return response
 
 
