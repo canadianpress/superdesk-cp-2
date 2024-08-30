@@ -162,15 +162,6 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
             }
             return input;
         }
-        // private updateTagsWithNewRelevance = (existingTags: OrderedMap<string, ITagUi>, resClient: OrderedMap<string, ITagUi>) => {
-        //     return existingTags.map((tag) => {
-        //         const matchingNewTag = resClient.find((newTag) => newTag != null && newTag.name === tag.name);
-        //         if (matchingNewTag && matchingNewTag.relevance !== tag.relevance) {
-        //             return {...tag, relevance: matchingNewTag.relevance};
-        //         }
-        //         return tag;
-        //     });
-        // };
 
         constructor(props: IProps) {
             super(props);
@@ -225,34 +216,18 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
 
                     if (this._mounted) {
                         const existingTags = dataBeforeLoading !== 'loading' && dataBeforeLoading !== 'not-initialized'
-                            ? dataBeforeLoading.changes.analysis // keep existing tags
+                            ? dataBeforeLoading.changes.analysis.filter(tag => tag.creator !== 'Machine') // filter out tags with creator as "Machine"
                             : OrderedMap<string, ITagUi>();
 
-                        // Update existing tags with relevance from resClient
-                        const updatedExistingTags = existingTags.map((existingTag) => {
-                            const matchingTag = resClient.find(resTag => resTag?.qcode === existingTag.qcode);
-
-                            if (matchingTag && matchingTag.relevance !== existingTag.relevance) {
-                                return {
-                                    ...existingTag,
-                                    relevance: matchingTag.relevance,
-                                };
-                            }
-
-                            return existingTag;
-                        });
-
-                        // Merge updated existing tags with new tags
-                        const mergedTags = OrderedMap<string, ITagUi>()
-                            .merge(resClient)
-                            .merge(updatedExistingTags);
+                        // Merge new analysis with existing tags
+                        const mergedTags = existingTags.merge(resClient);
 
                         this.setState({
                             data: {
                                 original: dataBeforeLoading === 'loading' || dataBeforeLoading === 'not-initialized'
                                     ? { analysis: OrderedMap<string, ITagUi>() } // initialize empty data
                                     : dataBeforeLoading.original, // use previous data
-                                    changes: { analysis: mergedTags },
+                                changes: { analysis: mergedTags },
                             },
                         });
                     }
