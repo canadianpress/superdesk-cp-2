@@ -216,11 +216,11 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
 
                     if (this._mounted) {
                         const existingTags = dataBeforeLoading !== 'loading' && dataBeforeLoading !== 'not-initialized'
-                            ? dataBeforeLoading.changes.analysis // keep existing tags
+                            ? dataBeforeLoading.changes.analysis.filter(tag => tag.creator !== 'Machine') // filter out tags with creator as "Machine"
                             : OrderedMap<string, ITagUi>();
 
                         // Merge new analysis with existing tags
-                        const mergedTags = existingTags.merge(resClient);
+                        const mergedTags = OrderedMap<string, ITagUi>().merge(existingTags).merge(resClient);
 
                         this.setState({
                             data: {
