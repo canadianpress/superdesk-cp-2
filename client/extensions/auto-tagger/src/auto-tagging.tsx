@@ -220,7 +220,7 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
                             : OrderedMap<string, ITagUi>();
 
                         // Merge new analysis with existing tags
-                        const mergedTags = existingTags.merge(resClient);
+                        const mergedTags = OrderedMap<string, ITagUi>().merge(existingTags).merge(resClient);
 
                         this.setState({
                             data: {
