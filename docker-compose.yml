@@ -27,6 +27,24 @@ services:
       - "9200:9200"
     volumes:
       - elastic:/usr/share/elasticsearch/data
+  
+  superdesk-server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    networks:
+      - superdesk
+
+  superdesk-client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    networks:
+      - superdesk
 
   server:
     build: ./server
