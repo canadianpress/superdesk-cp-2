@@ -63,6 +63,8 @@ services:
 
   superdesk-client:
     build: ./client
+    depends_on:
+      - superdesk-server
     environment:
       # If not hosting on localhost, change these lines
       - SUPERDESK_URL=http://localhost:8080/api
