@@ -33,6 +33,7 @@ ENV CELERYBEAT_SCHEDULE_FILENAME=/tmp/celerybeatschedule.db
 ENV TZ=Europe/Prague
 
 COPY . .
+
 RUN chmod +x /opt/superdesk/docker/start.sh
 
 ENTRYPOINT [ "/opt/superdesk/docker/start.sh" ]

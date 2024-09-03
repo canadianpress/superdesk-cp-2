@@ -17,4 +17,6 @@ honcho run python3 manage.py app:initialize_data
 # make sure there is admin:admin user
 honcho run python3 manage.py users:create -u admin -p admin -e admin@localhost --admin
 
+honcho run python3 manage.py app:prepopulate
+
 exec "$@"
