@@ -1,10 +1,10 @@
 # BUILD
-FROM node:12 AS build
+FROM node:14 AS build
 
 # install client
 WORKDIR /tmp/client
 COPY . .
-RUN npm install --no-audit --unsafe-perm
+RUN npm ci
 RUN npm run build
 
 # DEPLOY
@@ -19,10 +19,7 @@ COPY --from=build /tmp/client/dist ./
 RUN rm /etc/nginx/conf.d/default.conf
 COPY ./docker/nginx.conf /etc/nginx/nginx.conf
 COPY ./docker/superdesk_vhost.conf /etc/nginx/sites-enabled/superdesk.conf
-COPY ./docker/start.sh /opt/superdesk/clientstart.sh
-RUN chmod +x /opt/superdesk/clientstart.sh
+COPY ./docker/start.sh /opt/superdesk/start.sh
 
-ENTRYPOINT [ "/opt/superdesk/clientstart.sh" ]
-
-EXPOSE 8080
+ENTRYPOINT [ "/opt/superdesk/start.sh" ]
 CMD ["nginx", "-g daemon off;"]

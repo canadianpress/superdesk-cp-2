@@ -3,7 +3,7 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive 
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-python3 python3-dev python3-pip python3-venv git gcc curl \
+python3 python3-dev python3-pip python3-venv git gcc curl exempi \
 # lxml
 libxml2-dev libxslt-dev \
 # xmlsec
@@ -36,9 +36,5 @@ COPY . .
 RUN chmod +x /opt/superdesk/docker/start.sh
 
 ENTRYPOINT [ "/opt/superdesk/docker/start.sh" ]
-
-EXPOSE 5000
-EXPOSE 5100
-EXPOSE 5400
 
 CMD ["honcho", "start"]
