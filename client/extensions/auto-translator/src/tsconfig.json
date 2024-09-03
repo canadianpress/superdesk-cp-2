@@ -2,6 +2,5 @@
     "extends": "superdesk-code-style/tsconfig-strict",
     "compilerOptions": {
         "outDir": "../dist/src",
-        "esModuleInterop": true
     }
 }

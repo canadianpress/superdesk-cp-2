@@ -1,33 +1,36 @@
-import {
-  IArticle,
-  IExtension,
-  IExtensionActivationResult,
-} from "superdesk-api";
-import { WIDGET_ID } from "./constants";
-import { superdesk } from "./superdesk";
-import { AutoTranslatorWidget } from "./widget";
+import * as React from "react"
+import { ISuperdesk, IExtension, IExtensionActivationResult, IArticle, IArticleSideWidgetComponentType } from 'superdesk-api';
+
+const autoTranslatorWidgetFactory = () => {
+    return class Widget extends React.Component {
+        render() {
+            return <>TEST123</>
+        }
+    }
+}
 
 const extension: IExtension = {
-  activate: () => {
-    const { gettext } = superdesk.localization;
+    // @ts-ignore
+    activate: (superdesk: ISuperdesk) => {
+        // const { gettext } = superdesk.localization;
+        const label = "Translate"
+        const result: IExtensionActivationResult = {
+            contributions: {
+                authoringSideWidgets: [
+                    {
+                        _id: 'auto-translator-widget',
+                        label: label,
+                        icon: 'multiedit',
+                        order: 1,
+                        component: autoTranslatorWidgetFactory() as React.ComponentClass<IArticleSideWidgetComponentType, any>,
+                        isAllowed: (item: IArticle) => item.type === 'text',
+                    },
+                ],
+            },
+        };
 
-    const result: IExtensionActivationResult = {
-      contributions: {
-        authoringSideWidgets: [
-          {
-            _id: WIDGET_ID,
-            label: gettext("Auto Translate"),
-            icon: "multiedit",
-            order: 1,
-            component: AutoTranslatorWidget,
-            isAllowed: (item: IArticle) => item.type === "text",
-          },
-        ],
-      },
-    };
-
-    return Promise.resolve(result);
-  },
+        return Promise.resolve(result);
+    },
 };
 
 export default extension;
