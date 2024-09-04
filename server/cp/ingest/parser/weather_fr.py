@@ -27,24 +27,23 @@ class WeatherParserFR(FeedParser):
         filename = file_path.split('.')[0].split('/')[-1]
         filename = filename[:12].replace('_',' ')
 
-        if filename in self.english_filenames:
-            print('filename is english')
-            return False
-        elif filename in self.french_filenames:
-            print('filename is french')
-            True
+        if filename in self.french_filenames:
+            return True
+        # elif filename in self.english_filenames:
+        #     return False
             
-        # Read the file and check for English keywords
-        with open(file_path, "r", encoding='windows-1252') as file:
-            article = file.read()
-            is_english = any(keyword in article for keyword in ['\nEND', 'FORECAST','==DISCUSSION==', 'Tabular State Forecast','PRELIMINARY DATA'])
-            print('English keywords detected: ', is_english)
+        # # Read the file and check for English keywords
+        # with open(file_path, "r", encoding='windows-1252') as file:
+        #     article = file.read()
+        #     is_english = any(keyword in article for keyword in ['\nEND', 'FORECAST','==DISCUSSION==', 'Tabular State Forecast','PRELIMINARY DATA'])
+        #     print('English keywords detected: ', is_english)
 
-            # Update the appropriate list and save
-            (self.english_filenames if is_english else self.french_filenames).append(filename)
-            self.save_filenames()
+        #     # Update the appropriate list and save
+        #     (self.english_filenames if is_english else self.french_filenames).append(filename)
+        #     self.save_filenames()
         
-        return not is_english
+        # return not is_english
+        return False
 
 
         
