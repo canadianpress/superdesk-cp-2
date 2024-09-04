@@ -92,7 +92,7 @@ export class AutoTranslatorWidget extends React.Component<IArticleSideWidgetComp
               }
             >
               <>
-                <GridList>
+                <GridList margin="0">
                   <Select value="Option 1" label="Select 1" onChange={() => {}}>
                     <Option>Option 1</Option>
                     <Option>Option 2</Option>
@@ -101,11 +101,13 @@ export class AutoTranslatorWidget extends React.Component<IArticleSideWidgetComp
                     <Option>Option 1</Option>
                     <Option>Option 2</Option>
                   </Select>
-                  <Button text="Translate" type="primary" onClick={() => {}} />
+                  <Container className="items-end">
+                    <Button text="Translate" type="primary" onClick={() => {}} />
+                  </Container>
                 </GridList>
                 <ContentDivider />
                 <ResizablePanels direction="horizontal" primarySize={{ min: 33, default: 50 }} secondarySize={{ min: 33, default: 50 }}>
-                  <Container gap="large" direction="column" className="sd-padding-2">
+                  <Container gap="large" direction="column" className="mx-2">
                     <Input
                       label="Headline"
                       value={""}
@@ -128,7 +130,7 @@ export class AutoTranslatorWidget extends React.Component<IArticleSideWidgetComp
                     />
                     <Input label="Body" value={""} boxedStyle={true} boxedLable={true} maxLength={25} type="text" tabindex={0} onChange={() => {}} />
                   </Container>
-                  <Container gap="large" direction="column" className="sd-padding-2">
+                  <Container gap="large" direction="column" className="mx-2">
                     <Input
                       label="Headline"
                       value={""}
