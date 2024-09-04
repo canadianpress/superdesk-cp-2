@@ -1,76 +1,69 @@
-import * as React from "react";
-import { createPortal } from "react-dom";
+import * as React from "react"
+import { superdesk } from "../superdesk"
 import { IArticleSideWidgetComponentType } from "superdesk-api";
-import {
-  GridList,
-  IllustrationButton,
-  SvgIconIllustration,
-} from "superdesk-ui-framework/react";
-import { WIDGET_ID } from "../constants";
-import { superdesk } from "../superdesk";
-import { TranslationDialog } from "./translation-dialog";
+import { IllustrationButton, Modal, SvgIconIllustration, Spacer, ResizablePanels } from "superdesk-ui-framework/react";
 
-type AutoTranslatorWidgetProps = { isTranslationOpen: boolean };
+const { AuthoringWidgetLayout, AuthoringWidgetHeading } = superdesk.components;
 
-export class AutoTranslatorWidget extends React.Component<
-  IArticleSideWidgetComponentType,
-  AutoTranslatorWidgetProps
-> {
-  state = { isTranslationOpen: false };
+const WIDGET_ID = 'auto-translator-widget'
 
-  render() {
-    const { gettext } = superdesk.localization;
-    const { AuthoringWidgetLayout, AuthoringWidgetHeading } =
-      superdesk.components;
-
-    const closeTranslationDialog = () => {
-      this.setState({ isTranslationOpen: false });
-    };
-
+function renderResult({ header, body, footer }: { header?: JSX.Element, body: JSX.Element, footer?: JSX.Element }) {
     return (
-      <>
         <AuthoringWidgetLayout
-          header={
-            <AuthoringWidgetHeading
-              widgetId={WIDGET_ID}
-              widgetName={gettext("Auto Translate")}
-              editMode={false}
-            />
-          }
-          body={
-            <Menu
-              openTranslationDialog={() => {
-                this.setState({ isTranslationOpen: true });
-              }}
-            />
-          }
+            header={(
+                <Spacer v gap="0" alignItems="center">
+                    <AuthoringWidgetHeading
+                        widgetId={WIDGET_ID}
+                        // TODO: add localization
+                        widgetName={"Auto Translate"}
+                        editMode={false}
+                    />
+                    {header}
+                </Spacer>
+            )}
+            body={body}
+            footer={footer}
         />
-        {this.state.isTranslationOpen &&
-          createPortal(
-            <TranslationDialog
-              currentArticle={this.props.article}
-              closeDialog={closeTranslationDialog}
-            />,
-            document.body
-          )}
-      </>
     );
-  }
 }
 
-type MenuProps = { openTranslationDialog: () => void };
+export class AutoTranslatorWidget extends React.Component<IArticleSideWidgetComponentType> {
+    state = { isTranslationOpen: false }
 
-const Menu = ({ openTranslationDialog }: MenuProps) => {
-  const { gettext } = superdesk.localization;
+    render() {
+        console.count("autoTranslatorWidget")
+        return <>
+            {renderResult({
+                body: <div className="
+                                        sd-grid-list
+                                        sd-grid-list--xx-small
+                                        sd-grid-list--gap-s
+                                        sd-grid-list--no-margin
+                                    "
+                >
+                    <IllustrationButton
+                        text='Translate'
+                        onClick={() => {
+                            this.setState({ isTranslationOpen: true })
+                        }}
+                    >
+                        <SvgIconIllustration illustration="translate" />
+                    </IllustrationButton>
+                </div>
+            })}
+            {this.state.isTranslationOpen &&
+                <Modal headerTemplate="Extra large modal" visible={this.state.isTranslationOpen} size='x-large' onHide={() => { this.setState({ isTranslationOpen: false }) }} zIndex={10000}>
+                    <ResizablePanels direction="horizontal" primarySize={{ min: 33, default: 50 }} secondarySize={{ min: 33, default: 50 }}>
+                        <div>
+                            TEST LEFT SIDE
+                        </div>
 
-  return (
-    <GridList size="x-small" gap="small" margin="0">
-      <IllustrationButton
-        text={gettext("Translate")}
-        onClick={openTranslationDialog}
-      >
-        <SvgIconIllustration illustration="translate" />
-      </IllustrationButton>
-    </GridList>
-  );
-};
+                        <div>
+                            TEST RIGHT SIDE
+                        </div>
+                    </ResizablePanels>
+                </Modal>
+            }
+        </>
+    }
+}
