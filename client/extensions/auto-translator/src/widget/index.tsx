@@ -16,9 +16,12 @@ import {
   Container,
   ContentDivider,
   GridList,
+  InputWrapper,
 } from "superdesk-ui-framework/react";
 
-const { AuthoringWidgetLayout, AuthoringWidgetHeading } = superdesk.components;
+const { AuthoringWidgetLayout, AuthoringWidgetHeading, Editor3Html } = superdesk.components;
+const { applyFieldChangesToEditor } = superdesk.ui.article;
+const { articleInEditMode } = superdesk.state;
 
 const WIDGET_ID = "auto-translator-widget";
 
@@ -43,9 +46,10 @@ function renderResult({ header, body, footer }: { header?: JSX.Element; body: JS
 }
 
 export class AutoTranslatorWidget extends React.Component<IArticleSideWidgetComponentType> {
-  state = { isTranslationOpen: false };
+  state = { isTranslationOpen: false, isCreatingArticle: false, editor3Value: "" };
 
   render() {
+    console.log({ superdesk, props: this.props });
     return (
       <>
         {renderResult({
@@ -65,6 +69,9 @@ export class AutoTranslatorWidget extends React.Component<IArticleSideWidgetComp
                 }}
               >
                 <SvgIconIllustration illustration="translate" />
+              </IllustrationButton>
+              <IllustrationButton text="Lexicon" onClick={() => {}}>
+                <SvgIconIllustration illustration="keywords" />
               </IllustrationButton>
             </div>
           ),
@@ -87,7 +94,25 @@ export class AutoTranslatorWidget extends React.Component<IArticleSideWidgetComp
                       this.setState({ isTranslationOpen: false });
                     }}
                   />
-                  <Button text="Create" type="primary" onClick={() => {}} />
+                  <Button
+                    text="Apply"
+                    type="primary"
+                    style="hollow"
+                    tooltip="Apply changes on the original version to the editor"
+                    onClick={() => {
+                      if (!articleInEditMode) return;
+                      applyFieldChangesToEditor(articleInEditMode, { key: "body_html", value: this.state.editor3Value });
+                      this.setState({ isTranslationOpen: false });
+                    }}
+                  />
+                  <Button
+                    text="Create"
+                    type="primary"
+                    tooltip="Create a translated version of the open article"
+                    onClick={() => {
+                      this.setState({ isCreatingArticle: true });
+                    }}
+                  />
                 </ButtonGroup>
               }
             >
@@ -108,6 +133,13 @@ export class AutoTranslatorWidget extends React.Component<IArticleSideWidgetComp
                 <ContentDivider />
                 <ResizablePanels direction="horizontal" primarySize={{ min: 33, default: 50 }} secondarySize={{ min: 33, default: 50 }}>
                   <Container gap="large" direction="column" className="mx-2">
+                    <div>
+                      <Select value="Original" label="Version" inlineLabel onChange={() => {}}>
+                        <Option>Original</Option>
+                        <Option>AI Translated</Option>
+                        <Option>Manual Translation</Option>
+                      </Select>
+                    </div>
                     <Input
                       label="Headline"
                       value={""}
@@ -128,9 +160,23 @@ export class AutoTranslatorWidget extends React.Component<IArticleSideWidgetComp
                       tabindex={0}
                       onChange={() => {}}
                     />
-                    <Input label="Body" value={""} boxedStyle={true} boxedLable={true} maxLength={25} type="text" tabindex={0} onChange={() => {}} />
+                    <InputWrapper label="Body HTML" fullWidth boxedStyle boxedLable>
+                      <Editor3Html
+                        key="Body HTML"
+                        value={this.state.editor3Value}
+                        onChange={(value) => {
+                          this.setState({ editor3Value: value });
+                        }}
+                        readOnly={false}
+                      />
+                    </InputWrapper>
                   </Container>
                   <Container gap="large" direction="column" className="mx-2">
+                    <Select value="AI Translated" label="Version" onChange={() => {}}>
+                      <Option>Original</Option>
+                      <Option>AI Translated</Option>
+                      <Option>Manual Translation</Option>
+                    </Select>
                     <Input
                       label="Headline"
                       value={""}
@@ -154,6 +200,43 @@ export class AutoTranslatorWidget extends React.Component<IArticleSideWidgetComp
                     <Input label="Body" value={""} boxedStyle={true} boxedLable={true} maxLength={25} type="text" tabindex={0} onChange={() => {}} />
                   </Container>
                 </ResizablePanels>
+              </>
+            </Modal>,
+            document.body
+          )}
+        {this.state.isCreatingArticle &&
+          createPortal(
+            <Modal
+              onHide={() => {
+                this.setState({ isCreatingArticle: false });
+              }}
+              size="medium"
+              visible={this.state.isCreatingArticle}
+              headerTemplate="Create Translated Article"
+              footerTemplate={
+                <ButtonGroup align="end">
+                  <Button
+                    text="Cancel"
+                    style="hollow"
+                    onClick={() => {
+                      this.setState({ isCreatingArticle: false });
+                    }}
+                  />
+                  <Button
+                    text="Create"
+                    type="primary"
+                    onClick={() => {
+                      this.setState({});
+                    }}
+                  />
+                </ButtonGroup>
+              }
+            >
+              <>
+                <Select value="Desk 1" label="Desk" onChange={() => {}}>
+                  <Option>Desk 1</Option>
+                  <Option>Desk 2</Option>
+                </Select>
               </>
             </Modal>,
             document.body
