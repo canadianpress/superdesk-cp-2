@@ -2,7 +2,7 @@ from superdesk.io.feed_parsers.__init__ import FeedParser
 import uuid
 import json
 import re
-import uuid
+import logging
 
 SOURCE = 'Weather Parser (EN)' 
 
@@ -16,42 +16,41 @@ class WeatherParserEN(FeedParser):
     NAME = label.lower() # Unique name under which to register the class.
     filenames_path = '/opt/superdesk/server/cp/ingest/parser/data/weather_filenames.json'
     english_filenames = []
-    french_filenames = []
     
+    logger = None
 
+    @classmethod
+    def setup_logger(cls):
+        if cls.logger is None:
+            cls.logger = logging.getLogger(__name__)
+            cls.logger.setLevel(logging.DEBUG)
+            fh = logging.FileHandler('/tmp/weather_parser_en.log')
+            fh.setLevel(logging.DEBUG)
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            fh.setFormatter(formatter)
+            cls.logger.addHandler(fh)
 
     def __init__(self):
         super().__init__()
         self.load_filenames()
-            
+
     def can_parse(self, file_path):
-        filename = file_path.split('.')[0].split('/')[-1]
-        filename = filename[:12].replace('_',' ')
-
+        filename = file_path.replace('/tmp/', '')[:11]
+        self.logger.debug(f"Checking if can parse: {filename}")
+        self.logger.debug(f"English filenames: {self.english_filenames}")
         if filename in self.english_filenames:
+            self.logger.debug("Can parse: True")
             return True
-        # elif filename in self.french_filenames:
-        #     False
-            
-        # Read the file and check for English keywords
-        # with open(file_path, "r", encoding='windows-1252') as file:
-        #     article = file.read()
-        #     is_english = any(keyword in article for keyword in ['\nEND', 'FORECAST','==DISCUSSION==', 'Tabular State Forecast','PRELIMINARY DATA'])
-
-        #     # Update the appropriate list and save
-        #     (self.english_filenames if is_english else self.french_filenames).append(filename)
-        #     self.save_filenames()
-        
-        # return is_english
-        return False
+        else:
+            self.logger.debug("Can parse: False")
+            return False
 
 
         
     def parse(self, file_path, provider=None):
-
+        self.logger.debug(f"Parsing file: {file_path}")
         item = {}     
         with open(file_path, "r", encoding='windows-1252') as file:
-
             article = file.read()
             paragraphs = article.split('\n\n')
             # Extract the slugline from first paragraph
@@ -86,23 +85,20 @@ class WeatherParserEN(FeedParser):
     
     @classmethod
     def load_filenames(cls):
-        """Load filenames from JSON file."""
+        cls.setup_logger()  # Ensure logger is set up before using it
+        cls.logger.debug(f"Loading filenames from: {cls.filenames_path}")
         try:
             with open(cls.filenames_path, 'r', encoding='windows-1252') as file:
                 filenames = json.load(file)
                 cls.english_filenames = filenames['English']
-                cls.french_filenames = filenames['French']
         except FileNotFoundError:
-            pass
-            #cls.english_filenames = []
-            #cls.french_filenames = []
+            cls.english_filenames = []
     
     @classmethod
     def save_filenames(cls):
         """Save updated filenames to a JSON file."""
         data = {
-            'English': cls.english_filenames,
-            'French': cls.french_filenames
+            'English': cls.english_filenames
         }
         with open(cls.filenames_path, 'w', encoding='windows-1252') as file:
             json.dump(data, file, indent=4)
@@ -148,7 +144,7 @@ class WeatherParserEN(FeedParser):
         return html 
     
     @classmethod
-    def format_prevision_data(content):
+    def format_prevision_data(cls, content):
         original_paragraphs = content.split('\n\n') 
         target_paragraphs = original_paragraphs[1:-2]    
         updated_paragraphs = []
