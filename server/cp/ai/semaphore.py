@@ -356,7 +356,7 @@ class Semaphore(AIServiceBase):
                     id_value = "http://cv.cp.org/4916d989-2227-4f2d-8632-525cd462ab9f"
                 elif scheme == "organisation":
                     id_value = "http://cv.cp.org/e2c332d3-05e0-4dcc-b358-9e4855e80e88"
-                elif scheme == "places":
+                elif scheme == "place":
                     id_value = "http://cv.cp.org/c3b17bf6-7969-424d-92ae-966f4f707a95"
                 elif scheme == "person":
                     id_value = "http://cv.cp.org/1630a532-329f-43fe-9606-b381330c35cf"
