@@ -466,7 +466,7 @@ class Semaphore(AIServiceBase):
             SCHEMES = {
                 "Place": "http://cv.cp.org/Places/",
                 "Organisation": "http://cv.cp.org/Organizations/",
-                "Person": "http://cv.cp.org/Person/",
+                "Person": "http://cv.cp.org/People/",
                 "Event": "http://cv.cp.org/Events/",
             }
             media_topic_labels = {}

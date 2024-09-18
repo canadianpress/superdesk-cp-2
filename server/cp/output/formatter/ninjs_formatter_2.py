@@ -83,27 +83,29 @@ def get_locale_name(item, language):
 
 def format_cv_item(item, language):
     """Format item from controlled vocabulary for output."""
-    if item.get("scheme") == "subject":
-        return filter_empty_vals(
-            {
-                "code": item.get("qcode"),
-                "name": get_locale_name(item, language),
-                "scheme": "http://cv.iptc.org/newscodes/mediatopic/",
-                "creator": item.get("creator", ""),
-                "relevance": item.get("relevance", 100),
-            }
-        )
-    else:
-        return filter_empty_vals(
-            {
-                "code": item.get("qcode"),
-                "name": get_locale_name(item, language),
-                "scheme": item.get("scheme"),
-                "creator": item.get("creator", ""),
-                "relevance": item.get("relevance", 100),
-            }
-        )
-
+    scheme = item.get("scheme")
+    if scheme == "subject":
+        scheme = "http://cv.iptc.org/newscodes/mediatopic/"
+    elif scheme == "person":
+        scheme = "http://cv.cp.org/People/"
+    elif scheme == "event":
+        scheme = "http://cv.cp.org/Events/"
+    elif scheme == "organisation":
+        scheme = "http://cv.cp.org/Organizations/"
+    elif scheme == "place":
+        scheme = "http://cv.cp.org/Places/"
+    
+    formatted_item = {
+        "code": item.get("qcode"),
+        "name": get_locale_name(item, language),
+        "scheme": scheme,
+    }
+    if scheme in ["http://cv.iptc.org/newscodes/mediatopic/", "http://cv.cp.org/People/", "http://cv.cp.org/Places/", "http://cv.cp.org/Organizations/", "http://cv.cp.org/Events/", "subject_custom",]:
+        formatted_item.update({
+            "creator": item.get("creator", ""),
+            "relevance": item.get("relevance", 47),
+        })
+    return filter_empty_vals(formatted_item)
 
 class NINJSFormatter_2(Formatter):
     """
