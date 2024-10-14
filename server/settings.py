@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "cp.set_province_on_publish",
     "cp.set_byline_on_publish",
     "cp.ai.semaphore",
+    "cp.ai.translate",
 ]
 
 MACROS_MODULE = "cp.macros"
