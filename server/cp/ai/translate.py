@@ -3,8 +3,8 @@ from typing import Dict, List, Literal, Mapping, Optional, TypedDict, Union, ove
 from google.oauth2 import service_account
 from google.auth.transport.requests import Request
 import requests
+from superdesk.text_checkers.ai.base import AIServiceBase
 
-# from superdesk.text_checkers.ai.base import AIServiceBase
 logger = logging.getLogger(__name__)
 
 ResponseType = Mapping[str, Union[str, List[str]]]
@@ -18,22 +18,10 @@ class TranslateData(TypedDict):
     payload: Dict[str, str]
 
 
-class Translate:
+class Translate(AIServiceBase):
     name = "translate"
     label = "Translation service"
 
-    # Define constant variables
-    GOOGLE_API_KEY = "AIzaSyAKY2tVGFCVtlJbaTuVh_SLHQN8n_cP0uI"  ## Provided by Michal
-    # GOOGLE_API_KEY = "AIzaSyBef2uoSrZa8W_jQvklM8TV9jA94rvAA6I" ## Personal key
-    GOOGLE_API_URL = "https://translation.googleapis.com/language/translate"
-    # PROJECT_ID = "translation-widget-436902"
-    PROJECT_ID = "pctrad-202713"
-    LOCATION = "us-central1"
-    DEEPL_AUTH_KEY = "e6ed7919-4f12-460e-9642-7bcbdc563790:fx"
-    DEEPL_API_URL = "https://api-free.deepl.com/v2/translate"
-    SERVICE_ACCOUNT_PATH = "server/cp/ai/service-account.json"
-
-    # Define translation types as constants
     TRANSLATION_TYPE_BASIC = "basic"
     TRANSLATION_TYPE_ADVANCED_NMT = "advanced_nmt"
     TRANSLATION_TYPE_ADVANCED_LLM = "advanced_llm"
@@ -41,17 +29,21 @@ class Translate:
     TRANSLATION_TYPE_DEEPL = "deepl"
 
     def __init__(self, app):
-        self.app = app
-        self.parent = f"projects/{self.PROJECT_ID}/locations/{self.LOCATION}"
+        self.GOOGLE_API_KEY = app.config.get("GOOGLE_API_KEY")
+        self.GOOGLE_API_URL = app.config.get("GOOGLE_API_URL")
+        self.GOOGLE_PROJECT_ID = app.config.get("GOOGLE_PROJECT_ID")
+        self.GOOGLE_PROJECT_LOCATION = app.config.get("GOOGLE_PROJECT_LOCATION")
+        self.GOOGLE_SERVICE_ACCOUNT_PATH = app.config.get("GOOGLE_SERVICE_ACCOUNT_PATH")
+        
+        self.DEEPL_AUTH_KEY = app.config.get("DEEPL_AUTH_KEY")
+        self.DEEPL_API_URL = app.config.get("DEEPL_API_URL")
+
+        self.parent = f"projects/{self.GOOGLE_PROJECT_ID}/locations/{self.GOOGLE_PROJECT_LOCATION}"
         self.model_path = f"{self.parent}/models/general"
         self.credentials = service_account.Credentials.from_service_account_file(
-            self.SERVICE_ACCOUNT_PATH,
-            scopes=["https://www.googleapis.com/auth/cloud-platform"],
+            self.GOOGLE_SERVICE_ACCOUNT_PATH,
+            scopes=app.config.get("GOOGLE_SCOPES"),
         )
-
-    def handle_error(self, e: Exception, context: str):
-        logger.error(f"{context} failed: {str(e)}")
-        return f"{context} failed: {str(e)}"
 
     def translate(self, item: TranslateData) -> ResponseType:
         try:
@@ -86,7 +78,7 @@ class Translate:
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.credentials.token}",
-                "x-goog-user-project": self.PROJECT_ID,
+                "x-goog-user-project": self.GOOGLE_PROJECT_ID,
             }
             payload = {
                 "q": texts,
@@ -95,15 +87,7 @@ class Translate:
                 "format": "html" if any("<" in text for text in texts) else "text",
             }
 
-            print(f"Sending request to URL: {url}")
-            print(f"Headers: {headers}")
-            print(f"Payload: {payload}")
-
             response = requests.post(url, headers=headers, json=payload)
-
-            print(f"Response status code: {response.status_code}")
-            print(f"Response content: {response.text}")
-
             response.raise_for_status()
             response_data = response.json()
 
@@ -167,6 +151,10 @@ class Translate:
             return self._prepare_translated_payload_deepl(item, response)
         except Exception as e:
             raise Exception(f"Deepl translation failed: {str(e)}")
+
+    def handle_error(self, e: Exception, context: str):
+        logger.error(f"{context} failed: {str(e)}")
+        return f"{context} failed: {str(e)}"
 
     def _join_texts(self, item: TranslateData) -> str:
         separator = "|||||"
@@ -261,32 +249,3 @@ class Translate:
 
 def init_app(app):
     return Translate(app)
-
-
-# Add this at the end of the file
-if __name__ == "__main__":
-    # Sample data for testing
-    sample_data = TranslateData(
-        guid="test_guid",
-        source_language="en",
-        target_language="fr",
-        translation_type="advanced_nmt",
-        payload={
-            "headline": "Hello, world!",
-            "body_html": "How are you?",
-            "headline_extended": "<p>Hello, world! <link>www.google.com</link> How are you?</p>",
-        },
-    )
-
-    class MockApp:
-        config = {
-            "TRANSLATION_API_KEY": "your_api_key_here",
-            "TRANSLATION_BASE_URL": "https://translation.googleapis.com",
-        }
-
-    translate_service = Translate(MockApp())
-
-    result = translate_service.translate(sample_data)
-
-    print("Translation result:")
-    print(result)
