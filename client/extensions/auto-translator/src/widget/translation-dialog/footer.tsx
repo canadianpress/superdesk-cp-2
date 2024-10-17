@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Button, ButtonGroup } from "superdesk-ui-framework";
+import { Button, ButtonGroup } from "superdesk-ui-framework/react";
 
 type FooterProps = { closeDialog: () => void };
 
@@ -8,11 +8,12 @@ export const Footer = ({ closeDialog }: FooterProps) => {
     <ButtonGroup align="end">
       <Button text="Cancel" style="hollow" onClick={closeDialog} />
       <button
-        value="Apply Translation"
+        type="submit"
         aria-label="Apply Translation"
-        title="Apply translation to working stage"
-        className="btn--normal btn--primary btn--hollow"
-      />
+        className="btn btn--primary btn--hollow"
+      >
+        Apply Translation
+      </button>
     </ButtonGroup>
   );
 };
