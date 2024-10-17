@@ -1,33 +1,17 @@
 import * as React from "react";
-import { ButtonGroup, Button } from "superdesk-ui-framework/react";
-import { superdesk } from "../../superdesk";
+import { Button, ButtonGroup } from "superdesk-ui-framework";
 
-type FooterProps = {
-  isLoading: boolean;
-  closeDialog: () => void;
-};
+type FooterProps = { closeDialog: () => void };
 
-export const Footer = ({ isLoading, closeDialog }: FooterProps) => {
-  const { gettext } = superdesk.localization;
-
+export const Footer = ({ closeDialog }: FooterProps) => {
   return (
     <ButtonGroup align="end">
-      <Button
-        text={gettext("Cancel")}
-        style="hollow"
-        onClick={(event) => {
-          event.preventDefault();
-          closeDialog();
-        }}
-      />
-      <Button
-        text={gettext("Apply Translation")}
-        type="primary"
-        style="hollow"
-        disabled={isLoading}
-        onClick={(event) => {
-          event.stopPropagation();
-        }}
+      <Button text="Cancel" style="hollow" onClick={closeDialog} />
+      <button
+        value="Apply Translation"
+        aria-label="Apply Translation"
+        title="Apply translation to working stage"
+        className="btn--normal btn--primary btn--hollow"
       />
     </ButtonGroup>
   );
