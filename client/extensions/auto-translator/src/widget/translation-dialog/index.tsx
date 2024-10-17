@@ -10,11 +10,11 @@ import {
   ResizablePanels,
   Input,
   InputWrapper,
-} from "superdesk-ui-framework";
+} from "superdesk-ui-framework/react";
 import { Footer } from "./footer";
 import { superdesk } from "../../superdesk";
 import { IArticle } from "superdesk-api";
-import { Form, useField, useFormik } from "formik";
+import { Formik, FormikHelpers, FormikProps, useField } from "formik";
 
 const { applyFieldChangesToEditor } = superdesk.ui.article;
 
@@ -35,47 +35,70 @@ type TranslationDialogFormProps = {
   manualTranslation: FormInputProps;
 };
 
-type TranslationFormProps = { key: keyof TranslationDialogFormProps };
+type TranslationFormProps = {
+  translationKey: keyof TranslationDialogFormProps;
+};
 
-const translationDialogFormInitialValues: TranslationDialogFormProps = {
-  origin: { headline: "", headline_extended: "", body_html: "" },
+const getTranslationDialogFormInitialValues = (workingArticle: IArticle) => ({
+  origin: {
+    headline: workingArticle.headline ?? "",
+    headline_extended: workingArticle?.extra?.headline_extended ?? "",
+    body_html: workingArticle.body_html ?? "",
+  },
   aiTranslation: { headline: "", headline_extended: "", body_html: "" },
   manualTranslation: { headline: "", headline_extended: "", body_html: "" },
-} as const;
+});
 
-const TextInput = ({ name }: { name: string }) => {
-  const [field] = useField(name);
+const TextInput = ({ name, label }: { name: string; label: string }) => {
+  // @ts-ignore
+  const [field, meta, helpers] = useField(name);
+  const { setValue } = helpers;
 
   return (
     <Input
-      label="Headline"
+      label={label}
       boxedStyle={true}
       boxedLable={true}
       maxLength={25}
       type="text"
       tabindex={0}
       {...field}
+      onChange={(value) => {
+        setValue(value);
+      }}
     />
   );
 };
 
 const TextEditorInput = ({ name }: { name: string }) => {
-  const [field] = useField(name);
+  // @ts-ignore
+  const [field, meta, helpers] = useField(name);
+  const { setValue } = helpers;
   const { Editor3Html } = superdesk.components;
 
   return (
     <InputWrapper label="Body HTML" fullWidth boxedStyle boxedLable>
-      <Editor3Html key="Body HTML" readOnly={false} {...field} />
+      <Editor3Html
+        key="Body HTML"
+        readOnly={false}
+        {...field}
+        onChange={(value) => {
+          setValue(value);
+        }}
+      />
     </InputWrapper>
   );
 };
 
-const TranslationForm = ({ key }: TranslationFormProps) => {
+const TranslationForm = ({ translationKey }: TranslationFormProps) => {
   return (
     <>
-      <TextInput name={`${key}.headline`} />
-      <TextInput name={`${key}.headline_extended`} />
-      <TextEditorInput name={`${key}.body_html`} />
+      <TextInput name={`${translationKey}.headline`} label="Headline" />
+      <TextInput
+        name={`${translationKey}.headline_extended`}
+        label="Extended Headline"
+      />
+      <TextEditorInput name={`${translationKey}.body_html`} />
     </>
   );
 };
@@ -84,7 +107,13 @@ export const TranslationDialog = ({
   workingArticle,
   closeDialog,
 }: TranslationDialogProps) => {
-  const onSubmit = (values: TranslationDialogFormProps) => {
+  const { _id: articleId } = workingArticle;
+
+  const onSubmit = (
+    values: TranslationDialogFormProps,
+    // @ts-ignore
+    formikHelpers: FormikHelpers<TranslationDialogFormProps>
+  ) => {
     if (!articleId) return;
 
     applyFieldChangesToEditor(articleId, {
@@ -102,65 +131,71 @@ export const TranslationDialog = ({
       key: "body_html",
       value: values.manualTranslation.body_html,
     });
+
     closeDialog();
   };
 
-  const formik = useFormik<TranslationDialogFormProps>({
-    initialValues: translationDialogFormInitialValues,
-    onSubmit,
-  });
-  const { _id: articleId } = workingArticle;
-
   return (
-    <Form onSubmit={formik.handleSubmit}>
-      <Modal
-        headerTemplate="Translate"
-        visible
-        size="x-large"
-        onHide={closeDialog}
-        footerTemplate={<Footer closeDialog={closeDialog} />}
-      >
-        <GridList margin="0">
-          <Select value="Option 1" label="Select 1" onChange={() => {}}>
-            <Option>Option 1</Option>
-            <Option>Option 2</Option>
-          </Select>
-          <Select value="Option 2" label="Select 2" onChange={() => {}}>
-            <Option>Option 1</Option>
-            <Option>Option 2</Option>
-          </Select>
-          <Container className="items-end">
-            <Button text="Translate" type="primary" onClick={() => {}} />
-          </Container>
-        </GridList>
-        <ContentDivider />
-        <ResizablePanels
-          direction="horizontal"
-          primarySize={{ min: 33, default: 50 }}
-          secondarySize={{ min: 33, default: 50 }}
-        >
-          <Container gap="large" direction="column" className="mx-2">
-            <div>
-              <Select value="Original" label="Version" onChange={() => {}}>
-                <Option>Original</Option>
-                <Option>AI Translated</Option>
-                <Option>Manual Translation</Option>
+    <Formik
+      initialValues={getTranslationDialogFormInitialValues(workingArticle)}
+      onSubmit={onSubmit}
+    >
+      {(props: FormikProps<TranslationDialogFormProps>) => (
+        <form onSubmit={props.handleSubmit}>
+          <Modal
+            headerTemplate="Translate"
+            visible
+            size="x-large"
+            onHide={closeDialog}
+            footerTemplate={<Footer closeDialog={closeDialog} />}
+          >
+            <GridList margin="0">
+              <Select value="Option 1" label="Select 1" onChange={() => {}}>
+                <Option>Option 1</Option>
+                <Option>Option 2</Option>
               </Select>
-            </div>
-            <TranslationForm key="origin" />
-          </Container>
-          <Container gap="large" direction="column" className="mx-2">
-            <div>
-              <Select value="AI Translated" label="Version" onChange={() => {}}>
-                <Option>Original</Option>
-                <Option>AI Translated</Option>
-                <Option>Manual Translation</Option>
+              <Select value="Option 2" label="Select 2" onChange={() => {}}>
+                <Option>Option 1</Option>
+                <Option>Option 2</Option>
               </Select>
-            </div>
-            <TranslationForm key="aiTranslation" />
-          </Container>
-        </ResizablePanels>
-      </Modal>
-    </Form>
+              <Container className="items-end">
+                <Button text="Translate" type="primary" onClick={() => {}} />
+              </Container>
+            </GridList>
+            <ContentDivider />
+            <ResizablePanels
+              direction="horizontal"
+              primarySize={{ min: 33, default: 50 }}
+              secondarySize={{ min: 33, default: 50 }}
+            >
+              <Container gap="large" direction="column" className="mx-2">
+                <div>
+                  <Select value="Original" label="Version" onChange={() => {}}>
+                    <Option>Original</Option>
+                    <Option>AI Translated</Option>
+                    <Option>Manual Translation</Option>
+                  </Select>
+                </div>
+                <TranslationForm translationKey="origin" />
+              </Container>
+              <Container gap="large" direction="column" className="mx-2">
+                <div>
+                  <Select
+                    value="AI Translated"
+                    label="Version"
+                    onChange={() => {}}
+                  >
+                    <Option>Original</Option>
+                    <Option>AI Translated</Option>
+                    <Option>Manual Translation</Option>
+                  </Select>
+                </div>
+                <TranslationForm translationKey="aiTranslation" />
+              </Container>
+            </ResizablePanels>
+          </Modal>
+        </form>
+      )}
+    </Formik>
   );
 };
