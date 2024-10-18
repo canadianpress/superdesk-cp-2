@@ -70,7 +70,7 @@ services:
       - superdesk
     develop:
       watch:
-        - action: sync
+        - action: rebuild
           path: ./client
           target: /opt/client
           ignore:

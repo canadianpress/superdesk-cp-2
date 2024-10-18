@@ -1,19 +1,29 @@
 import * as React from "react";
-import { Button, ButtonGroup } from "superdesk-ui-framework/react";
+import { ButtonGroup } from "superdesk-ui-framework/react";
+import { Button } from "../../components";
 
 type FooterProps = { closeDialog: () => void };
 
 export const Footer = ({ closeDialog }: FooterProps) => {
   return (
     <ButtonGroup align="end">
-      <Button text="Cancel" style="hollow" onClick={closeDialog} />
-      <button
+      <Button
+        label="Cancel"
+        aria-label="Cancel"
+        superdeskButtonProps={{
+          style: "hollow",
+        }}
+        onClick={closeDialog}
+      />
+      <Button
         type="submit"
+        label="Apply Translation"
         aria-label="Apply Translation"
-        className="btn btn--primary btn--hollow"
-      >
-        Apply Translation
-      </button>
+        superdeskButtonProps={{
+          type: "primary",
+          style: "hollow",
+        }}
+      />
     </ButtonGroup>
   );
 };
