@@ -252,9 +252,7 @@ pyasn1-modules==0.4.2
     #   oauth2client
 pycparser==2.22
     # via cffi
-pyexiv2==2.15.4
-    # via superdesk-core
-pyjwt==2.10.1
+pyjwt==2.8.0
     # via superdesk-core
 pymemcache==4.0.0
     # via superdesk-core
@@ -334,7 +332,7 @@ six==1.17.0
     #   python-dateutil
 superdesk-analytics @ git+https://github.com/superdesk/superdesk-analytics.git@develop
     # via -r requirements.in
-superdesk-core[exiv2] @ git+https://github.com/canadianpress/superdesk-core.git@dev
+superdesk-core @ git+https://github.com/superdesk/superdesk-core.git@release/2.8
     # via
     #   -r requirements.in
     #   superdesk-core

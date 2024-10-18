@@ -3,7 +3,7 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive 
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-python3 python3-dev python3-pip python3-venv git gcc curl exempi \
+python3 python3-dev python3-pip python3-venv git gcc curl \
 # lxml
 libxml2-dev libxslt-dev \
 # xmlsec
