@@ -1,73 +1,55 @@
-import {
-  FieldHelperProps,
-  FieldInputProps,
-  FieldMetaProps,
-  useField,
-} from "formik";
+import { useField } from "formik";
 import * as React from "react";
-import { Select as SuperdeskSelect } from "superdesk-ui-framework/react";
-import { RecursiveKeyOf } from "../formik-utilties";
 
-type SelectProps<T> = Omit<
-  React.InputHTMLAttributes<HTMLSelectElement>,
-  "onChange"
-> & {
+type SelectProps = React.InputHTMLAttributes<HTMLSelectElement> & {
   label: string;
-  field?: FieldInputProps<T>;
-  meta?: FieldMetaProps<T>;
-  helpers?: FieldHelperProps<T>;
-  value?: string;
-  onChange?: (newValue: string) => void;
+  field?: any;
+  meta?: any;
   [key: string]: any;
 };
 
-export const Select = <T,>({
+export const Select = ({
   children,
   label,
   field,
   meta,
-  helpers,
-  value,
-  onChange,
   ...props
-}: SelectProps<T>) => {
+}: SelectProps) => {
   return (
-    <SuperdeskSelect
-      {...field}
-      {...props}
-      label={label}
-      value={(field?.value as string) || (value as string)}
-      onChange={(newValue) => {
-        if (onChange) onChange(newValue);
-        else if (helpers) helpers.setValue(newValue as T);
-      }}
-      error={meta?.error ? meta.error : undefined}
-    >
-      {children}
-    </SuperdeskSelect>
+    <div className="sd-input sd-input--medium">
+      <label className="sd-input__label" htmlFor={label} id={`${label}label`}>
+        {label}
+      </label>
+      <div className="sd-input__input-container">
+        <span className="sd-input__select-caret-wrapper">
+          <select
+            {...field}
+            {...props}
+            aria-describedby={`${label}label`}
+            className="sd-input__select"
+            id={label}
+          >
+            {children}
+          </select>
+        </span>
+      </div>
+      {meta?.error && <div className="sd-input__message-box">{meta.error}</div>}
+    </div>
   );
 };
 
-type FormSelectProps<T> = Omit<SelectProps<T>, "name"> & {
-  name: RecursiveKeyOf<T> & string;
-};
+type FormSelectProps = SelectProps & { name: string };
 
-export const FormSelect = <T,>({
+export const FormSelect = ({
   name,
   label,
   children,
   ...props
-}: FormSelectProps<T>) => {
-  const [field, meta, helpers] = useField(name);
+}: FormSelectProps) => {
+  const [field, meta] = useField(name);
 
   return (
-    <Select
-      {...props}
-      label={label}
-      field={field}
-      meta={meta}
-      helpers={helpers}
-    >
+    <Select label={label} field={field} meta={meta} {...props}>
       {children}
     </Select>
   );

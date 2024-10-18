@@ -1,20 +1,18 @@
-import { useField } from "formik";
 import * as React from "react";
 import { InputWrapper } from "superdesk-ui-framework/react";
-import { RecursiveKeyOf } from "../formik-utilties";
 import { superdesk } from "../superdesk";
+import { useField } from "formik";
 
 type TextEditorInputProps = {
   label: string;
   value: string;
-  readOnly: boolean;
   onChange: (value: string) => void;
+  [key: string]: any;
 };
 
 export const TextEditorInput = ({
   label,
   value,
-  readOnly,
   onChange,
   ...props
 }: TextEditorInputProps) => {
@@ -23,7 +21,8 @@ export const TextEditorInput = ({
   return (
     <InputWrapper label={label} fullWidth boxedStyle boxedLable>
       <Editor3Html
-        readOnly={readOnly}
+        key={label}
+        readOnly={false}
         value={value}
         onChange={onChange}
         {...props}
@@ -32,17 +31,18 @@ export const TextEditorInput = ({
   );
 };
 
-type FormTextEditorInputProps<T> = Omit<
+type FormTextEditorInputProps = Omit<
   TextEditorInputProps,
   "value" | "onChange"
-> & { name: RecursiveKeyOf<T> & string };
+> & { name: string };
 
-export const FormTextEditorInput = <T,>({
+export const FormTextEditorInput = ({
   label,
   name,
   ...props
-}: FormTextEditorInputProps<T>) => {
-  const [field, _meta, helpers] = useField(name);
+}: FormTextEditorInputProps) => {
+  // @ts-ignore
+  const [field, meta, helpers] = useField(name);
   const { setValue } = helpers;
 
   return (

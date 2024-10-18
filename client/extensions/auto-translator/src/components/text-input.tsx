@@ -1,64 +1,45 @@
-import {
-  FieldHelperProps,
-  FieldInputProps,
-  FieldMetaProps,
-  useField,
-} from "formik";
+import { useField } from "formik";
 import * as React from "react";
-import { Input } from "superdesk-ui-framework/react";
-import { RecursiveKeyOf } from "../formik-utilties";
 
-type TextInputProps<T> = React.InputHTMLAttributes<HTMLInputElement> & {
+type TextInputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   label: string;
-  field: FieldInputProps<T>;
-  meta: FieldMetaProps<T>;
-  helpers: FieldHelperProps<T>;
+  field?: any;
+  meta?: any;
   [key: string]: any;
 };
 
-export const TextInput = <T,>({
-  label,
-  field,
-  meta,
-  helpers,
-  ...props
-}: TextInputProps<T>) => {
+export const TextInput = ({ label, field, meta, ...props }: TextInputProps) => {
   return (
-    <Input
-      {...field}
-      {...props}
-      type="text"
-      label={label}
-      boxedLable={true}
-      boxedStyle={true}
-      size="medium"
-      value={field?.value as string}
-      onChange={(newValue) => {
-        helpers.setValue(newValue as T);
-      }}
-      error={meta?.error ? meta.error : undefined}
-    />
+    <div className="sd-input sd-input--medium sd-input--boxed-style sd-input--boxed-label">
+      <label
+        className="sd-input__label sd-input__label--boxed"
+        htmlFor={label}
+        id={`${label}label`}
+      >
+        {label}
+      </label>
+      <div className="sd-input__input-container">
+        <input
+          className="sd-input__input"
+          {...field}
+          {...props}
+          type="text"
+          aria-describedby={`${label}label`}
+        />
+      </div>
+      {meta?.error && <div className="sd-input__message-box">{meta.error}</div>}
+    </div>
   );
 };
 
-type FormTextInputProps<T> = Omit<TextInputProps<T>, "name"> & {
-  name: RecursiveKeyOf<T> & string;
-};
+type FormTextInputProps = TextInputProps & { name: string };
 
-export const FormTextInput = <T,>({
+export const FormTextInput = ({
   name,
   label,
   ...props
-}: FormTextInputProps<T>) => {
-  const [field, meta, helpers] = useField<T>(name);
+}: FormTextInputProps) => {
+  const [field, meta] = useField(name);
 
-  return (
-    <TextInput<T>
-      {...props}
-      label={label}
-      field={field}
-      meta={meta}
-      helpers={helpers}
-    />
-  );
+  return <TextInput label={label} field={field} meta={meta} {...props} />;
 };
