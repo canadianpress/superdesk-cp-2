@@ -1,4 +1,4 @@
-import { Formik, FormikHelpers, FormikProps, useFormikContext } from "formik";
+import { Formik, FormikHelpers, FormikProps } from "formik";
 import * as React from "react";
 import { IArticle } from "superdesk-api";
 import {
@@ -71,7 +71,7 @@ const TranslationForm = ({
   writethruKey: string;
 }) => {
   const [version, setVersion] = React.useState<string>(initialVersion);
-  console.log({ version, writethruKey });
+
   return (
     <>
       <Select
@@ -119,28 +119,27 @@ export const TranslationDialog = ({
 
     applyFieldChangesToEditor(articleId, {
       key: "headline",
-      value: values.writethru.manualTranslation.headline,
+      value: values[writethru].manualTranslation.headline,
     });
     applyFieldChangesToEditor(articleId, {
       key: "extra",
       value: {
         ...workingArticle?.extra,
-        headline_extended: values.writethru.manualTranslation.headline_extended,
+        headline_extended:
+          values[writethru].manualTranslation.headline_extended,
       },
     });
     applyFieldChangesToEditor(articleId, {
       key: "body_html",
-      value: values.writethru.manualTranslation.body_html,
+      value: values[writethru].manualTranslation.body_html,
     });
 
     closeDialog();
   };
 
   const translateArticle = (
-    // @ts-ignore
-    event: React.MouseEvent<HTMLButtonElement, MouseEvent>
+    setFieldValue: FormikHelpers<TranslationDialogFormProps>["setFieldValue"]
   ) => {
-    const { setFieldValue } = useFormikContext<TranslationDialogFormProps>();
     setFieldValue(`${writethru}.aiTranslation.headline`, "translated headline");
     setFieldValue(
       `${writethru}.aiTranslation.headline_extended`,
@@ -148,6 +147,18 @@ export const TranslationDialog = ({
     );
     setFieldValue(
       `${writethru}.aiTranslation.body_html`,
+      "translated body html"
+    );
+    setFieldValue(
+      `${writethru}.manualTranslation.headline`,
+      "translated headline"
+    );
+    setFieldValue(
+      `${writethru}.manualTranslation.headline_extended`,
+      "translated headline extended"
+    );
+    setFieldValue(
+      `${writethru}.manualTranslation.body_html`,
       "translated body html"
     );
   };
@@ -158,8 +169,8 @@ export const TranslationDialog = ({
       initialValues={getTranslationDialogFormInitialValues(workingArticle)}
       onSubmit={onSubmit}
     >
-      {(props: FormikProps<TranslationDialogFormProps>) => (
-        <form onSubmit={props.handleSubmit}>
+      {(formikProps: FormikProps<TranslationDialogFormProps>) => (
+        <form onSubmit={formikProps.handleSubmit}>
           <Modal
             headerTemplate="Translate"
             visible
@@ -197,7 +208,10 @@ export const TranslationDialog = ({
                   label="Translate"
                   aria-label="Translate"
                   superdeskButtonProps={{ type: "primary" }}
-                  onClick={translateArticle}
+                  // @ts-ignore
+                  onClick={(event) => {
+                    translateArticle(formikProps.setFieldValue);
+                  }}
                 />
               </Container>
             </GridList>
