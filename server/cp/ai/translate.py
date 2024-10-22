@@ -1,14 +1,17 @@
 import logging
+import json
 from typing import Dict, List, Literal, Mapping, Optional, TypedDict, Union, overload
 from google.oauth2 import service_account
 from google.auth.transport.requests import Request
 import requests
 from superdesk.text_checkers.ai.base import AIServiceBase
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
-
 ResponseType = Mapping[str, Union[str, List[str]]]
-
 
 class TranslateData(TypedDict):
     guid: str
@@ -29,23 +32,32 @@ class Translate(AIServiceBase):
     TRANSLATION_TYPE_DEEPL = "deepl"
 
     def __init__(self, app):
-        self.GOOGLE_API_KEY = app.config.get("GOOGLE_API_KEY")
-        self.GOOGLE_API_URL = app.config.get("GOOGLE_API_URL")
-        self.GOOGLE_PROJECT_ID = app.config.get("GOOGLE_PROJECT_ID")
-        self.GOOGLE_PROJECT_LOCATION = app.config.get("GOOGLE_PROJECT_LOCATION")
-        self.GOOGLE_SERVICE_ACCOUNT_PATH = app.config.get("GOOGLE_SERVICE_ACCOUNT_PATH")
-        
-        self.DEEPL_AUTH_KEY = app.config.get("DEEPL_AUTH_KEY")
-        self.DEEPL_API_URL = app.config.get("DEEPL_API_URL")
+        # Define constant variables using environment variables
+        self.GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+        self.GOOGLE_API_URL = os.getenv("GOOGLE_API_URL")
+        self.GOOGLE_PROJECT_ID = os.getenv("GOOGLE_PROJECT_ID")
+        self.GOOGLE_PROJECT_LOCATION = os.getenv("GOOGLE_PROJECT_LOCATION")
+        self.DEEPL_AUTH_KEY = os.getenv("DEEPL_AUTH_KEY")
+        self.DEEPL_API_URL = os.getenv("DEEPL_API_URL")
+
+        self.credentials = {}
+        credentials_json = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+        if credentials_json:
+            try:
+                info = json.loads(credentials_json)
+                self.credentials = (
+                    service_account.Credentials.from_service_account_info(
+                        info,
+                        scopes=["https://www.googleapis.com/auth/cloud-platform"],
+                    )
+                )
+            except Exception as e:
+                logger.error(f"Error loading Google credentials: {str(e)}")
 
         self.parent = f"projects/{self.GOOGLE_PROJECT_ID}/locations/{self.GOOGLE_PROJECT_LOCATION}"
         self.model_path = f"{self.parent}/models/general"
-        self.credentials = service_account.Credentials.from_service_account_file(
-            self.GOOGLE_SERVICE_ACCOUNT_PATH,
-            scopes=app.config.get("GOOGLE_SCOPES"),
-        )
 
-    def translate(self, item: TranslateData) -> ResponseType:
+    def translate(self, item: TranslateData, *args) -> ResponseType:
         try:
             self.validate_request_data(item)
             translation_type = item.get("translation_type", "basic")
@@ -53,6 +65,16 @@ class Translate(AIServiceBase):
             return translator(item)
         except Exception as e:
             self.handle_error(e, "Translation")
+
+    def analyze(self, item: TranslateData, *args) -> ResponseType:
+        try:
+            self.validate_request_data(item)
+            translation_type = item.get("translation_type", "basic")
+            translator = self.get_translator(translation_type)
+            result = translator(item)
+            return result
+        except Exception as e:
+            return self.handle_error(e, "Translation")
 
     def get_translator(self, translation_type):
         if translation_type == self.TRANSLATION_TYPE_BASIC:
@@ -102,6 +124,7 @@ class Translate(AIServiceBase):
     def translate_advanced(self, item: TranslateData) -> ResponseType:
         try:
             texts = self._extract_texts_to_translate(item)
+            logger.info(f"Translating texts: {texts}")
             if self.credentials.expired or self.credentials.token is None:
                 self.credentials.refresh(Request())
 
@@ -120,7 +143,7 @@ class Translate(AIServiceBase):
 
             response = requests.post(url, headers=headers, json=payload)
             response.raise_for_status()
-
+            logger.info(f"Advanced translation response: {response.json()}")
             translations = response.json().get("translations", [])
             return self._prepare_translated_payload(
                 item, translations, translation_key="translatedText"
@@ -129,7 +152,7 @@ class Translate(AIServiceBase):
             self.handle_error(e, "Advanced translation")
 
     def translate_adaptive(self, item: TranslateData) -> ResponseType:
-        pass
+        return "Not implemented"
 
     def translate_deepl(self, item: TranslateData) -> ResponseType:
         texts = self._join_texts(item)
@@ -147,8 +170,9 @@ class Translate(AIServiceBase):
 
             response = requests.post(self.DEEPL_API_URL, headers=headers, json=payload)
             response.raise_for_status()
+            response_data = response.json()
 
-            return self._prepare_translated_payload_deepl(item, response)
+            return self._prepare_translated_payload_deepl(item, response_data)
         except Exception as e:
             raise Exception(f"Deepl translation failed: {str(e)}")
 
@@ -164,7 +188,7 @@ class Translate(AIServiceBase):
     def _prepare_translated_payload_deepl(self, data, result):
         try:
             separator = "|||||"
-            translated_text = result.text
+            translated_text = result["translations"][0]["text"]
             translated_texts = translated_text.split(separator)
             translated_payload = {
                 key: translation
@@ -245,6 +269,129 @@ class Translate(AIServiceBase):
             for key, translation in zip(data["payload"].keys(), translations)
         }
         return {"translated_payload": translated_payload, **data}
+
+    def deepl_create_glossary(
+        self, name: str, source_lang: str, target_lang: str, entries: List[str]
+    ) -> dict:
+        url = f"{self.DEEPL_API_URL}/v2/glossaries"
+        headers = {
+            "Authorization": f"DeepL-Auth-Key {self.DEEPL_AUTH_KEY}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "name": name,
+            "source_lang": source_lang,
+            "target_lang": target_lang,
+            "entries": "\n".join(
+                entries
+            ),  # Assuming entries are in "source\ttarget" format
+            "entries_format": "tsv",
+        }
+        try:
+            response = requests.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            self.handle_error(e, "Creating glossary")
+
+    def deepl_list_glossaries(self) -> List[dict]:
+        url = f"{self.DEEPL_API_URL}/v2/glossaries"
+        headers = {
+            "Authorization": f"DeepL-Auth-Key {self.DEEPL_AUTH_KEY}",
+        }
+        try:
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            return response.json().get("glossaries", [])
+        except Exception as e:
+            self.handle_error(e, "Listing glossaries")
+
+    def deepl_retrieve_glossary(self, glossary_id: str) -> dict:
+        url = f"{self.DEEPL_API_URL}/v2/glossaries/{glossary_id}"
+        headers = {
+            "Authorization": f"DeepL-Auth-Key {self.DEEPL_AUTH_KEY}",
+        }
+        try:
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            self.handle_error(e, "Retrieving glossary details")
+
+    def deepl_retrieve_glossary_entries_by_name(self, glossary_name: str) -> List[str]:
+        try:
+            glossaries = self.deepl_list_glossaries()
+            existing_glossary = next(
+                (g for g in glossaries if g["name"] == glossary_name), None
+            )
+
+            if not existing_glossary:
+                raise Exception(f"Glossary '{glossary_name}' not found")
+
+            glossary_id = existing_glossary["glossary_id"]
+            url = f"{self.DEEPL_API_URL}/v2/glossaries/{glossary_id}/entries"
+            headers = {
+                "Authorization": f"DeepL-Auth-Key {self.DEEPL_AUTH_KEY}",
+                "Accept": "text/tab-separated-values",
+            }
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            return response.text.splitlines()  # Assuming TSV format
+        except Exception as e:
+            self.handle_error(e, "Retrieving glossary entries")
+
+    def deepl_delete_glossary(self, glossary_id: str) -> dict:
+        """Delete a specific glossary."""
+        url = f"{self.DEEPL_API_URL}/v2/glossaries/{glossary_id}"
+        headers = {
+            "Authorization": f"DeepL-Auth-Key {self.DEEPL_AUTH_KEY}",
+        }
+        try:
+            response = requests.delete(url, headers=headers)
+            response.raise_for_status()
+            return {"message": "Glossary deleted successfully"}
+        except Exception as e:
+            self.handle_error(e, "Deleting glossary")
+
+    def deepl_add_entries_to_glossary(self, name: str, new_entries: List[str]) -> dict:
+        try:
+            glossaries = self.deepl_list_glossaries()
+            existing_glossary = next((g for g in glossaries if g["name"] == name), None)
+
+            if not existing_glossary:
+                raise Exception(f"Glossary '{name}' not found")
+
+            current_entries = self.deepl_retrieve_glossary_entries_by_name(name)
+
+            updated_entries = current_entries + new_entries
+
+            return self.deepl_update_glossary(
+                name,
+                existing_glossary["source_lang"],
+                existing_glossary["target_lang"],
+                updated_entries,
+            )
+
+        except Exception as e:
+            return self.handle_error(e, "Adding entries to glossary")
+
+    def deepl_update_glossary(
+        self, name: str, source_lang: str, target_lang: str, new_entries: List[str]
+    ) -> dict:
+        try:
+            glossaries = self.deepl_list_glossaries()
+
+            existing_glossary = next((g for g in glossaries if g["name"] == name), None)
+
+            if existing_glossary:
+                self.deepl_delete_glossary(existing_glossary["glossary_id"])
+
+            return self.deepl_create_glossary(
+                name, source_lang, target_lang, new_entries
+            )
+
+        except Exception as e:
+            return self.handle_error(e, "Updating glossary")
 
 
 def init_app(app):
