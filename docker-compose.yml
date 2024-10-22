@@ -34,6 +34,8 @@ services:
       - redis
       - mongo
       - elastic
+    env_file:
+      - .env
     environment:
       - WEB_CONCURRENCY=2
       - MONGO_URI=mongodb://mongo/superdesk
