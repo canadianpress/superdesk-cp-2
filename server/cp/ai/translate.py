@@ -7,6 +7,7 @@ import requests
 from superdesk.text_checkers.ai.base import AIServiceBase
 import os
 from dotenv import load_dotenv
+import html
 
 load_dotenv()
 
@@ -261,7 +262,7 @@ class Translate(AIServiceBase):
     ):
 
         translated_payload = {
-            key: (
+            key: html.unescape(
                 getattr(translation, translation_key)
                 if hasattr(translation, translation_key)
                 else translation[translation_key]
