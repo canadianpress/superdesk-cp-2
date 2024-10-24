@@ -1,104 +1,96 @@
+import { Formik, FormikHelpers, FormikProps } from "formik";
 import * as React from "react";
+import { IArticle } from "superdesk-api";
 import {
+  Container,
+  ContentDivider,
   GridList,
   Modal,
-  Select,
-  Option,
-  Container,
-  Button,
-  ContentDivider,
   ResizablePanels,
-  Input,
-  InputWrapper,
 } from "superdesk-ui-framework/react";
-import { Footer } from "./footer";
+import {
+  Button,
+  FormTextEditorInput,
+  FormTextInput,
+  Select,
+} from "../../components";
 import { superdesk } from "../../superdesk";
-import { IArticle } from "superdesk-api";
-import { Formik, FormikHelpers, FormikProps, useField } from "formik";
+import { Footer } from "./footer";
+import { TRANSLATION_METHODS } from "../../utilities";
+import {
+  TranslationFields,
+  TranslationPayload,
+  TranslationResponse,
+  TranslationType,
+} from "../../typings/translation";
 
 const { applyFieldChangesToEditor } = superdesk.ui.article;
+const { httpRequestJsonLocal } = superdesk;
 
 type TranslationDialogProps = {
   workingArticle: IArticle;
   closeDialog: () => void;
 };
 
-type FormInputProps = {
-  headline: string;
-  headline_extended: string;
-  body_html: string;
-};
+type FormInputProps = Record<TranslationFields, string>;
 
-type TranslationDialogFormProps = {
-  origin: FormInputProps;
-  aiTranslation: FormInputProps;
-  manualTranslation: FormInputProps;
-};
+type TranslationDialogFormProps = Record<
+  string,
+  {
+    original: FormInputProps;
+    aiTranslation: FormInputProps;
+    manualTranslation: FormInputProps;
+  }
+>;
 
-type TranslationFormProps = {
-  translationKey: keyof TranslationDialogFormProps;
-};
-
-const getTranslationDialogFormInitialValues = (workingArticle: IArticle) => ({
-  origin: {
-    headline: workingArticle.headline ?? "",
-    headline_extended: workingArticle?.extra?.headline_extended ?? "",
-    body_html: workingArticle.body_html ?? "",
+const getTranslationDialogFormInitialValues = (
+  workingArticle: IArticle
+): TranslationDialogFormProps => ({
+  original: {
+    original: {
+      headline: workingArticle.headline ?? "",
+      headline_extended: workingArticle?.extra?.headline_extended ?? "",
+      body_html: workingArticle.body_html ?? "",
+    },
+    aiTranslation: { headline: "", headline_extended: "", body_html: "" },
+    manualTranslation: { headline: "", headline_extended: "", body_html: "" },
   },
-  aiTranslation: { headline: "", headline_extended: "", body_html: "" },
-  manualTranslation: { headline: "", headline_extended: "", body_html: "" },
 });
 
-const TextInput = ({ name, label }: { name: string; label: string }) => {
-  // @ts-ignore
-  const [field, meta, helpers] = useField(name);
-  const { setValue } = helpers;
+const TranslationForm = ({
+  initialVersion,
+  writethruKey,
+}: {
+  initialVersion: "original" | "aiTranslation";
+  writethruKey: string;
+}) => {
+  const [version, setVersion] = React.useState<string>(initialVersion);
 
-  return (
-    <Input
-      label={label}
-      boxedStyle={true}
-      boxedLable={true}
-      maxLength={25}
-      type="text"
-      tabindex={0}
-      {...field}
-      onChange={(value) => {
-        setValue(value);
-      }}
-    />
-  );
-};
-
-const TextEditorInput = ({ name }: { name: string }) => {
-  // @ts-ignore
-  const [field, meta, helpers] = useField(name);
-  const { setValue } = helpers;
-  const { Editor3Html } = superdesk.components;
-
-  return (
-    <InputWrapper label="Body HTML" fullWidth boxedStyle boxedLable>
-      <Editor3Html
-        key="Body HTML"
-        readOnly={false}
-        {...field}
-        onChange={(value) => {
-          setValue(value);
-        }}
-      />
-    </InputWrapper>
-  );
-};
-
-const TranslationForm = ({ translationKey }: TranslationFormProps) => {
   return (
     <>
-      <TextInput name={`${translationKey}.headline`} label="Headline" />
-      <TextInput
-        name={`${translationKey}.headline_extended`}
+      <Select
+        value={version}
+        label="Version"
+        onChange={(event) => {
+          setVersion(event.currentTarget.value);
+        }}
+      >
+        <option value="original">Original</option>
+        <option value="aiTranslation">AI Translated</option>
+        <option value="manualTranslation">Manual Translation</option>
+      </Select>
+      <FormTextInput
+        name={`${writethruKey}.${version}.headline`}
+        label="Headline"
+      />
+      <FormTextInput
+        name={`${writethruKey}.${version}.headline_extended`}
         label="Extended Headline"
       />
-      <TextEditorInput name={`${translationKey}.body_html`} />
+      <FormTextEditorInput
+        name={`${writethruKey}.${version}.body_html`}
+        label="Body HTML"
+      />
     </>
   );
 };
@@ -107,6 +99,10 @@ export const TranslationDialog = ({
   workingArticle,
   closeDialog,
 }: TranslationDialogProps) => {
+  const [writethru, setWritethru] = React.useState<string>("original");
+  const [translationMethod, setTranslationMethod] =
+    React.useState<TranslationType>("basic");
+
   const { _id: articleId } = workingArticle;
 
   const onSubmit = (
@@ -118,30 +114,89 @@ export const TranslationDialog = ({
 
     applyFieldChangesToEditor(articleId, {
       key: "headline",
-      value: values.manualTranslation.headline,
+      value: values[writethru].manualTranslation.headline,
     });
     applyFieldChangesToEditor(articleId, {
       key: "extra",
       value: {
         ...workingArticle?.extra,
-        headline_extended: values.manualTranslation.headline_extended,
+        headline_extended:
+          values[writethru].manualTranslation.headline_extended,
       },
     });
     applyFieldChangesToEditor(articleId, {
       key: "body_html",
-      value: values.manualTranslation.body_html,
+      value: values[writethru].manualTranslation.body_html,
     });
 
     closeDialog();
   };
 
+  const getTranslation = (payload: TranslationPayload) => {
+    return httpRequestJsonLocal<TranslationResponse>({
+      method: "POST",
+      path: "/ai",
+      payload: { service: "translate", item: payload },
+    });
+  };
+
+  const translateArticle = ({
+    values,
+    setFieldValue,
+  }: FormikProps<TranslationDialogFormProps>) => {
+    const payload = {
+      body_html: "",
+      payload: {
+        headline: values[writethru].original.headline,
+        headline_extended: values[writethru].original.headline_extended,
+        body_html: values[writethru].original.body_html,
+      },
+      target_language: "fr",
+      source_language: "en",
+      translation_type: translationMethod,
+    } as const;
+
+    getTranslation(payload)
+      .then((res) => {
+        console.log({ res });
+        setFieldValue(
+          `${writethru}.aiTranslation.headline`,
+          res.analysis.translated_payload.headline
+        );
+        setFieldValue(
+          `${writethru}.aiTranslation.headline_extended`,
+          res.analysis.translated_payload.headline_extended
+        );
+        setFieldValue(
+          `${writethru}.aiTranslation.body_html`,
+          res.analysis.translated_payload.body_html
+        );
+        setFieldValue(
+          `${writethru}.manualTranslation.headline`,
+          res.analysis.translated_payload.headline
+        );
+        setFieldValue(
+          `${writethru}.manualTranslation.headline_extended`,
+          res.analysis.translated_payload.headline_extended
+        );
+        setFieldValue(
+          `${writethru}.manualTranslation.body_html`,
+          res.analysis.translated_payload.body_html
+        );
+      })
+      .catch((err) => {
+        console.log({ err });
+      });
+  };
+
   return (
     <Formik
+      // TODO: Generate inital values with writethrus
       initialValues={getTranslationDialogFormInitialValues(workingArticle)}
       onSubmit={onSubmit}
     >
-      {(props: FormikProps<TranslationDialogFormProps>) => (
-        <form onSubmit={props.handleSubmit}>
+      {(formikProps: FormikProps<TranslationDialogFormProps>) => (
+        <form onSubmit={formikProps.handleSubmit}>
           <Modal
             headerTemplate="Translate"
             visible
@@ -150,16 +205,41 @@ export const TranslationDialog = ({
             footerTemplate={<Footer closeDialog={closeDialog} />}
           >
             <GridList margin="0">
-              <Select value="Option 1" label="Select 1" onChange={() => {}}>
-                <Option>Option 1</Option>
-                <Option>Option 2</Option>
+              <Select
+                label="Writethru/Version"
+                value={writethru}
+                onChange={(event) => {
+                  setWritethru(event.currentTarget.value);
+                }}
+              >
+                {/* TODO: Fetch writethrus from api */}
+                <option value="original">Original</option>
               </Select>
-              <Select value="Option 2" label="Select 2" onChange={() => {}}>
-                <Option>Option 1</Option>
-                <Option>Option 2</Option>
+              <Select
+                label="Translation Method"
+                value={translationMethod}
+                onChange={(event) => {
+                  setTranslationMethod(
+                    event.currentTarget.value as TranslationType
+                  );
+                }}
+              >
+                {Object.entries(TRANSLATION_METHODS).map(([value, label]) => (
+                  <option value={value} key={value}>
+                    {label}
+                  </option>
+                ))}
               </Select>
               <Container className="items-end">
-                <Button text="Translate" type="primary" onClick={() => {}} />
+                <Button
+                  label="Translate"
+                  aria-label="Translate"
+                  superdeskButtonProps={{ type: "primary" }}
+                  // @ts-ignore
+                  onClick={(event) => {
+                    translateArticle(formikProps);
+                  }}
+                />
               </Container>
             </GridList>
             <ContentDivider />
@@ -169,28 +249,16 @@ export const TranslationDialog = ({
               secondarySize={{ min: 33, default: 50 }}
             >
               <Container gap="large" direction="column" className="mx-2">
-                <div>
-                  <Select value="Original" label="Version" onChange={() => {}}>
-                    <Option>Original</Option>
-                    <Option>AI Translated</Option>
-                    <Option>Manual Translation</Option>
-                  </Select>
-                </div>
-                <TranslationForm translationKey="origin" />
+                <TranslationForm
+                  initialVersion="original"
+                  writethruKey={writethru}
+                />
               </Container>
               <Container gap="large" direction="column" className="mx-2">
-                <div>
-                  <Select
-                    value="AI Translated"
-                    label="Version"
-                    onChange={() => {}}
-                  >
-                    <Option>Original</Option>
-                    <Option>AI Translated</Option>
-                    <Option>Manual Translation</Option>
-                  </Select>
-                </div>
-                <TranslationForm translationKey="aiTranslation" />
+                <TranslationForm
+                  initialVersion="aiTranslation"
+                  writethruKey={writethru}
+                />
               </Container>
             </ResizablePanels>
           </Modal>
