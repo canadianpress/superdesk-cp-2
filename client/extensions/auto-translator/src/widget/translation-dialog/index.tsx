@@ -17,19 +17,22 @@ import {
 import { superdesk } from "../../superdesk";
 import { Footer } from "./footer";
 import { TRANSLATION_METHODS } from "../../utilities";
+import {
+  TranslationFields,
+  TranslationPayload,
+  TranslationResponse,
+  TranslationType,
+} from "../../typings/translation";
 
 const { applyFieldChangesToEditor } = superdesk.ui.article;
+const { httpRequestJsonLocal } = superdesk;
 
 type TranslationDialogProps = {
   workingArticle: IArticle;
   closeDialog: () => void;
 };
 
-type FormInputProps = {
-  headline: string;
-  headline_extended: string;
-  body_html: string;
-};
+type FormInputProps = Record<TranslationFields, string>;
 
 type TranslationDialogFormProps = Record<
   string,
@@ -44,15 +47,6 @@ const getTranslationDialogFormInitialValues = (
   workingArticle: IArticle
 ): TranslationDialogFormProps => ({
   original: {
-    original: {
-      headline: workingArticle.headline ?? "",
-      headline_extended: workingArticle?.extra?.headline_extended ?? "",
-      body_html: workingArticle.body_html ?? "",
-    },
-    aiTranslation: { headline: "", headline_extended: "", body_html: "" },
-    manualTranslation: { headline: "", headline_extended: "", body_html: "" },
-  },
-  writethru1: {
     original: {
       headline: workingArticle.headline ?? "",
       headline_extended: workingArticle?.extra?.headline_extended ?? "",
@@ -106,7 +100,8 @@ export const TranslationDialog = ({
   closeDialog,
 }: TranslationDialogProps) => {
   const [writethru, setWritethru] = React.useState<string>("original");
-  const [translationMethod, setTranslationMethod] = React.useState<string>();
+  const [translationMethod, setTranslationMethod] =
+    React.useState<TranslationType>("basic");
 
   const { _id: articleId } = workingArticle;
 
@@ -137,30 +132,61 @@ export const TranslationDialog = ({
     closeDialog();
   };
 
-  const translateArticle = (
-    setFieldValue: FormikHelpers<TranslationDialogFormProps>["setFieldValue"]
-  ) => {
-    setFieldValue(`${writethru}.aiTranslation.headline`, "translated headline");
-    setFieldValue(
-      `${writethru}.aiTranslation.headline_extended`,
-      "translated headline extended"
-    );
-    setFieldValue(
-      `${writethru}.aiTranslation.body_html`,
-      "translated body html"
-    );
-    setFieldValue(
-      `${writethru}.manualTranslation.headline`,
-      "translated headline"
-    );
-    setFieldValue(
-      `${writethru}.manualTranslation.headline_extended`,
-      "translated headline extended"
-    );
-    setFieldValue(
-      `${writethru}.manualTranslation.body_html`,
-      "translated body html"
-    );
+  const getTranslation = (payload: TranslationPayload) => {
+    return httpRequestJsonLocal<TranslationResponse>({
+      method: "POST",
+      path: "/ai",
+      payload: { service: "translate", item: payload },
+    });
+  };
+
+  const translateArticle = ({
+    values,
+    setFieldValue,
+  }: FormikProps<TranslationDialogFormProps>) => {
+    const payload = {
+      body_html: "",
+      payload: {
+        headline: values[writethru].original.headline,
+        headline_extended: values[writethru].original.headline_extended,
+        body_html: values[writethru].original.body_html,
+      },
+      target_language: "fr",
+      source_language: "en",
+      translation_type: translationMethod,
+    } as const;
+
+    getTranslation(payload)
+      .then((res) => {
+        console.log({ res });
+        setFieldValue(
+          `${writethru}.aiTranslation.headline`,
+          res.analysis.translated_payload.headline
+        );
+        setFieldValue(
+          `${writethru}.aiTranslation.headline_extended`,
+          res.analysis.translated_payload.headline_extended
+        );
+        setFieldValue(
+          `${writethru}.aiTranslation.body_html`,
+          res.analysis.translated_payload.body_html
+        );
+        setFieldValue(
+          `${writethru}.manualTranslation.headline`,
+          res.analysis.translated_payload.headline
+        );
+        setFieldValue(
+          `${writethru}.manualTranslation.headline_extended`,
+          res.analysis.translated_payload.headline_extended
+        );
+        setFieldValue(
+          `${writethru}.manualTranslation.body_html`,
+          res.analysis.translated_payload.body_html
+        );
+      })
+      .catch((err) => {
+        console.log({ err });
+      });
   };
 
   return (
@@ -188,13 +214,14 @@ export const TranslationDialog = ({
               >
                 {/* TODO: Fetch writethrus from api */}
                 <option value="original">Original</option>
-                <option value="writethru1">Writethru 1</option>
               </Select>
               <Select
                 label="Translation Method"
                 value={translationMethod}
                 onChange={(event) => {
-                  setTranslationMethod(event.currentTarget.value);
+                  setTranslationMethod(
+                    event.currentTarget.value as TranslationType
+                  );
                 }}
               >
                 {Object.entries(TRANSLATION_METHODS).map(([value, label]) => (
@@ -210,7 +237,7 @@ export const TranslationDialog = ({
                   superdeskButtonProps={{ type: "primary" }}
                   // @ts-ignore
                   onClick={(event) => {
-                    translateArticle(formikProps.setFieldValue);
+                    translateArticle(formikProps);
                   }}
                 />
               </Container>
