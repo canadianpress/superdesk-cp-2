@@ -1,102 +1,62 @@
-msgid ""
-msgstr ""
-"Content-Type: text/plain; charset=UTF-8\n"
+msgid "translate"
+msgstr "traduire"
 
-msgid "Translate"
-msgstr "Traduire"
+msgid "auto"
+msgstr "automatique"
 
-msgid "Auto"
-msgstr "Automatique"
+msgid "cancel"
+msgstr "annuler"
 
-msgid "Cancel"
-msgstr "Annuler"
+msgid "apply"
+msgstr "appliquer"
 
-msgid "Apply"
-msgstr "Appliquer"
+msgid "translation"
+msgstr "traduction"
 
-msgid "Translation"
-msgstr "Traduction"
+msgid "version"
+msgstr "version"
 
-msgid "Version"
-msgstr "Version"
+msgid "original"
+msgstr "originale"
 
-msgid "Original"
-msgstr "Originale"
+msgid "ai translation"
+msgstr "ai traduction"
 
-msgid "AI Translation"
-msgstr "AI Traduction"
+msgid "manual translation"
+msgstr "traduction manuelle"
 
-msgid "Manual Translation"
-msgstr "Traduction Manuelle"
+msgid "headline"
+msgstr "titre"
 
-msgid "Headline"
-msgstr "Titre"
-
-msgid "Extended Headline"
-msgstr "Titre Étendu"
+msgid "extended headline"
+msgstr "titre étendu"
 
 msgid "body HTML"
 msgstr "corps HTML"
 
-msgid "Photos"
-msgstr "Des Photos"
+msgid "photos"
+msgstr "des photos"
 
-msgid "Caption"
-msgstr "Légende"
+msgid "caption"
+msgstr "légende"
 
-msgid "Writethru"
-msgstr "Lead"
+msgid "writethru"
+msgstr "lead"
 
-msgid "Writethru 1"
-msgstr "Lead 1"
+msgid "current"
+msgstr "actuel"
 
-msgid "Writethru 2"
-msgstr "Lead 2"
+msgid "type"
+msgstr "type"
 
-msgid "Current"
-msgstr "Actuel"
+msgid "from"
+msgstr "de"
 
-msgid "Type"
-msgstr "Type"
+msgid "to"
+msgstr "en"
 
-msgid "From"
-msgstr "De"
+msgid "english"
+msgstr "anglais"
 
-msgid "To"
-msgstr "En"
-
-msgid "English"
-msgstr "Anglais"
-
-msgid "French"
-msgstr "Français"
-
-msgid "Compare"
-msgstr "Comparer"
-
-msgid "Diff"
-msgstr "Diff"
-
-msgid "Inserted"
-msgstr "Inséré"
-
-msgid "Deleted"
-msgstr "Supprimé"
-
-msgid "Auto Translate"
-msgstr "Traduire Automatique"
-
-msgid "Apply Translation"
-msgstr "Appliquer Traduction"
-
-msgid "Translation Type"
-msgstr "Type de Traduction"
-
-msgid "Translate From"
-msgstr "Traduire de"
-
-msgid "Translate To"
-msgstr "Traduire en"
-
-msgid "Compare Writethru Diff"
-msgstr "Comparer Lead Diff"
+msgid "french"
+msgstr "français"
