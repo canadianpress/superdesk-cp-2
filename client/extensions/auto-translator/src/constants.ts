@@ -1,39 +1,22 @@
-import { superdesk } from "./superdesk";
-
-const WIDGET_ID = "auto-translator" as const;
+const WIDGET_ID = "auto-translator-widget" as const;
 
 const TRANSLATION_TYPES = {
   basic: "Google Basic",
   advanced_nmt: "Google NMT",
-  // advanced_llm: "Google LLM",
+  advanced_llm: "Google LLM",
   deepl: "DeepL",
 } as const;
 
 const TRANSLATION_LANGUAGES = {
-  en: {
-    value: "en",
-    label: superdesk.localization.gettext("English"),
-  },
-  fr: {
-    value: "fr",
-    label: superdesk.localization.gettext("French"),
-  },
-};
+  en: "English",
+  fr: "French",
+} as const;
 
 const TRANSLATION_VERSIONS = {
-  original: {
-    value: "original",
-    label: superdesk.localization.gettext("Original"),
-  },
-  aiTranslation: {
-    value: "aiTranslation",
-    label: superdesk.localization.gettext("AI Translation"),
-  },
-  manualTranslation: {
-    value: "manualTranslation",
-    label: superdesk.localization.gettext("Manual Translation"),
-  },
-};
+  original: "Original",
+  aiTranslation: "AI Translation",
+  manualTranslation: "Manual Translation",
+} as const;
 
 // https://www.andiamo.co.uk/resources/iso-language-codes/
 const TRANSLATION_LANGUAGES_CODES_MAP = {
@@ -56,9 +39,9 @@ const TRANSLATION_LANGUAGES_CODES_MAP = {
 } as const;
 
 export {
-  TRANSLATION_LANGUAGES,
-  TRANSLATION_LANGUAGES_CODES_MAP,
-  TRANSLATION_TYPES,
-  TRANSLATION_VERSIONS,
   WIDGET_ID,
+  TRANSLATION_TYPES,
+  TRANSLATION_LANGUAGES,
+  TRANSLATION_VERSIONS,
+  TRANSLATION_LANGUAGES_CODES_MAP,
 };
