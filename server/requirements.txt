@@ -318,3 +318,5 @@ google-auth==2.3.3
 google-cloud-translate==3.7.4
 deepl==1.14.0
 python-dotenv==0.21.1
+pymongo==3.11.4
+dnspython==2.4.2

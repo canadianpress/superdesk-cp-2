@@ -14,3 +14,5 @@ types-python-dateutil
 types-pytz
 types-requests<2.32.0.20240908  # https://github.com/python/typeshed/issues/10825
 types-six
+pymongo
+dnspython
