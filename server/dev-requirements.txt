@@ -13,3 +13,5 @@ types-python-dateutil
 types-pytz
 types-requests
 types-six
+pymongo
+dnspython

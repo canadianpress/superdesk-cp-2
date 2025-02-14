@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "superdesk.auth.saml",
     "superdesk.macros.imperial",
     "cp.orangelogic",
+    "cp.archive_search",
     "cp.ingest",
     "cp.output",
     "cp.ultrad",
