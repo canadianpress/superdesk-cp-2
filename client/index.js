@@ -31,6 +31,10 @@ setTimeout(() => {
                 load: () => import('./extensions/auto-translator')
             },
             {
+                id: 'archive-search',
+                load: () => import('./extensions/archive-search'),
+            },
+            {
                 id: 'ai-widget',
                 load: () => import('superdesk-core/scripts/extensions/ai-widget').then((widget) => {
                     widget.configure((superdesk) => ({
