@@ -76,3 +76,15 @@ msgstr "Inséré"
 
 msgid "Deleted"
 msgstr "Supprimé"
+
+msgid "Confirm Translate"
+msgstr "Confirmer Traduire"
+
+msgid "Yes"
+msgstr "Oui"
+
+msgid "No"
+msgstr "Non"
+
+msgid "By clicking \"Translate\" again, changes to the current manual translation will be lost. Are you sure you wish to proceed?"
+msgstr "En cliquant à nouveau sur « Traduire », les modifications apportées à la traduction actuelle du manuel seront perdues. Êtes-vous sûr de vouloir continuer ?"
