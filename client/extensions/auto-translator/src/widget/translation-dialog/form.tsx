@@ -1,4 +1,4 @@
-import { useFormikContext } from "formik";
+import { FormikContextType, useFormikContext } from "formik";
 import * as React from "react";
 import { createPortal } from "react-dom";
 import { IArticle } from "superdesk-api";
@@ -204,14 +204,13 @@ const getTranslation = (payload: TranslationPayload) =>
     payload: { service: "translate", item: payload },
   });
 
-const isManualTranslationDirty = (
-  values: ReturnType<
-    typeof useFormikContext<TranslationDialogFormProps>
-  >["values"],
-  getFieldMeta: ReturnType<
-    typeof useFormikContext<TranslationDialogFormProps>
-  >["getFieldMeta"]
-) =>
+const isManualTranslationDirty = ({
+  values,
+  getFieldMeta,
+}: Pick<
+  FormikContextType<TranslationDialogFormProps>,
+  "values" | "getFieldMeta"
+>) =>
   getObjectKeys(FORM_FIELDS).some((key) => {
     const field = getFieldMeta(
       `translations.${values.writethru}.manualTranslation.${key}`
@@ -380,7 +379,8 @@ export const TranslationForm = () => {
     event: React.MouseEvent<HTMLButtonElement, MouseEvent>
   ) => {
     event.preventDefault();
-    if (isManualTranslationDirty(values, getFieldMeta)) setShowConfirm(true);
+    if (isManualTranslationDirty({ values, getFieldMeta }))
+      setShowConfirm(true);
     else translateArticle();
   };
 
