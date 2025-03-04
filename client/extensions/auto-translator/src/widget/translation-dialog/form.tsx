@@ -1,10 +1,13 @@
 import { useFormikContext } from "formik";
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { IArticle } from "superdesk-api";
 import {
   Button,
+  ButtonGroup,
   Container,
   ContentDivider,
+  Modal,
   Option,
   ResizablePanels,
 } from "superdesk-ui-framework/react";
@@ -212,6 +215,66 @@ const getTranslation = (payload: TranslationPayload) =>
     payload: { service: "translate", item: payload },
   });
 
+const isManualTranslationDirty = (
+  values: ReturnType<
+    typeof useFormikContext<TranslationDialogFormProps>
+  >["values"],
+  getFieldMeta: ReturnType<
+    typeof useFormikContext<TranslationDialogFormProps>
+  >["getFieldMeta"]
+) =>
+  getObjectKeys(FORM_FIELDS).some((key) => {
+    const field = getFieldMeta(
+      `translations.${values.writethru}.manualTranslation.${key}`
+    );
+    return field.initialValue !== field.value;
+  });
+
+const ConfirmTranslate = ({
+  closeDialog,
+  onSubmit,
+}: {
+  closeDialog: () => void;
+  onSubmit: () => void;
+}) => {
+  const { gettext } = superdesk.localization;
+
+  return (
+    <Modal
+      headerTemplate={gettext("Confirm Translate")}
+      visible
+      onHide={closeDialog}
+      footerTemplate={
+        <ButtonGroup align="end">
+          <Button
+            text={gettext("No")}
+            style="hollow"
+            onClick={(event) => {
+              event.preventDefault();
+              closeDialog();
+            }}
+          />
+          <Button
+            text={gettext("Yes")}
+            type="primary"
+            style="hollow"
+            onClick={(event) => {
+              event.stopPropagation();
+              onSubmit();
+            }}
+          />
+        </ButtonGroup>
+      }
+    >
+      <p>
+        {gettext(
+          'By clicking "Translate" again, changes to the current manual translation will be lost. Are you sure you wish to proceed?'
+        )}
+      </p>
+    </Modal>
+  );
+};
+
 const TranslationFormEntry = ({
   initialVersion,
 }: {
@@ -268,8 +331,12 @@ const TranslationFormEntry = ({
 export const TranslationForm = () => {
   const { gettext } = superdesk.localization;
   const [isLoading, setIsLoading] = React.useState(false);
-  const { values, setFieldValue: formikSetFieldValue } =
-    useFormikContext<TranslationDialogFormProps>();
+  const [showConfirm, setShowConfirm] = React.useState(false);
+  const {
+    values,
+    setFieldValue: formikSetFieldValue,
+    getFieldMeta,
+  } = useFormikContext<TranslationDialogFormProps>();
   const setFieldValue =
     typedSetFieldValue<TranslationDialogFormProps>(formikSetFieldValue);
 
@@ -291,6 +358,7 @@ export const TranslationForm = () => {
       translation_type: values.translationType,
     } as const;
 
+    setShowConfirm(false);
     setIsLoading(true);
 
     getTranslation(payload)
@@ -317,6 +385,18 @@ export const TranslationForm = () => {
       .finally(() => {
         setIsLoading(false);
       });
+  };
+
+  const handleTranslateOnClick = (
+    event: React.MouseEvent<HTMLButtonElement, MouseEvent>
+  ) => {
+    event.preventDefault();
+    if (isManualTranslationDirty(values, getFieldMeta)) setShowConfirm(true);
+    else translateArticle();
+  };
+
+  const closeConfirmDialog = () => {
+    setShowConfirm(false);
   };
 
   return (
@@ -366,10 +446,7 @@ export const TranslationForm = () => {
           text={gettext("Translate")}
           type="primary"
           isLoading={isLoading}
-          onClick={(event) => {
-            event.preventDefault();
-            translateArticle();
-          }}
+          onClick={handleTranslateOnClick}
         />
       </div>
       <ContentDivider margin="small" />
@@ -397,6 +474,14 @@ export const TranslationForm = () => {
           </Container>
         </ResizablePanels>
       </Container>
+      {showConfirm &&
+        createPortal(
+          <ConfirmTranslate
+            closeDialog={closeConfirmDialog}
+            onSubmit={translateArticle}
+          />,
+          document.body
+        )}
     </>
   );
 };
