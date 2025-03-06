@@ -1,36 +1,19 @@
-import { FormikContextType, useFormikContext } from "formik";
+import { useFormikContext } from "formik";
 import * as React from "react";
-import { createPortal } from "react-dom";
 import { IArticle } from "superdesk-api";
 import {
-  Button,
-  ButtonGroup,
   Container,
   ContentDivider,
-  Modal,
   Option,
   ResizablePanels,
 } from "superdesk-ui-framework/react";
+import { FormTextEditorInput, FormTextInput, Select } from "../../components";
 import {
-  FormSelect,
-  FormTextEditorInput,
-  FormTextInput,
-  Select,
-} from "../../components";
-import {
-  TRANSLATION_LANGUAGES,
   TRANSLATION_LANGUAGES_CODES_MAP,
-  TRANSLATION_TYPES,
   TRANSLATION_VERSIONS,
 } from "../../constants";
-import { typedSetFieldValue } from "../../formik-utilties";
 import { superdesk } from "../../superdesk";
 import {
-  TranslationPayload,
-  TranslationResponse,
-} from "../../typings/translation";
-import {
-  capitalize,
   getObjectEntries,
   getObjectKeys,
   getObjectValues,
@@ -47,8 +30,7 @@ import {
   TranslationDialogFormProps,
   TranslationEntry,
 } from "./helpers";
-
-const { httpRequestJsonLocal } = superdesk;
+import { TranslationSettings } from "./settings";
 
 const getImagesFormValues = (workingArticle: IArticle) =>
   getObjectEntries(workingArticle?.associations || {}).reduce<
@@ -197,78 +179,14 @@ export const getTranslationDialogFormValues = (
   };
 };
 
-const getTranslation = (payload: TranslationPayload) =>
-  httpRequestJsonLocal<TranslationResponse>({
-    method: "POST",
-    path: "/ai",
-    payload: { service: "translate", item: payload },
-  });
-
-const isManualTranslationDirty = ({
-  values,
-  getFieldMeta,
-}: Pick<
-  FormikContextType<TranslationDialogFormProps>,
-  "values" | "getFieldMeta"
->) =>
-  getObjectKeys(FORM_FIELDS).some((key) => {
-    const field = getFieldMeta(
-      `translations.${values.writethru}.manualTranslation.${key}`
-    );
-    return field.initialValue !== field.value;
-  });
-
-const ConfirmTranslate = ({
-  closeDialog,
-  onSubmit,
-}: {
-  closeDialog: () => void;
-  onSubmit: () => void;
-}) => {
-  const { gettext } = superdesk.localization;
-
-  return (
-    <Modal
-      headerTemplate={gettext("Confirm Translate")}
-      visible
-      onHide={closeDialog}
-      footerTemplate={
-        <ButtonGroup align="end">
-          <Button
-            text={gettext("No")}
-            style="hollow"
-            onClick={(event) => {
-              event.preventDefault();
-              closeDialog();
-            }}
-          />
-          <Button
-            text={gettext("Yes")}
-            type="primary"
-            style="hollow"
-            onClick={(event) => {
-              event.stopPropagation();
-              onSubmit();
-            }}
-          />
-        </ButtonGroup>
-      }
-    >
-      <p>
-        {gettext(
-          'By clicking "Translate" again, changes to the current manual translation will be lost. Are you sure you wish to proceed?'
-        )}
-      </p>
-    </Modal>
-  );
-};
-
 const TranslationFormEntry = ({
   initialVersion,
 }: {
   initialVersion: keyof TranslationEntry;
 }) => {
   const { gettext } = superdesk.localization;
+  const { FormFieldType } = superdesk.forms;
+
   const [version, setVersion] =
     React.useState<keyof TranslationEntry>(initialVersion);
   const { values } = useFormikContext<TranslationDialogFormProps>();
@@ -292,7 +210,7 @@ const TranslationFormEntry = ({
         const name = value.getName(values.writethru, version);
 
         switch (value.type) {
-          case "textEditor":
+          case FormFieldType.textEditor3:
             return (
               <FormTextEditorInput<TranslationDialogFormProps>
                 key={name}
@@ -316,161 +234,33 @@ const TranslationFormEntry = ({
   );
 };
 
-export const TranslationForm = () => {
-  const { gettext } = superdesk.localization;
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [showConfirm, setShowConfirm] = React.useState(false);
-  const {
-    values,
-    setFieldValue: formikSetFieldValue,
-    getFieldMeta,
-  } = useFormikContext<TranslationDialogFormProps>();
-  const setFieldValue =
-    typedSetFieldValue<TranslationDialogFormProps>(formikSetFieldValue);
-
-  const translateArticle = () => {
-    const payload = {
-      body_html: "",
-      payload: getObjectKeys(FORM_FIELDS).reduce<
-        Omit<FormInputProps, "images">
-      >(
-        (payload, field) => {
-          payload[field] =
-            values.translations[values.writethru].original[field];
-          return payload;
-        },
-        { ...FORM_FIELDS_INITIAL_VALUES }
-      ),
-      target_language: values.translateTo,
-      source_language: values.translateFrom,
-      translation_type: values.translationType,
-    } as const;
-
-    setShowConfirm(false);
-    setIsLoading(true);
-
-    getTranslation(payload)
-      .then((res) => {
-        if ("error" in res.analysis) {
-          console.error(res.analysis.error);
-          return;
-        }
-
-        const versions = ["aiTranslation", "manualTranslation"] as const;
-
-        for (const version of versions) {
-          for (const key of getObjectKeys(FORM_FIELDS)) {
-            setFieldValue(
-              `translations.${values.writethru}.${version}.${key}`,
-              res.analysis.translated_payload[key]
-            );
-          }
-        }
-      })
-      .catch((err) => {
-        console.error({ err });
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
-  };
-
-  const handleTranslateOnClick = (
-    event: React.MouseEvent<HTMLButtonElement, MouseEvent>
-  ) => {
-    event.preventDefault();
-    if (isManualTranslationDirty({ values, getFieldMeta }))
-      setShowConfirm(true);
-    else translateArticle();
-  };
-
-  const closeConfirmDialog = () => {
-    setShowConfirm(false);
-  };
-
-  return (
-    <>
-      <div className="auto-translator__translation-form-settings-container">
-        <FormSelect<TranslationDialogFormProps>
-          name="writethru"
-          label={gettext("Writethru")}
+export const TranslationForm = () => (
+  <>
+    <TranslationSettings />
+    <ContentDivider margin="small" />
+    <CompareAccordion />
+    <ContentDivider margin="small" />
+    <Container>
+      <ResizablePanels
+        direction="horizontal"
+        primarySize={{ min: 33, default: 50 }}
+        secondarySize={{ min: 33, default: 50 }}
+      >
+        <Container
+          gap="large"
+          direction="column"
+          className="auto-translator__translation-form-panel-container"
         >
-          {getObjectKeys(values.translations).map((writethru) => (
-            <Option value={writethru} key={`writethru-${writethru}`}>
-              {capitalize(writethru)}
-            </Option>
-          ))}
-        </FormSelect>
-        <FormSelect<TranslationDialogFormProps>
-          name="translationType"
-          label={gettext("Translation Type")}
+          <TranslationFormEntry initialVersion="original" />
+        </Container>
+        <Container
+          gap="large"
+          direction="column"
+          className="auto-translator__translation-form-panel-container"
         >
-          {getObjectEntries(TRANSLATION_TYPES).map(([value, label]) => (
-            <Option value={value} key={`translationType-${value}`}>
-              {label}
-            </Option>
-          ))}
-        </FormSelect>
-        <FormSelect<TranslationDialogFormProps>
-          name="translateFrom"
-          label={gettext("Translate From")}
-        >
-          {getObjectEntries(TRANSLATION_LANGUAGES).map(([key, value]) => (
-            <Option value={value.value} key={`translateFrom-${key}`}>
-              {value.label}
-            </Option>
-          ))}
-        </FormSelect>
-        <FormSelect<TranslationDialogFormProps>
-          name="translateTo"
-          label={gettext("Translate To")}
-        >
-          {getObjectEntries(TRANSLATION_LANGUAGES).map(([key, value]) => (
-            <Option value={value.value} key={`translateTo-${key}`}>
-              {value.label}
-            </Option>
-          ))}
-        </FormSelect>
-        <Button
-          text={gettext("Translate")}
-          type="primary"
-          isLoading={isLoading}
-          onClick={handleTranslateOnClick}
-        />
-      </div>
-      <ContentDivider margin="small" />
-      <CompareAccordion />
-      <ContentDivider margin="small" />
-      <Container>
-        <ResizablePanels
-          direction="horizontal"
-          primarySize={{ min: 33, default: 50 }}
-          secondarySize={{ min: 33, default: 50 }}
-        >
-          <Container
-            gap="large"
-            direction="column"
-            className="auto-translator__translation-form-panel-container"
-          >
-            <TranslationFormEntry initialVersion="original" />
-          </Container>
-          <Container
-            gap="large"
-            direction="column"
-            className="auto-translator__translation-form-panel-container"
-          >
-            <TranslationFormEntry initialVersion="aiTranslation" />
-          </Container>
-        </ResizablePanels>
-      </Container>
-      {showConfirm &&
-        createPortal(
-          <ConfirmTranslate
-            closeDialog={closeConfirmDialog}
-            onSubmit={translateArticle}
-          />,
-          document.body
-        )}
-    </>
-  );
-};
+          <TranslationFormEntry initialVersion="aiTranslation" />
+        </Container>
+      </ResizablePanels>
+    </Container>
+  </>
+);

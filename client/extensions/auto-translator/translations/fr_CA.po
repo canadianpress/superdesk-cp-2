@@ -124,3 +124,12 @@ msgstr "Traduire en"
 
 msgid "Compare Writethru Diff"
 msgstr "Comparer Lead Diff"
+
+msgid "Search"
+msgstr "Recherche"
+
+msgid "Replace"
+msgstr "Remplacer"
+
+msgid "Replace All"
+msgstr "Remplacer Tout"

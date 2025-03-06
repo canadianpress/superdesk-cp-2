@@ -31,6 +31,7 @@ const getCompareContentValues = (
   version: (typeof COMPARE_VERSIONS)[number]
 ) => {
   const { gettext } = superdesk.localization;
+
   const dmp = new DiffMatchPatch();
 
   const result = getObjectKeys(FORM_FIELDS).reduce<
@@ -84,6 +85,7 @@ const CompareContent = (props: Omit<FormInputProps, "images">) => (
 
 export const CompareAccordion = () => {
   const { gettext } = superdesk.localization;
+
   const { values } = useFormikContext<TranslationDialogFormProps>();
 
   const [isOpen, setIsOpen] = React.useState<boolean>(false);

@@ -17,6 +17,7 @@ export const Footer = ({ isLoading, closeDialog }: FooterProps) => {
         style="hollow"
         onClick={(event) => {
           event.preventDefault();
+          event.stopPropagation();
           closeDialog();
         }}
       />
