@@ -113,7 +113,7 @@ export const CompareAccordion = () => {
               onChange={(newValue) => {
                 setCompareLeft(newValue);
               }}
-              label={gettext("Writethru 1")}
+              label={`${gettext("Writethru")} 1`}
             >
               {getObjectKeys(values.translations).map((writethru) => (
                 <Option value={writethru} key={`left-writethru-${writethru}`}>
@@ -126,7 +126,7 @@ export const CompareAccordion = () => {
               onChange={(newValue) => {
                 setCompareRight(newValue);
               }}
-              label={gettext("Writethru 2")}
+              label={`${gettext("Writethru")} 2`}
             >
               {getObjectKeys(values.translations).map((writethru) => (
                 <Option value={writethru} key={`right-writethru-${writethru}`}>

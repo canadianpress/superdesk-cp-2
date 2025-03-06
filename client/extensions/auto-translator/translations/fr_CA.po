@@ -5,14 +5,8 @@ msgstr ""
 msgid "Translate"
 msgstr "Traduire"
 
-msgid "Auto"
-msgstr "Automatique"
-
 msgid "Cancel"
 msgstr "annuler"
-
-msgid "Apply"
-msgstr "appliquer"
 
 msgid "Translation"
 msgstr "traduction"
@@ -88,3 +82,21 @@ msgstr "Non"
 
 msgid "By clicking \"Translate\" again, changes to the current manual translation will be lost. Are you sure you wish to proceed?"
 msgstr "En cliquant à nouveau sur « Traduire », les modifications apportées à la traduction actuelle du manuel seront perdues. Êtes-vous sûr de vouloir continuer ?"
+
+msgid "Auto Translate"
+msgstr "Traduire Automatique"
+
+msgid "Apply Translation"
+msgstr "Appliquer Traduire"
+
+msgid "Translation Type"
+msgstr "Type de Traduction"
+
+msgid "Translate From"
+msgstr "Traduire de"
+
+msgid "Translate To"
+msgstr "Traduire en"
+
+msgid "Compare Writethru Diff"
+msgstr "Comparer Lead Diff"
