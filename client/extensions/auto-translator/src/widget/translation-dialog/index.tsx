@@ -89,7 +89,7 @@ export const TranslationDialog = ({
         return (
           <form onSubmit={handleSubmit}>
             <Modal
-              headerTemplate={gettext("Translation")}
+              headerTemplate={gettext("Translation Widget")}
               visible
               size="x-large"
               onHide={closeDialog}
