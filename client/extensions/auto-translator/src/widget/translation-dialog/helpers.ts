@@ -11,10 +11,13 @@ import {
   TranslationType,
 } from "../../typings/translation";
 
+const { FormFieldType } = superdesk.forms;
+const { gettext } = superdesk.localization;
+
 export const FORM_FIELDS: Record<
   TranslationFields,
   {
-    type: string;
+    type: (typeof FormFieldType)[keyof typeof FormFieldType];
     getName: (
       writethru: string,
       version: string
@@ -31,10 +34,10 @@ export const FORM_FIELDS: Record<
   }
 > = {
   headline: {
-    type: "text",
+    type: FormFieldType.plainText,
     getName: (writethru, version) =>
       `translations.${writethru}.${version}.headline`,
-    label: superdesk.localization.gettext("Headline"),
+    label: gettext("Headline"),
     getFormValue: (article) => article.headline ?? "",
     setEditorValue: (values) => ({
       key: "headline",
@@ -42,10 +45,10 @@ export const FORM_FIELDS: Record<
     }),
   },
   headline_extended: {
-    type: "text",
+    type: FormFieldType.plainText,
     getName: (writethru, version) =>
       `translations.${writethru}.${version}.headline_extended`,
-    label: superdesk.localization.gettext("Extended Headline"),
+    label: gettext("Extended Headline"),
     getFormValue: (article) => article?.extra?.headline_extended ?? "",
     setEditorValue: (values, props) => ({
       key: "extra",
@@ -58,10 +61,10 @@ export const FORM_FIELDS: Record<
     }),
   },
   body_html: {
-    type: "textEditor",
+    type: FormFieldType.textEditor3,
     getName: (writethru, version) =>
       `translations.${writethru}.${version}.body_html`,
-    label: superdesk.localization.gettext("body HTML"),
+    label: gettext("body HTML"),
     getFormValue: (article) => article.body_html ?? "",
     setEditorValue: (values) => ({
       key: "body_html",

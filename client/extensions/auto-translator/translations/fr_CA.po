@@ -6,16 +6,16 @@ msgid "Translate"
 msgstr "Traduire"
 
 msgid "Cancel"
-msgstr "annuler"
+msgstr "Annuler"
 
 msgid "Translation"
-msgstr "traduction"
+msgstr "Traduction"
 
 msgid "Version"
 msgstr "version"
 
 msgid "Original"
-msgstr "originale"
+msgstr "Originale"
 
 msgid "AI Translation"
 msgstr "AI Traduction"
@@ -100,3 +100,12 @@ msgstr "Traduire en"
 
 msgid "Compare Writethru Diff"
 msgstr "Comparer Lead Diff"
+
+msgid "Search"
+msgstr "Recherche"
+
+msgid "Replace"
+msgstr "Remplacer"
+
+msgid "Replace All"
+msgstr "Remplacer Tout"
