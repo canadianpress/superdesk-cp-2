@@ -118,11 +118,14 @@ export const CompareAccordion = () => {
               }}
               label={`${gettext("Writethru")} 1`}
             >
-              {getObjectKeys(values.translations).map((writethru) => (
-                <Option value={writethru} key={`left-writethru-${writethru}`}>
-                  {capitalize(writethru)}
-                </Option>
-              ))}
+              <Option value="current">{gettext("Current Story")}</Option>
+              {getObjectKeys(values.translations)
+                .filter((key) => key !== "current")
+                .map((writethru) => (
+                  <Option value={writethru} key={`left-writethru-${writethru}`}>
+                    {capitalize(writethru)}
+                  </Option>
+                ))}
             </Select>
             <Select
               value={compareRight}
@@ -131,23 +134,29 @@ export const CompareAccordion = () => {
               }}
               label={`${gettext("Writethru")} 2`}
             >
-              {getObjectKeys(values.translations).map((writethru) => (
-                <Option value={writethru} key={`right-writethru-${writethru}`}>
-                  {capitalize(writethru)}
-                </Option>
-              ))}
+              <Option value="current">{gettext("Current Story")}</Option>
+              {getObjectKeys(values.translations)
+                .filter((key) => key !== "current")
+                .map((writethru) => (
+                  <Option
+                    value={writethru}
+                    key={`right-writethru-${writethru}`}
+                  >
+                    {capitalize(writethru)}
+                  </Option>
+                ))}
             </Select>
           </div>
           {compareLeft && compareRight && (
             <article
               className="auto-translator__compare-accordion-content-container"
               tabIndex={0}
-              aria-label={gettext("Compare Writethru Diff")}
+              aria-label={gettext("Compare Writethru Difference")}
             >
               {COMPARE_VERSIONS.map((version, index) => {
                 const header =
                   version === "diff"
-                    ? gettext("Diff")
+                    ? gettext("Difference (Diff)")
                     : `${gettext("Writethru")} ${index + 1}`;
 
                 return (

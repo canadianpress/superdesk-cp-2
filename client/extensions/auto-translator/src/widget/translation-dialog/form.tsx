@@ -195,7 +195,11 @@ const TranslationFormEntry = ({
     <>
       <Select
         value={version}
-        label={gettext("Version")}
+        label={
+          initialVersion === "original"
+            ? gettext("Version (Original Content)")
+            : gettext("Version (Translated Content)")
+        }
         onChange={(newValue) => {
           if (isTranslationVersion(newValue)) setVersion(newValue);
         }}
