@@ -115,3 +115,6 @@ msgstr "Version (Contenu Original)"
 
 msgid "Version (Translated Content)"
 msgstr "Version (Contenu Traduit)"
+
+msgid "body HTML may have a maximum of 5000 characters"
+msgstr "Le corps HTML peut contenir un maximum de 5000 caractères"

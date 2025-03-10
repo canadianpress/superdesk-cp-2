@@ -1,5 +1,7 @@
+import { FieldValidator } from "formik";
 import { IArticle } from "superdesk-api";
 import {
+  MAX_LEN_BODY_HTML,
   TRANSLATION_LANGUAGES_CODES_MAP,
   TRANSLATION_VERSIONS,
 } from "../../constants";
@@ -33,6 +35,8 @@ export const FORM_FIELDS: Record<
       value: any;
     };
     initialValue: any;
+    validate?: FieldValidator;
+    maxLength?: number;
   }
 > = {
   headline: {
@@ -75,6 +79,12 @@ export const FORM_FIELDS: Record<
       value: values.translations[values.writethru].manualTranslation.body_html,
     }),
     initialValue: "",
+    validate: (value: string) => {
+      if (value.length > MAX_LEN_BODY_HTML)
+        return gettext("body HTML may have a maximum of 5000 characters");
+      return;
+    },
+    maxLength: MAX_LEN_BODY_HTML,
   },
 };
 

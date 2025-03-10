@@ -1,6 +1,8 @@
+import { useFormikContext } from "formik";
 import * as React from "react";
-import { ButtonGroup, Button } from "superdesk-ui-framework/react";
+import { Button, ButtonGroup } from "superdesk-ui-framework/react";
 import { superdesk } from "../../superdesk";
+import { TranslationDialogFormProps } from "./helpers";
 
 type FooterProps = {
   isLoading: boolean;
@@ -9,6 +11,7 @@ type FooterProps = {
 
 export const Footer = ({ isLoading, closeDialog }: FooterProps) => {
   const { gettext } = superdesk.localization;
+  const { isValid } = useFormikContext<TranslationDialogFormProps>();
 
   return (
     <ButtonGroup align="end">
@@ -25,7 +28,7 @@ export const Footer = ({ isLoading, closeDialog }: FooterProps) => {
         text={gettext("Apply Translation")}
         type="primary"
         style="hollow"
-        disabled={isLoading}
+        disabled={!isValid || isLoading}
         onClick={(event) => {
           event.stopPropagation();
         }}

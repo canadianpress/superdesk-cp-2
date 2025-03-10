@@ -221,6 +221,8 @@ const TranslationFormEntry = ({
                 name={name}
                 label={value.label}
                 readOnly={version !== "manualTranslation"}
+                validate={value?.validate}
+                maxLength={value?.maxLength}
               />
             );
           default:

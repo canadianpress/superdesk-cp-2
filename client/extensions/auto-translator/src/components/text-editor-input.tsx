@@ -1,57 +1,67 @@
-import { useField } from "formik";
+import { FieldMetaProps, FieldValidator, useField } from "formik";
 import * as React from "react";
 import { InputWrapper } from "superdesk-ui-framework/react";
 import { RecursiveKeyOf } from "../formik-utilties";
 import { superdesk } from "../superdesk";
 
-type TextEditorInputProps = {
+type TextEditorInputProps<T> = {
   label: string;
   value: string;
   readOnly: boolean;
   onChange: (value: string) => void;
+  error?: FieldMetaProps<T>["error"];
+  maxLength?: number;
 };
 
-export const TextEditorInput = ({
+export const TextEditorInput = <T,>({
   label,
   value,
+  error,
+  maxLength,
   readOnly,
   onChange,
-  ...props
-}: TextEditorInputProps) => {
+}: TextEditorInputProps<T>) => {
   const { Editor3Html } = superdesk.components;
 
   return (
-    <InputWrapper label={label} fullWidth boxedStyle boxedLable>
-      <Editor3Html
-        readOnly={readOnly}
-        value={value}
-        onChange={onChange}
-        {...props}
-      />
+    <InputWrapper
+      fullWidth
+      boxedStyle
+      boxedLable
+      label={label}
+      value={value}
+      error={error}
+      invalid={Boolean(error)}
+      maxLength={maxLength}
+    >
+      <Editor3Html readOnly={readOnly} value={value} onChange={onChange} />
     </InputWrapper>
   );
 };
 
 type FormTextEditorInputProps<T> = Omit<
-  TextEditorInputProps,
+  TextEditorInputProps<T>,
   "value" | "onChange"
-> & { name: RecursiveKeyOf<T> & string };
+> & {
+  name: RecursiveKeyOf<T> & string;
+  validate: FieldValidator | undefined;
+};
 
 export const FormTextEditorInput = <T,>({
-  label,
   name,
+  validate,
   ...props
 }: FormTextEditorInputProps<T>) => {
-  const [field, _meta, helpers] = useField(name);
+  const [field, meta, helpers] = useField({ name, validate });
   const { setValue } = helpers;
 
   return (
     <TextEditorInput
-      label={label}
       value={field.value}
       onChange={(value) => {
         setValue(value);
       }}
+      error={meta.error}
       {...props}
     />
   );
