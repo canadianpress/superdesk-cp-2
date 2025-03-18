@@ -16,6 +16,7 @@ import { getObjectEntries } from "../../utilities";
 
 const { FormFieldType } = superdesk.forms;
 const { gettext } = superdesk.localization;
+const { stripHtmlTags } = superdesk.utilities;
 
 export const FORM_FIELDS: Record<
   TranslationFields,
@@ -37,6 +38,7 @@ export const FORM_FIELDS: Record<
     initialValue: any;
     validate?: FieldValidator;
     maxLength?: number;
+    setFormValue?: (value: string) => string;
   }
 > = {
   headline: {
@@ -73,7 +75,11 @@ export const FORM_FIELDS: Record<
     getName: (writethru, version) =>
       `translations.${writethru}.${version}.body_html`,
     label: gettext("body HTML"),
-    getFormValue: (article) => article.body_html ?? "",
+    getFormValue: (article) =>
+      stripHtmlTags(article.body_html ?? "")
+        .split("\n")
+        .map((text) => `<p>${text}</p>`)
+        .join(""),
     setEditorValue: (values) => ({
       key: "body_html",
       value: values.translations[values.writethru].manualTranslation.body_html,
@@ -85,6 +91,11 @@ export const FORM_FIELDS: Record<
       return;
     },
     maxLength: MAX_LEN_BODY_HTML,
+    setFormValue: (value) =>
+      value
+        .split("\n")
+        .map((text) => `<p>${text}</p>`)
+        .join(""),
   },
 };
 
