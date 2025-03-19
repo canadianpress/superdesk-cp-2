@@ -162,7 +162,8 @@ export const TranslationSettings = () => {
 
             setFieldValue(
               `translations.${values.writethru}.${version}.${key}`,
-              fieldValue
+              fieldValue,
+              true
             );
             initialValues.translations[values.writethru][version][key] =
               fieldValue;
