@@ -1,7 +1,6 @@
 import { FieldValidator } from "formik";
 import { IArticle } from "superdesk-api";
 import {
-  MAX_LEN_BODY_HTML,
   TRANSLATION_LANGUAGES_CODES_MAP,
   TRANSLATION_VERSIONS,
 } from "../../constants";
@@ -36,8 +35,7 @@ export const FORM_FIELDS: Record<
       value: any;
     };
     initialValue: any;
-    validate?: FieldValidator;
-    maxLength?: number;
+    validate?: (schema: { maxlength: number }) => FieldValidator;
     setFormValue?: (value: string) => string;
   }
 > = {
@@ -52,6 +50,13 @@ export const FORM_FIELDS: Record<
       value: values.translations[values.writethru].manualTranslation.headline,
     }),
     initialValue: "",
+    validate: (schema) => (value) => {
+      if (value.length > schema.maxlength)
+        return `${gettext("Headline may have a maximum character length of")} ${
+          schema.maxlength
+        }`;
+      return;
+    },
   },
   headline_extended: {
     type: FormFieldType.plainText,
@@ -69,6 +74,13 @@ export const FORM_FIELDS: Record<
       },
     }),
     initialValue: "",
+    validate: (schema) => (value) => {
+      if (value.length > schema.maxlength)
+        return `${gettext("Extended Headline may have a maximum character length of")} ${
+          schema.maxlength
+        }`;
+      return;
+    },
   },
   body_html: {
     type: FormFieldType.textEditor3,
@@ -85,12 +97,6 @@ export const FORM_FIELDS: Record<
       value: values.translations[values.writethru].manualTranslation.body_html,
     }),
     initialValue: "",
-    validate: (value: string) => {
-      if (value.length > MAX_LEN_BODY_HTML)
-        return gettext("body HTML may have a maximum of 5000 characters");
-      return;
-    },
-    maxLength: MAX_LEN_BODY_HTML,
     setFormValue: (value) =>
       value
         .split("\n")

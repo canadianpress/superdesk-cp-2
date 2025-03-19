@@ -16,7 +16,6 @@ import { superdesk } from "../../superdesk";
 import {
   getObjectEntries,
   getObjectKeys,
-  getObjectValues,
   isArticle,
   isNotEmptyObject,
 } from "../../utilities";
@@ -210,27 +209,31 @@ const TranslationFormEntry = ({
           </Option>
         ))}
       </Select>
-      {getObjectValues(FORM_FIELDS).map((value) => {
+      {getObjectEntries(FORM_FIELDS).map(([key, value]) => {
         const name = value.getName(values.writethru, version);
+        const schema = superdesk.instance.config.schema?.["Story"]?.[key];
+        const sharedProps = {
+          key: name,
+          name,
+          label: value.label,
+          ...(version === "manualTranslation" && {
+            validate: value?.validate?.(schema),
+            maxLength: schema?.maxlength,
+          }),
+        };
 
         switch (value.type) {
           case FormFieldType.textEditor3:
             return (
               <FormTextEditorInput<TranslationDialogFormProps>
-                key={name}
-                name={name}
-                label={value.label}
+                {...sharedProps}
                 readOnly={version !== "manualTranslation"}
-                validate={value?.validate}
-                maxLength={value?.maxLength}
               />
             );
           default:
             return (
               <FormTextInput<TranslationDialogFormProps>
-                key={name}
-                name={name}
-                label={value.label}
+                {...sharedProps}
                 readonly={version !== "manualTranslation"}
               />
             );

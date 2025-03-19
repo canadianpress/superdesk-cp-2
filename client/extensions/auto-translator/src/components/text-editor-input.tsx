@@ -1,26 +1,22 @@
-import { FieldMetaProps, FieldValidator, useField } from "formik";
+import { useField } from "formik";
 import * as React from "react";
 import { InputWrapper } from "superdesk-ui-framework/react";
 import { RecursiveKeyOf } from "../formik-utilties";
 import { superdesk } from "../superdesk";
 
-type TextEditorInputProps<T> = {
+type TextEditorInputProps = {
   label: string;
   value: string;
   readOnly: boolean;
   onChange: (value: string) => void;
-  error?: FieldMetaProps<T>["error"];
-  maxLength?: number;
 };
 
-export const TextEditorInput = <T,>({
+export const TextEditorInput = ({
   label,
   value,
-  error,
-  maxLength,
   readOnly,
   onChange,
-}: TextEditorInputProps<T>) => {
+}: TextEditorInputProps) => {
   const { Editor3Html } = superdesk.components;
 
   return (
@@ -30,9 +26,8 @@ export const TextEditorInput = <T,>({
       boxedLable
       label={label}
       value={value}
-      error={error}
-      invalid={Boolean(error)}
-      maxLength={maxLength}
+      // max length must be provided to show a character count
+      maxLength={Number.MAX_SAFE_INTEGER}
     >
       <Editor3Html readOnly={readOnly} value={value} onChange={onChange} />
     </InputWrapper>
@@ -40,19 +35,17 @@ export const TextEditorInput = <T,>({
 };
 
 type FormTextEditorInputProps<T> = Omit<
-  TextEditorInputProps<T>,
+  TextEditorInputProps,
   "value" | "onChange"
 > & {
   name: RecursiveKeyOf<T> & string;
-  validate: FieldValidator | undefined;
 };
 
 export const FormTextEditorInput = <T,>({
   name,
-  validate,
   ...props
 }: FormTextEditorInputProps<T>) => {
-  const [field, meta, helpers] = useField({ name, validate });
+  const [field, _, helpers] = useField({ name });
   const { setValue } = helpers;
 
   return (
@@ -61,7 +54,6 @@ export const FormTextEditorInput = <T,>({
       onChange={(value) => {
         setValue(value);
       }}
-      error={meta.error}
       {...props}
     />
   );
