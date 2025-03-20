@@ -9,6 +9,7 @@ import {
   getTranslationDialogFormInitialValues,
   getTranslationDialogFormValues,
   TranslationForm,
+  validateTranslationDialogForm,
 } from "./form";
 import { FORM_FIELDS, TranslationDialogFormProps } from "./helpers";
 
@@ -69,6 +70,7 @@ export const TranslationDialog = ({
       enableReinitialize
       initialValues={getTranslationDialogFormInitialValues()}
       onSubmit={onSubmit}
+      validate={validateTranslationDialogForm}
     >
       {({ setValues, handleSubmit }) => {
         const [isLoading, setIsLoading] = React.useState(true);

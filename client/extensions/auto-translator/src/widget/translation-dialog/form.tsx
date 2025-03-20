@@ -1,4 +1,4 @@
-import { useFormikContext } from "formik";
+import { FormikConfig, FormikErrors, useFormikContext } from "formik";
 import * as React from "react";
 import { IArticle } from "superdesk-api";
 import {
@@ -60,7 +60,7 @@ const getTranslationEntryFormValues = (
 ) =>
   getObjectKeys(TRANSLATION_VERSIONS).reduce<TranslationEntry>(
     (formValues, version) => {
-      if (version === "original") {
+      if (version === TRANSLATION_VERSIONS.original.value) {
         formValues[version] = {
           ...getObjectEntries(FORM_FIELDS).reduce<
             Omit<FormInputProps, "images">
@@ -178,6 +178,33 @@ export const getTranslationDialogFormValues = (
   };
 };
 
+export const validateTranslationDialogForm: FormikConfig<TranslationDialogFormProps>["validate"] =
+  (values) => {
+    const errors: FormikErrors<TranslationDialogFormProps> = {};
+
+    for (const [key, value] of getObjectEntries(FORM_FIELDS)) {
+      const error = value?.validate?.(
+        values.translations[values.writethru].manualTranslation[key],
+        { schema: superdesk.instance.config.schema?.["Story"]?.[key] }
+      );
+
+      if (!error) continue;
+
+      Object.assign(errors, {
+        translations: {
+          [values.writethru]: {
+            [TRANSLATION_VERSIONS.manualTranslation.value]: {
+              ...errors?.translations?.[values.writethru]?.manualTranslation,
+              [key]: error,
+            },
+          },
+        },
+      });
+    }
+
+    return errors;
+  };
+
 const TranslationFormEntry = ({
   initialVersion,
 }: {
@@ -195,7 +222,7 @@ const TranslationFormEntry = ({
       <Select
         value={version}
         label={
-          initialVersion === "original"
+          initialVersion === TRANSLATION_VERSIONS.original.value
             ? gettext("Version (Original Content)")
             : gettext("Version (Translated Content)")
         }
@@ -216,8 +243,7 @@ const TranslationFormEntry = ({
           key: name,
           name,
           label: value.label,
-          ...(version === "manualTranslation" && {
-            validate: value?.validate?.(schema),
+          ...(version === TRANSLATION_VERSIONS.manualTranslation.value && {
             maxLength: schema?.maxlength,
           }),
         };
@@ -227,14 +253,18 @@ const TranslationFormEntry = ({
             return (
               <FormTextEditorInput<TranslationDialogFormProps>
                 {...sharedProps}
-                readOnly={version !== "manualTranslation"}
+                readOnly={
+                  version !== TRANSLATION_VERSIONS.manualTranslation.value
+                }
               />
             );
           default:
             return (
               <FormTextInput<TranslationDialogFormProps>
                 {...sharedProps}
-                readonly={version !== "manualTranslation"}
+                readonly={
+                  version !== TRANSLATION_VERSIONS.manualTranslation.value
+                }
               />
             );
         }
@@ -260,14 +290,18 @@ export const TranslationForm = () => (
           direction="column"
           className="auto-translator__translation-form-panel-container"
         >
-          <TranslationFormEntry initialVersion="original" />
+          <TranslationFormEntry
+            initialVersion={TRANSLATION_VERSIONS.original.value}
+          />
         </Container>
         <Container
           gap="large"
           direction="column"
           className="auto-translator__translation-form-panel-container"
         >
-          <TranslationFormEntry initialVersion="aiTranslation" />
+          <TranslationFormEntry
+            initialVersion={TRANSLATION_VERSIONS.aiTranslation.value}
+          />
         </Container>
       </ResizablePanels>
     </Container>

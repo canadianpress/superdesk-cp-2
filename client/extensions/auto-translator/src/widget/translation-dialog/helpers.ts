@@ -1,4 +1,3 @@
-import { FieldValidator } from "formik";
 import { IArticle } from "superdesk-api";
 import {
   TRANSLATION_LANGUAGES_CODES_MAP,
@@ -35,7 +34,10 @@ export const FORM_FIELDS: Record<
       value: any;
     };
     initialValue: any;
-    validate?: (schema: { maxlength: number }) => FieldValidator;
+    validate?: (
+      value: string,
+      { schema }: { schema: { maxlength: number } }
+    ) => string | undefined;
     setFormValue?: (value: string) => string;
   }
 > = {
@@ -50,7 +52,7 @@ export const FORM_FIELDS: Record<
       value: values.translations[values.writethru].manualTranslation.headline,
     }),
     initialValue: "",
-    validate: (schema) => (value) => {
+    validate: (value, { schema }) => {
       if (value.length > schema.maxlength)
         return `${gettext("Headline may have a maximum character length of")} ${
           schema.maxlength
@@ -74,11 +76,11 @@ export const FORM_FIELDS: Record<
       },
     }),
     initialValue: "",
-    validate: (schema) => (value) => {
+    validate: (value, { schema }) => {
       if (value.length > schema.maxlength)
-        return `${gettext("Extended Headline may have a maximum character length of")} ${
-          schema.maxlength
-        }`;
+        return `${gettext(
+          "Extended Headline may have a maximum character length of"
+        )} ${schema.maxlength}`;
       return;
     },
   },

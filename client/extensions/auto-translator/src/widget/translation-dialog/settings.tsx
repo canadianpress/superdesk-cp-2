@@ -156,7 +156,10 @@ export const TranslationSettings = () => {
           return;
         }
 
-        const versions = ["aiTranslation", "manualTranslation"] as const;
+        const versions = [
+          TRANSLATION_VERSIONS.aiTranslation.value,
+          TRANSLATION_VERSIONS.manualTranslation.value,
+        ] as const;
 
         for (const version of versions) {
           for (const [key, value] of getObjectEntries(FORM_FIELDS)) {
@@ -164,13 +167,12 @@ export const TranslationSettings = () => {
               ? value.setFormValue(res.analysis.translated_payload[key])
               : res.analysis.translated_payload[key];
 
-            setFieldValue(
-              `translations.${values.writethru}.${version}.${key}`,
-              fieldValue,
-              true
-            );
             initialValues.translations[values.writethru][version][key] =
               fieldValue;
+            setFieldValue(
+              `translations.${values.writethru}.${version}.${key}`,
+              fieldValue
+            );
           }
         }
       })
@@ -227,11 +229,14 @@ export const TranslationSettings = () => {
             name="writethru"
             label={gettext("Writethru")}
           >
-            {getObjectKeys(values.translations).map((writethru) => (
-              <Option value={writethru} key={`writethru-${writethru}`}>
-                {capitalize(writethru)}
-              </Option>
-            ))}
+            <Option value="current">{gettext("Current Story")}</Option>
+            {getObjectKeys(values.translations)
+              .filter((key) => key !== "current")
+              .map((writethru) => (
+                <Option value={writethru} key={`writethru-${writethru}`}>
+                  {capitalize(writethru)}
+                </Option>
+              ))}
           </FormSelect>
           <FormSelect<TranslationDialogFormProps>
             name="translationType"
