@@ -9,7 +9,11 @@ import {
   Spacer,
 } from "superdesk-ui-framework/react";
 import { FormSelect } from "../../components";
-import { TRANSLATION_LANGUAGES, TRANSLATION_TYPES } from "../../constants";
+import {
+  TRANSLATION_LANGUAGES,
+  TRANSLATION_TYPES,
+  TRANSLATION_VERSIONS,
+} from "../../constants";
 import { typedSetFieldValue } from "../../formik-utilties";
 import { superdesk } from "../../superdesk";
 import {
@@ -152,7 +156,10 @@ export const TranslationSettings = () => {
           return;
         }
 
-        const versions = ["aiTranslation", "manualTranslation"] as const;
+        const versions = [
+          TRANSLATION_VERSIONS.aiTranslation.value,
+          TRANSLATION_VERSIONS.manualTranslation.value,
+        ] as const;
 
         for (const version of versions) {
           for (const [key, value] of getObjectEntries(FORM_FIELDS)) {
@@ -160,13 +167,12 @@ export const TranslationSettings = () => {
               ? value.setFormValue(res.analysis.translated_payload[key])
               : res.analysis.translated_payload[key];
 
-            setFieldValue(
-              `translations.${values.writethru}.${version}.${key}`,
-              fieldValue,
-              true
-            );
             initialValues.translations[values.writethru][version][key] =
               fieldValue;
+            setFieldValue(
+              `translations.${values.writethru}.${version}.${key}`,
+              fieldValue
+            );
           }
         }
       })
@@ -188,6 +194,29 @@ export const TranslationSettings = () => {
     else translateArticle();
   };
 
+  const handleClearOnClick = (
+    event: React.MouseEvent<HTMLButtonElement, MouseEvent>
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const versions = [
+      TRANSLATION_VERSIONS.aiTranslation.value,
+      TRANSLATION_VERSIONS.manualTranslation.value,
+    ] as const;
+
+    for (const version of versions) {
+      for (const [key, value] of getObjectEntries(FORM_FIELDS)) {
+        initialValues.translations[values.writethru][version][key] =
+          value.initialValue;
+        setFieldValue(
+          `translations.${values.writethru}.${version}.${key}`,
+          value.initialValue
+        );
+      }
+    }
+  };
+
   const closeConfirmDialog = () => {
     setShowConfirm(false);
   };
@@ -200,11 +229,14 @@ export const TranslationSettings = () => {
             name="writethru"
             label={gettext("Writethru")}
           >
-            {getObjectKeys(values.translations).map((writethru) => (
-              <Option value={writethru} key={`writethru-${writethru}`}>
-                {capitalize(writethru)}
-              </Option>
-            ))}
+            <Option value="current">{gettext("Current Story")}</Option>
+            {getObjectKeys(values.translations)
+              .filter((key) => key !== "current")
+              .map((writethru) => (
+                <Option value={writethru} key={`writethru-${writethru}`}>
+                  {capitalize(writethru)}
+                </Option>
+              ))}
           </FormSelect>
           <FormSelect<TranslationDialogFormProps>
             name="translationType"
@@ -241,6 +273,12 @@ export const TranslationSettings = () => {
             type="primary"
             isLoading={isLoading}
             onClick={handleTranslateOnClick}
+          />
+          <Button
+            text={gettext("Clear")}
+            style="hollow"
+            isLoading={isLoading}
+            onClick={handleClearOnClick}
           />
         </div>
         <ReplaceAll />

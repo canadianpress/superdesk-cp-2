@@ -27,7 +27,6 @@ export const Footer = ({ isLoading, closeDialog }: FooterProps) => {
       <Button
         text={gettext("Apply Translation")}
         type="primary"
-        style="hollow"
         disabled={!isValid || isLoading}
         onClick={(event) => {
           event.stopPropagation();

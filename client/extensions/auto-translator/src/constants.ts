@@ -20,7 +20,7 @@ const TRANSLATION_LANGUAGES = {
     value: "fr",
     label: gettext("French"),
   },
-};
+} as const;
 
 const TRANSLATION_VERSIONS = {
   original: {
@@ -35,7 +35,7 @@ const TRANSLATION_VERSIONS = {
     value: "manualTranslation",
     label: gettext("Manual Translation"),
   },
-};
+} as const;
 
 // https://www.andiamo.co.uk/resources/iso-language-codes/
 const TRANSLATION_LANGUAGES_CODES_MAP = {

@@ -2,7 +2,6 @@ import {
   FieldHelperProps,
   FieldInputProps,
   FieldMetaProps,
-  FieldValidator,
   useField,
 } from "formik";
 import * as React from "react";
@@ -47,16 +46,14 @@ export const TextInput = <T,>({
 
 type FormTextInputProps<T> = Omit<TextInputProps<T>, "name"> & {
   name: RecursiveKeyOf<T> & string;
-  validate?: FieldValidator | undefined;
 };
 
 export const FormTextInput = <T,>({
   name,
   label,
-  validate,
   ...props
 }: FormTextInputProps<T>) => {
-  const [field, meta, helpers] = useField<T>({ name, validate });
+  const [field, meta, helpers] = useField<T>({ name });
 
   return (
     <TextInput<T>
