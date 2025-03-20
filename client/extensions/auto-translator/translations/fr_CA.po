@@ -121,3 +121,6 @@ msgstr "Le Titre peut avoir une longueur maximale de caractères de"
 
 msgid "Extended Headline may have a maximum character length of"
 msgstr "Le Titre Étendu peut avoir une longueur maximale de caractères de"
+
+msgid "Clear"
+msgstr "Effacer"
