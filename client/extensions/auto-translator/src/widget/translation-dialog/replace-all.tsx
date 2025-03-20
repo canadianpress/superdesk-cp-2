@@ -7,6 +7,10 @@ import { superdesk } from "../../superdesk";
 import { getObjectKeys } from "../../utilities";
 import { FORM_FIELDS, TranslationDialogFormProps } from "./helpers";
 
+type ReplaceAllProps = {
+  isLoading: boolean;
+};
+
 type ReplaceAllFormProps = {
   search: string;
   replace: string;
@@ -18,7 +22,7 @@ const getReplaceValue = (value: string, search: string, replace: string) => {
   return value.replace(regex, replace);
 };
 
-export const ReplaceAll = () => {
+export const ReplaceAll = ({ isLoading }: ReplaceAllProps) => {
   const { gettext } = superdesk.localization;
 
   const { values: translationValues, setFieldValue: formikSetFieldValue } =
@@ -68,6 +72,7 @@ export const ReplaceAll = () => {
             <Button
               text={gettext("Replace All")}
               type="primary"
+              disabled={isLoading}
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();

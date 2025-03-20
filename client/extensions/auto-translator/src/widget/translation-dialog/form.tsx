@@ -31,6 +31,10 @@ import {
 } from "./helpers";
 import { TranslationSettings } from "./settings";
 
+type TranslationFormEntryProps = {
+  initialVersion: keyof TranslationEntry;
+};
+
 const getImagesFormValues = (workingArticle: IArticle) =>
   getObjectEntries(workingArticle?.associations || {}).reduce<
     Record<keyof TranslationEntry, FormInputProps["images"]>
@@ -207,9 +211,7 @@ export const validateTranslationDialogForm: FormikConfig<TranslationDialogFormPr
 
 const TranslationFormEntry = ({
   initialVersion,
-}: {
-  initialVersion: keyof TranslationEntry;
-}) => {
+}: TranslationFormEntryProps) => {
   const { gettext } = superdesk.localization;
   const { FormFieldType } = superdesk.forms;
 
