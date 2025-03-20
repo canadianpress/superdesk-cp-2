@@ -28,6 +28,11 @@ import {
 } from "./helpers";
 import { ReplaceAll } from "./replace-all";
 
+type ConfirmTranslateProps = {
+  closeDialog: () => void;
+  onSubmit: () => void;
+};
+
 const getTranslation = (payload: TranslationPayload) => {
   const { httpRequestJsonLocal } = superdesk;
 
@@ -66,13 +71,7 @@ const isManualTranslationDirty = ({
   });
 };
 
-const ConfirmTranslate = ({
-  closeDialog,
-  onSubmit,
-}: {
-  closeDialog: () => void;
-  onSubmit: () => void;
-}) => {
+const ConfirmTranslate = ({ closeDialog, onSubmit }: ConfirmTranslateProps) => {
   const { gettext } = superdesk.localization;
 
   return (
@@ -277,11 +276,11 @@ export const TranslationSettings = () => {
           <Button
             text={gettext("Clear")}
             style="hollow"
-            isLoading={isLoading}
+            disabled={isLoading}
             onClick={handleClearOnClick}
           />
         </div>
-        <ReplaceAll />
+        <ReplaceAll isLoading={isLoading} />
       </Spacer>
       {showConfirm &&
         createPortal(
