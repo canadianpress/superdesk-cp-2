@@ -53,18 +53,6 @@ msgstr "Traduire Automatique"
 msgid "Apply Translation"
 msgstr "Appliquer Traduction"
 
-msgid "Translation Type"
-msgstr "Type de Traduction"
-
-msgid "Translate From"
-msgstr "Traduire de"
-
-msgid "Translate To"
-msgstr "Traduire en"
-
-msgid "Compare Writethru Diff"
-msgstr "Comparer Lead Diff"
-
 msgid "Confirm Translate"
 msgstr "Confirmer Traduire"
 
