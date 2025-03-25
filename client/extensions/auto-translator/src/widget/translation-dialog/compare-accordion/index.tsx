@@ -33,7 +33,6 @@ const getCompareContentValues = (
   version: (typeof COMPARE_VERSIONS)[number]
 ) => {
   const { gettext } = superdesk.localization;
-
   const dmp = new DiffMatchPatch();
 
   const result = getObjectKeys(FORM_FIELDS).reduce<
