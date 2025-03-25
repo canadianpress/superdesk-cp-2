@@ -124,3 +124,6 @@ msgstr "Le Titre Étendu peut avoir une longueur maximale de caractères de"
 
 msgid "Clear"
 msgstr "Effacer"
+
+msgid "Correction #"
+msgstr "Corrigè #"

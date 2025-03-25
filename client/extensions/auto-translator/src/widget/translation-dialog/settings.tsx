@@ -1,6 +1,7 @@
 import { FormikContextType, useFormikContext } from "formik";
 import * as React from "react";
 import { createPortal } from "react-dom";
+import { IArticle } from "superdesk-api";
 import {
   Button,
   ButtonGroup,
@@ -20,9 +21,10 @@ import {
   TranslationPayload,
   TranslationResponse,
 } from "../../typings/translation";
-import { capitalize, getObjectEntries, getObjectKeys } from "../../utilities";
+import { getObjectEntries, getObjectKeys } from "../../utilities";
 import {
   FORM_FIELDS,
+  formatWritethruLabel,
   FormInputProps,
   TranslationDialogFormProps,
 } from "./helpers";
@@ -31,6 +33,10 @@ import { ReplaceAll } from "./replace-all";
 type ConfirmTranslateProps = {
   closeDialog: () => void;
   onSubmit: () => void;
+};
+
+type TranslationSettingsProps = {
+  currentArticle: IArticle;
 };
 
 const getTranslation = (payload: TranslationPayload) => {
@@ -112,7 +118,9 @@ const ConfirmTranslate = ({ closeDialog, onSubmit }: ConfirmTranslateProps) => {
   );
 };
 
-export const TranslationSettings = () => {
+export const TranslationSettings = ({
+  currentArticle,
+}: TranslationSettingsProps) => {
   const { gettext } = superdesk.localization;
 
   const {
@@ -228,12 +236,17 @@ export const TranslationSettings = () => {
             name="writethru"
             label={gettext("Writethru")}
           >
-            <Option value="current">{gettext("Current Story")}</Option>
+            <Option value="current">{`${gettext(
+              "Current Story"
+            )} ${formatWritethruLabel({
+              ...currentArticle,
+              isCurrentStory: true,
+            })}`}</Option>
             {getObjectKeys(values.translations)
               .filter((key) => key !== "current")
               .map((writethru) => (
                 <Option value={writethru} key={`writethru-${writethru}`}>
-                  {capitalize(writethru)}
+                  {writethru}
                 </Option>
               ))}
           </FormSelect>
