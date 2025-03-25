@@ -18,7 +18,7 @@ type TranslationDialogProps = {
   closeDialog: () => void;
 };
 
-const getWritethrus = (event_id: IArticle["event_id"]) => {
+const getWritethrus = (article: IArticle) => {
   const { prepareSuperdeskQuery } = superdesk.helpers;
   const { httpRequestJsonLocal } = superdesk;
 
@@ -26,7 +26,7 @@ const getWritethrus = (event_id: IArticle["event_id"]) => {
     filter: {
       $and: [
         { state: { $ne: "spiked" } },
-        { event_id: { $eq: event_id } },
+        { family_id: { $eq: article.family_id } },
         { type: { $ne: "composite" } },
       ],
     },
@@ -47,7 +47,7 @@ export const TranslationDialog = ({
   const { gettext } = superdesk.localization;
   const { applyFieldChangesToEditor } = superdesk.ui.article;
 
-  const { _id: articleId, event_id } = currentArticle;
+  const { _id: articleId } = currentArticle;
 
   const onSubmit: FormikConfig<TranslationDialogFormProps>["onSubmit"] = (
     values,
@@ -76,7 +76,7 @@ export const TranslationDialog = ({
         const [isLoading, setIsLoading] = React.useState(true);
 
         React.useEffect(() => {
-          getWritethrus(event_id)
+          getWritethrus(currentArticle)
             .then(({ _items }) => {
               setValues(getTranslationDialogFormValues(currentArticle, _items));
             })
@@ -99,7 +99,11 @@ export const TranslationDialog = ({
                 <Footer isLoading={isLoading} closeDialog={closeDialog} />
               }
             >
-              {isLoading ? <Loader /> : <TranslationForm />}
+              {isLoading ? (
+                <Loader />
+              ) : (
+                <TranslationForm currentArticle={currentArticle} />
+              )}
             </Modal>
           </form>
         );

@@ -23,6 +23,7 @@ import { CompareAccordion } from "./compare-accordion";
 import {
   FORM_FIELDS,
   FORM_FIELDS_INITIAL_VALUES,
+  formatWritethruLabel,
   FormInputProps,
   isLanguageCode,
   isTranslationVersion,
@@ -33,6 +34,10 @@ import { TranslationSettings } from "./settings";
 
 type TranslationFormEntryProps = {
   initialVersion: keyof TranslationEntry;
+};
+
+type TranslationFormProps = {
+  currentArticle: IArticle;
 };
 
 const getImagesFormValues = (workingArticle: IArticle) =>
@@ -140,7 +145,7 @@ export const getTranslationDialogFormValues = (
           );
 
           Object.assign(translations, {
-            [`${article.anpa_take_key}`]: translationEntry,
+            [formatWritethruLabel(article)]: translationEntry,
           });
 
           return translations;
@@ -258,6 +263,11 @@ const TranslationFormEntry = ({
                 readOnly={
                   version !== TRANSLATION_VERSIONS.manualTranslation.value
                 }
+                maxLength={
+                  version !== TRANSLATION_VERSIONS.manualTranslation.value
+                    ? undefined
+                    : Number.MAX_SAFE_INTEGER
+                }
               />
             );
           default:
@@ -275,11 +285,11 @@ const TranslationFormEntry = ({
   );
 };
 
-export const TranslationForm = () => (
+export const TranslationForm = ({ currentArticle }: TranslationFormProps) => (
   <>
-    <TranslationSettings />
+    <TranslationSettings currentArticle={currentArticle} />
     <ContentDivider margin="small" />
-    <CompareAccordion />
+    <CompareAccordion currentArticle={currentArticle} />
     <ContentDivider margin="small" />
     <Container>
       <ResizablePanels

@@ -9,6 +9,7 @@ type TextEditorInputProps = {
   value: string;
   readOnly: boolean;
   onChange: (value: string) => void;
+  maxLength?: number;
 };
 
 export const TextEditorInput = ({
@@ -16,6 +17,7 @@ export const TextEditorInput = ({
   value,
   readOnly,
   onChange,
+  maxLength,
 }: TextEditorInputProps) => {
   const { Editor3Html } = superdesk.components;
 
@@ -27,7 +29,7 @@ export const TextEditorInput = ({
       label={label}
       value={value}
       // max length must be provided to show a character count
-      maxLength={Number.MAX_SAFE_INTEGER}
+      maxLength={maxLength}
     >
       <Editor3Html readOnly={readOnly} value={value} onChange={onChange} />
     </InputWrapper>
@@ -39,6 +41,7 @@ type FormTextEditorInputProps<T> = Omit<
   "value" | "onChange"
 > & {
   name: RecursiveKeyOf<T> & string;
+  maxLength?: number;
 };
 
 export const FormTextEditorInput = <T,>({

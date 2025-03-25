@@ -141,3 +141,18 @@ export const isLanguageCode = (
   value: string
 ): value is keyof typeof TRANSLATION_LANGUAGES_CODES_MAP =>
   value in TRANSLATION_LANGUAGES_CODES_MAP;
+
+export const formatWritethruLabel = ({
+  isCurrentStory,
+  anpa_take_key,
+  correction_sequence,
+  language,
+}: Partial<IArticle> & { isCurrentStory?: boolean }) => {
+  let label = "";
+  if (anpa_take_key)
+    label += isCurrentStory ? `(${anpa_take_key})` : anpa_take_key;
+  if (correction_sequence)
+    label += ` (${gettext("Correction #")}${correction_sequence})`;
+  if (language) label += ` (${language})`;
+  return label;
+};
