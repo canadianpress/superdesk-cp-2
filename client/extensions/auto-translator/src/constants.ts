@@ -1,5 +1,7 @@
 import { superdesk } from "./superdesk";
 
+const { gettext } = superdesk.localization;
+
 const WIDGET_ID = "auto-translator" as const;
 
 const TRANSLATION_TYPES = {
@@ -12,28 +14,28 @@ const TRANSLATION_TYPES = {
 const TRANSLATION_LANGUAGES = {
   en: {
     value: "en",
-    label: superdesk.localization.gettext("English"),
+    label: gettext("English"),
   },
   fr: {
     value: "fr",
-    label: superdesk.localization.gettext("French"),
+    label: gettext("French"),
   },
-};
+} as const;
 
 const TRANSLATION_VERSIONS = {
   original: {
     value: "original",
-    label: superdesk.localization.gettext("Original"),
+    label: gettext("Original"),
   },
   aiTranslation: {
     value: "aiTranslation",
-    label: superdesk.localization.gettext("AI Translation"),
+    label: gettext("AI Translation"),
   },
   manualTranslation: {
     value: "manualTranslation",
-    label: superdesk.localization.gettext("Manual Translation"),
+    label: gettext("Manual Translation"),
   },
-};
+} as const;
 
 // https://www.andiamo.co.uk/resources/iso-language-codes/
 const TRANSLATION_LANGUAGES_CODES_MAP = {
