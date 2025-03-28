@@ -10,11 +10,10 @@ import {
   TranslationImageField,
   TranslationType,
 } from "../../typings/translation";
-import { getObjectEntries } from "../../utilities";
+import { getObjectEntries, stripLinkTags } from "../../utilities";
 
 const { FormFieldType } = superdesk.forms;
 const { gettext } = superdesk.localization;
-const { stripHtmlTags } = superdesk.utilities;
 
 export const FORM_FIELDS: Record<
   TranslationFields,
@@ -89,21 +88,13 @@ export const FORM_FIELDS: Record<
     getName: (writethru, version) =>
       `translations.${writethru}.${version}.body_html`,
     label: gettext("body HTML"),
-    getFormValue: (article) =>
-      stripHtmlTags(article.body_html ?? "")
-        .split("\n")
-        .map((text) => `<p>${text}</p>`)
-        .join(""),
+    getFormValue: (article) => stripLinkTags(article.body_html ?? ""),
     setEditorValue: (values) => ({
       key: "body_html",
       value: values.translations[values.writethru].manualTranslation.body_html,
     }),
     initialValue: "",
-    setFormValue: (value) =>
-      value
-        .split("\n")
-        .map((text) => `<p>${text}</p>`)
-        .join(""),
+    setFormValue: (value) => stripLinkTags(value),
   },
 };
 

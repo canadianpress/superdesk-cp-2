@@ -27,6 +27,24 @@ const capitalize = (str: string) => {
   return str.charAt(0).toUpperCase() + str.slice(1);
 };
 
+const stripLinkTags = (html: string) => {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
+  const links = doc.querySelectorAll("a");
+
+  links.forEach((link) => {
+    if (link.textContent) {
+      const textNode = document.createTextNode(link.textContent);
+      const parentNode = link.parentNode;
+      if (parentNode) {
+        parentNode.replaceChild(textNode, link);
+      }
+    }
+  });
+
+  return doc.body.innerHTML;
+};
+
 export {
   isArticle,
   isNotEmptyObject,
@@ -34,4 +52,5 @@ export {
   getObjectValues,
   getObjectEntries,
   capitalize,
+  stripLinkTags,
 };
