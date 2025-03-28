@@ -1,7 +1,6 @@
 import DiffMatchPatch from "diff-match-patch";
 import { useFormikContext } from "formik";
 import * as React from "react";
-import { IArticle } from "superdesk-api";
 import {
   Container,
   Label,
@@ -11,19 +10,18 @@ import {
 } from "superdesk-ui-framework/react";
 import { Select } from "../../../components";
 import { superdesk } from "../../../superdesk";
-import { getObjectEntries, getObjectKeys } from "../../../utilities";
+import {
+  capitalize,
+  getObjectEntries,
+  getObjectKeys,
+} from "../../../utilities";
 import {
   FORM_FIELDS,
   FORM_FIELDS_INITIAL_VALUES,
-  formatWritethruLabel,
   FormInputProps,
   TranslationDialogFormProps,
 } from "../helpers";
 import { getPrettyDiffHtml, sanitizeHtml } from "./helpers";
-
-type CompareAccordionProps = {
-  currentArticle: IArticle;
-};
 
 const COMPARE_VERSIONS = ["ls", "rs", "diff"] as const;
 
@@ -84,9 +82,8 @@ const CompareContent = (props: Omit<FormInputProps, "images">) => (
   </>
 );
 
-export const CompareAccordion = ({ currentArticle }: CompareAccordionProps) => {
+export const CompareAccordion = () => {
   const { gettext } = superdesk.localization;
-
   const { values } = useFormikContext<TranslationDialogFormProps>();
 
   const [isOpen, setIsOpen] = React.useState<boolean>(false);
@@ -117,57 +114,38 @@ export const CompareAccordion = ({ currentArticle }: CompareAccordionProps) => {
               onChange={(newValue) => {
                 setCompareLeft(newValue);
               }}
-              label={`${gettext("Writethru")} 1`}
+              label={gettext("Writethru 1")}
             >
-              <Option value="current">{`${gettext(
-                "Current Story"
-              )} ${formatWritethruLabel({
-                ...currentArticle,
-                isCurrentStory: true,
-              })}`}</Option>
-              {getObjectKeys(values.translations)
-                .filter((key) => key !== "current")
-                .map((writethru) => (
-                  <Option value={writethru} key={`left-writethru-${writethru}`}>
-                    {writethru}
-                  </Option>
-                ))}
+              {getObjectKeys(values.translations).map((writethru) => (
+                <Option value={writethru} key={`left-writethru-${writethru}`}>
+                  {capitalize(writethru)}
+                </Option>
+              ))}
             </Select>
             <Select
               value={compareRight}
               onChange={(newValue) => {
                 setCompareRight(newValue);
               }}
-              label={`${gettext("Writethru")} 2`}
+              label={gettext("Writethru 2")}
             >
-              <Option value="current">{`${gettext(
-                "Current Story"
-              )} ${formatWritethruLabel({
-                ...currentArticle,
-                isCurrentStory: true,
-              })}`}</Option>
-              {getObjectKeys(values.translations)
-                .filter((key) => key !== "current")
-                .map((writethru) => (
-                  <Option
-                    value={writethru}
-                    key={`right-writethru-${writethru}`}
-                  >
-                    {writethru}
-                  </Option>
-                ))}
+              {getObjectKeys(values.translations).map((writethru) => (
+                <Option value={writethru} key={`right-writethru-${writethru}`}>
+                  {capitalize(writethru)}
+                </Option>
+              ))}
             </Select>
           </div>
           {compareLeft && compareRight && (
             <article
               className="auto-translator__compare-accordion-content-container"
               tabIndex={0}
-              aria-label={gettext("Compare Writethru Difference")}
+              aria-label={gettext("Compare Writethru Diff")}
             >
               {COMPARE_VERSIONS.map((version, index) => {
                 const header =
                   version === "diff"
-                    ? gettext("Difference (Diff)")
+                    ? gettext("Diff")
                     : `${gettext("Writethru")} ${index + 1}`;
 
                 return (
