@@ -9,24 +9,24 @@ import {
   getTranslationDialogFormInitialValues,
   getTranslationDialogFormValues,
   TranslationForm,
+  validateTranslationDialogForm,
 } from "./form";
 import { FORM_FIELDS, TranslationDialogFormProps } from "./helpers";
-
-const { httpRequestJsonLocal } = superdesk;
-const { prepareSuperdeskQuery } = superdesk.helpers;
-const { applyFieldChangesToEditor } = superdesk.ui.article;
 
 type TranslationDialogProps = {
   currentArticle: IArticle;
   closeDialog: () => void;
 };
 
-const getWritethrus = (event_id: IArticle["event_id"]) => {
+const getWritethrus = (article: IArticle) => {
+  const { prepareSuperdeskQuery } = superdesk.helpers;
+  const { httpRequestJsonLocal } = superdesk;
+
   const query = prepareSuperdeskQuery("/search", {
     filter: {
       $and: [
         { state: { $ne: "spiked" } },
-        { event_id: { $eq: event_id } },
+        { family_id: { $eq: article.family_id } },
         { type: { $ne: "composite" } },
       ],
     },
@@ -45,7 +45,9 @@ export const TranslationDialog = ({
   closeDialog,
 }: TranslationDialogProps) => {
   const { gettext } = superdesk.localization;
-  const { _id: articleId, event_id } = currentArticle;
+  const { applyFieldChangesToEditor } = superdesk.ui.article;
+
+  const { _id: articleId } = currentArticle;
 
   const onSubmit: FormikConfig<TranslationDialogFormProps>["onSubmit"] = (
     values,
@@ -68,12 +70,13 @@ export const TranslationDialog = ({
       enableReinitialize
       initialValues={getTranslationDialogFormInitialValues()}
       onSubmit={onSubmit}
+      validate={validateTranslationDialogForm}
     >
       {({ setValues, handleSubmit }) => {
         const [isLoading, setIsLoading] = React.useState(true);
 
         React.useEffect(() => {
-          getWritethrus(event_id)
+          getWritethrus(currentArticle)
             .then(({ _items }) => {
               setValues(getTranslationDialogFormValues(currentArticle, _items));
             })
@@ -88,7 +91,7 @@ export const TranslationDialog = ({
         return (
           <form onSubmit={handleSubmit}>
             <Modal
-              headerTemplate={gettext("Translation")}
+              headerTemplate={gettext("Translation Widget")}
               visible
               size="x-large"
               onHide={closeDialog}
@@ -96,7 +99,11 @@ export const TranslationDialog = ({
                 <Footer isLoading={isLoading} closeDialog={closeDialog} />
               }
             >
-              {isLoading ? <Loader /> : <TranslationForm />}
+              {isLoading ? (
+                <Loader />
+              ) : (
+                <TranslationForm currentArticle={currentArticle} />
+              )}
             </Modal>
           </form>
         );
