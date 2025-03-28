@@ -108,7 +108,7 @@ const getTranslationEntryFormValues = (
 export const getTranslationDialogFormInitialValues = () =>
   ({
     writethru: "current",
-    translationType: "basic",
+    translationType: "deepl",
     translateFrom: TRANSLATION_LANGUAGES_CODES_MAP.en,
     translateTo: TRANSLATION_LANGUAGES_CODES_MAP.fr,
     translations: {
@@ -169,12 +169,12 @@ export const getTranslationDialogFormValues = (
       ? currentArticle.language.toLowerCase()
       : undefined;
 
-  const translateFrom =
+  const translateTo =
     currentArticleLanguage && isLanguageCode(currentArticleLanguage)
       ? TRANSLATION_LANGUAGES_CODES_MAP[currentArticleLanguage]
       : TRANSLATION_LANGUAGES_CODES_MAP.en;
-  const translateTo =
-    translateFrom === TRANSLATION_LANGUAGES_CODES_MAP.en
+  const translateFrom =
+    translateTo === TRANSLATION_LANGUAGES_CODES_MAP.en
       ? TRANSLATION_LANGUAGES_CODES_MAP.fr
       : TRANSLATION_LANGUAGES_CODES_MAP.en;
 
