@@ -222,7 +222,7 @@ const TranslationFormEntry = ({
 
   const [version, setVersion] =
     React.useState<keyof TranslationEntry>(initialVersion);
-  const { values } = useFormikContext<TranslationDialogFormProps>();
+  const { values, isValid } = useFormikContext<TranslationDialogFormProps>();
 
   return (
     <>
@@ -236,6 +236,13 @@ const TranslationFormEntry = ({
         onChange={(newValue) => {
           if (isTranslationVersion(newValue)) setVersion(newValue);
         }}
+        error={
+          initialVersion === TRANSLATION_VERSIONS.aiTranslation.value &&
+          !isValid &&
+          version !== TRANSLATION_VERSIONS.manualTranslation.value
+            ? gettext("Fix Manual Translation errors to apply translation")
+            : undefined
+        }
       >
         {getObjectEntries(TRANSLATION_VERSIONS).map(([key, value]) => (
           <Option value={value.value} key={`version-${key}`}>
