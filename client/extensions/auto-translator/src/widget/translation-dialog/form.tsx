@@ -180,7 +180,7 @@ export const getTranslationDialogFormValues = (
 
   return {
     writethru: getObjectKeys(translations)[0],
-    translationType: "basic",
+    translationType: "deepl",
     translateFrom,
     translateTo,
     translations,
