@@ -63,7 +63,7 @@ msgid "No"
 msgstr "Non"
 
 msgid "By clicking \"Translate\" again, changes to the current manual translation will be lost. Are you sure you wish to proceed?"
-msgstr "En cliquant à nouveau sur « Traduire », les modifications apportées à la traduction actuelle du manuel seront perdues. Êtes-vous sûr de vouloir continuer ?"
+msgstr "En cliquant à nouveau sur « Traduire », les modifications apportées à la traduction actuelle du manuel seront perdues. Êtes-vous sûr de vouloir continuer?"
 
 msgid "Auto Translate"
 msgstr "Traduire Automatique"
@@ -118,3 +118,15 @@ msgstr "Corrigè"
 
 msgid "Fix Manual Translation errors to apply translation"
 msgstr "Corriger les erreurs de Traduction Manuelle pour appliquer la traduction"
+
+msgid "Confirm"
+msgstr "Confirmer"
+
+msgid "Confirm clear Translation"
+msgstr "Confirmer la traduction claire"
+
+msgid "Are you sure you wish to clear and lose all changes made to this translation?"
+msgstr "Êtes-vous sûr de vouloir effacer et perdre toutes les modifications apportées à cette traduction?"
+
+msgid "Yes, Clear"
+msgid "Oui, Clair"
