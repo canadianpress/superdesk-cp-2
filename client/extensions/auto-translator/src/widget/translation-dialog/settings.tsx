@@ -1,20 +1,14 @@
 import { FormikContextType, useFormikContext } from "formik";
 import * as React from "react";
-import { createPortal } from "react-dom";
 import { IArticle } from "superdesk-api";
-import {
-  Button,
-  ButtonGroup,
-  Modal,
-  Option,
-  Spacer,
-} from "superdesk-ui-framework/react";
+import { Button, Option, Spacer } from "superdesk-ui-framework/react";
 import { FormSelect } from "../../components";
 import {
   TRANSLATION_LANGUAGES,
   TRANSLATION_TYPES,
   TRANSLATION_VERSIONS,
 } from "../../constants";
+import { useConfirm } from "../../context/confirm-provider";
 import { typedSetFieldValue } from "../../formik-utilties";
 import { superdesk } from "../../superdesk";
 import {
@@ -29,11 +23,6 @@ import {
   TranslationDialogFormProps,
 } from "./helpers";
 import { ReplaceAll } from "./replace-all";
-
-type ConfirmTranslateProps = {
-  closeDialog: () => void;
-  onSubmit: () => void;
-};
 
 type TranslationSettingsProps = {
   currentArticle: IArticle;
@@ -77,51 +66,11 @@ const isManualTranslationDirty = ({
   });
 };
 
-const ConfirmTranslate = ({ closeDialog, onSubmit }: ConfirmTranslateProps) => {
-  const { gettext } = superdesk.localization;
-
-  return (
-    <Modal
-      headerTemplate={gettext("Confirm Translate")}
-      visible
-      onHide={closeDialog}
-      footerTemplate={
-        <ButtonGroup align="end">
-          <Button
-            text={gettext("No")}
-            style="hollow"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              closeDialog();
-            }}
-          />
-          <Button
-            text={gettext("Yes")}
-            type="primary"
-            style="hollow"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              onSubmit();
-            }}
-          />
-        </ButtonGroup>
-      }
-    >
-      <p>
-        {gettext(
-          'By clicking "Translate" again, changes to the current manual translation will be lost. Are you sure you wish to proceed?'
-        )}
-      </p>
-    </Modal>
-  );
-};
-
 export const TranslationSettings = ({
   currentArticle,
 }: TranslationSettingsProps) => {
   const { gettext } = superdesk.localization;
+  const { confirm } = useConfirm();
 
   const {
     values,
@@ -133,7 +82,6 @@ export const TranslationSettings = ({
     typedSetFieldValue<TranslationDialogFormProps>(formikSetFieldValue);
 
   const [isLoading, setIsLoading] = React.useState(false);
-  const [showConfirm, setShowConfirm] = React.useState(false);
 
   const translateArticle = () => {
     const payload = {
@@ -153,15 +101,10 @@ export const TranslationSettings = ({
       translation_type: values.translationType,
     } as const;
 
-    setShowConfirm(false);
     setIsLoading(true);
-
     getTranslation(payload)
       .then((res) => {
-        if ("error" in res.analysis) {
-          console.error(res.analysis.error);
-          return;
-        }
+        if ("error" in res.analysis) return Promise.reject(res.analysis.error);
 
         const versions = [
           TRANSLATION_VERSIONS.aiTranslation.value,
@@ -182,6 +125,8 @@ export const TranslationSettings = ({
             );
           }
         }
+
+        return;
       })
       .catch((err) => {
         console.error({ err });
@@ -191,22 +136,7 @@ export const TranslationSettings = ({
       });
   };
 
-  const handleTranslateOnClick = (
-    event: React.MouseEvent<HTMLButtonElement, MouseEvent>
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (isManualTranslationDirty({ values, getFieldMeta }))
-      setShowConfirm(true);
-    else translateArticle();
-  };
-
-  const handleClearOnClick = (
-    event: React.MouseEvent<HTMLButtonElement, MouseEvent>
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-
+  const clearTranslation = () => {
     const versions = [
       TRANSLATION_VERSIONS.aiTranslation.value,
       TRANSLATION_VERSIONS.manualTranslation.value,
@@ -224,8 +154,54 @@ export const TranslationSettings = ({
     }
   };
 
-  const closeConfirmDialog = () => {
-    setShowConfirm(false);
+  const handleTranslateOnClick = (
+    event: React.MouseEvent<HTMLButtonElement, MouseEvent>
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!isManualTranslationDirty({ values, getFieldMeta })) {
+      translateArticle();
+      return;
+    }
+
+    confirm({
+      header: gettext("Confirm Translate"),
+      body: gettext(
+        'By clicking "Translate" again, changes to the current manual translation will be lost. Are you sure you wish to proceed?'
+      ),
+      footerProps: {
+        confirm: { text: gettext("Yes") },
+        cancel: { text: gettext("No") },
+      },
+    }).then((confirmed) => {
+      if (confirmed) translateArticle();
+    });
+  };
+
+  const handleClearOnClick = (
+    event: React.MouseEvent<HTMLButtonElement, MouseEvent>
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!isManualTranslationDirty({ values, getFieldMeta })) {
+      clearTranslation();
+      return;
+    }
+
+    confirm({
+      header: gettext("Confirm clear translation"),
+      body: gettext(
+        "Are you sure you wish to clear and lose all changes made to this translation?"
+      ),
+      footerProps: {
+        confirm: { text: gettext("Yes, Clear") },
+        cancel: { text: gettext("No") },
+      },
+    }).then((confirmed) => {
+      if (confirmed) clearTranslation();
+    });
   };
 
   return (
@@ -295,14 +271,6 @@ export const TranslationSettings = ({
         </div>
         <ReplaceAll isLoading={isLoading} />
       </Spacer>
-      {showConfirm &&
-        createPortal(
-          <ConfirmTranslate
-            closeDialog={closeConfirmDialog}
-            onSubmit={translateArticle}
-          />,
-          document.body
-        )}
     </>
   );
 };
