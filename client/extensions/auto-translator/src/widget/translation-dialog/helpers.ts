@@ -152,7 +152,7 @@ export const formatWritethruLabel = ({
   if (anpa_take_key)
     label += isCurrentStory ? `(${anpa_take_key})` : anpa_take_key;
   if (correction_sequence)
-    label += ` (${gettext("Correction #")}${correction_sequence})`;
+    label += ` #${correction_sequence} (${gettext("Corrected")})`;
   if (language) label += ` (${language})`;
   return label;
 };
