@@ -18,6 +18,7 @@ type SelectProps<T> = Omit<
   helpers?: FieldHelperProps<T>;
   value?: string;
   onChange?: (newValue: string) => void;
+  error?: string;
 };
 
 export const Select = <T,>({
@@ -28,6 +29,7 @@ export const Select = <T,>({
   helpers,
   value,
   onChange,
+  error,
   ...props
 }: SelectProps<T>) => {
   return (
@@ -40,7 +42,7 @@ export const Select = <T,>({
         if (onChange) onChange(newValue);
         else if (helpers) helpers.setValue(newValue as T);
       }}
-      error={meta?.error ? meta.error : undefined}
+      error={meta?.error ? meta.error : error ? error : undefined}
     >
       {children}
     </SuperdeskSelect>

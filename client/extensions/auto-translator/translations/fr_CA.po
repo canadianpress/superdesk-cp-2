@@ -115,3 +115,6 @@ msgstr "Effacer"
 
 msgid "Corrected"
 msgstr "Corrigè"
+
+msgid "Fix Manual Translation errors to apply translation"
+msgstr "Corriger les erreurs de Traduction Manuelle pour appliquer la traduction"
