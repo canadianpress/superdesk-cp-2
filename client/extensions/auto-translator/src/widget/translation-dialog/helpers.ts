@@ -12,13 +12,14 @@ import {
 } from "../../typings/translation";
 import { getObjectEntries } from "../../utilities";
 
+const { FormFieldType } = superdesk.forms;
 const { gettext } = superdesk.localization;
 const { stripHtmlTags } = superdesk.utilities;
 
 export const FORM_FIELDS: Record<
   TranslationFields,
   {
-    type: string;
+    type: (typeof FormFieldType)[keyof typeof FormFieldType];
     getName: (
       writethru: string,
       version: string
@@ -33,26 +34,37 @@ export const FORM_FIELDS: Record<
       value: any;
     };
     initialValue: any;
+    validate?: (
+      value: string,
+      { schema }: { schema: { maxlength: number } }
+    ) => string | undefined;
     setFormValue?: (value: string) => string;
   }
 > = {
   headline: {
-    type: "text",
+    type: FormFieldType.plainText,
     getName: (writethru, version) =>
       `translations.${writethru}.${version}.headline`,
-    label: superdesk.localization.gettext("Headline"),
+    label: gettext("Headline"),
     getFormValue: (article) => article.headline ?? "",
     setEditorValue: (values) => ({
       key: "headline",
       value: values.translations[values.writethru].manualTranslation.headline,
     }),
     initialValue: "",
+    validate: (value, { schema }) => {
+      if (value.length > schema.maxlength)
+        return `${gettext("Headline may have a maximum character length of")} ${
+          schema.maxlength
+        }`;
+      return;
+    },
   },
   headline_extended: {
-    type: "text",
+    type: FormFieldType.plainText,
     getName: (writethru, version) =>
       `translations.${writethru}.${version}.headline_extended`,
-    label: superdesk.localization.gettext("Extended Headline"),
+    label: gettext("Extended Headline"),
     getFormValue: (article) => article?.extra?.headline_extended ?? "",
     setEditorValue: (values, props) => ({
       key: "extra",
@@ -64,9 +76,16 @@ export const FORM_FIELDS: Record<
       },
     }),
     initialValue: "",
+    validate: (value, { schema }) => {
+      if (value.length > schema.maxlength)
+        return `${gettext(
+          "Extended Headline may have a maximum character length of"
+        )} ${schema.maxlength}`;
+      return;
+    },
   },
   body_html: {
-    type: "textEditor",
+    type: FormFieldType.textEditor3,
     getName: (writethru, version) =>
       `translations.${writethru}.${version}.body_html`,
     label: gettext("body HTML"),
@@ -122,3 +141,18 @@ export const isLanguageCode = (
   value: string
 ): value is keyof typeof TRANSLATION_LANGUAGES_CODES_MAP =>
   value in TRANSLATION_LANGUAGES_CODES_MAP;
+
+export const formatWritethruLabel = ({
+  isCurrentStory,
+  anpa_take_key,
+  correction_sequence,
+  language,
+}: Partial<IArticle> & { isCurrentStory?: boolean }) => {
+  let label = "";
+  if (anpa_take_key)
+    label += isCurrentStory ? `(${anpa_take_key})` : anpa_take_key;
+  if (correction_sequence)
+    label += ` (${gettext("Correction #")}${correction_sequence})`;
+  if (language) label += ` (${language})`;
+  return label;
+};

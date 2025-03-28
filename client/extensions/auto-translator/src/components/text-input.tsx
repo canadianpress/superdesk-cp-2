@@ -10,10 +10,11 @@ import { RecursiveKeyOf } from "../formik-utilties";
 
 type TextInputProps<T> = React.InputHTMLAttributes<HTMLInputElement> & {
   label: string;
-  field: FieldInputProps<T>;
-  meta: FieldMetaProps<T>;
-  helpers: FieldHelperProps<T>;
-  [key: string]: any;
+  field?: FieldInputProps<T>;
+  meta?: FieldMetaProps<T>;
+  helpers?: FieldHelperProps<T>;
+  readonly?: boolean;
+  onChange?: (newValue: string) => void;
 };
 
 export const TextInput = <T,>({
@@ -21,6 +22,7 @@ export const TextInput = <T,>({
   field,
   meta,
   helpers,
+  onChange,
   ...props
 }: TextInputProps<T>) => {
   return (
@@ -29,12 +31,13 @@ export const TextInput = <T,>({
       {...props}
       type="text"
       label={label}
-      boxedLable={true}
-      boxedStyle={true}
+      boxedLable
+      boxedStyle
       size="medium"
       value={field?.value as string}
       onChange={(newValue) => {
-        helpers.setValue(newValue as T);
+        if (onChange) onChange(newValue);
+        else if (helpers) helpers.setValue(newValue as T);
       }}
       error={meta?.error ? meta.error : undefined}
     />
@@ -50,7 +53,7 @@ export const FormTextInput = <T,>({
   label,
   ...props
 }: FormTextInputProps<T>) => {
-  const [field, meta, helpers] = useField<T>(name);
+  const [field, meta, helpers] = useField<T>({ name });
 
   return (
     <TextInput<T>

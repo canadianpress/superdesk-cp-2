@@ -18,7 +18,6 @@ type SelectProps<T> = Omit<
   helpers?: FieldHelperProps<T>;
   value?: string;
   onChange?: (newValue: string) => void;
-  [key: string]: any;
 };
 
 export const Select = <T,>({
