@@ -7,6 +7,7 @@ import {
   SvgIconIllustration,
 } from "superdesk-ui-framework/react";
 import { WIDGET_ID } from "../constants";
+import { ConfirmProvider } from "../context";
 import { superdesk } from "../superdesk";
 import { TranslationDialog } from "./translation-dialog";
 
@@ -28,7 +29,7 @@ export class AutoTranslatorWidget extends React.Component<
     };
 
     return (
-      <>
+      <ConfirmProvider>
         <AuthoringWidgetLayout
           header={
             <AuthoringWidgetHeading
@@ -53,7 +54,7 @@ export class AutoTranslatorWidget extends React.Component<
             />,
             document.body
           )}
-      </>
+      </ConfirmProvider>
     );
   }
 }
