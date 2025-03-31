@@ -11,6 +11,9 @@ from datetime import datetime
 from flask import current_app as app
 import superdesk
 from pymongo import MongoClient
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -109,20 +112,52 @@ class ArchiveSearchProvider(SearchProvider):
 
         # Only search headlines, not both headlines and bodies
         if params.get("headline"):
-            search_clauses.append(
-                {"text": {"query": params["headline"], "path": "item.headlines.value"}}
-            )
+            search_clauses.append({
+                "text": {
+                    "query": params["headline"],
+                    "path": "item.headlines.value",
+                    "fuzzy": {
+                        "maxEdits": 2,
+                        "prefixLength": 1
+                    },
+                    "score": { "boost": { "value": 2 } }  # Give more weight to headline matches
+                }
+            })
 
         if params.get("story_text"):
-            search_clauses.append(
-                {"text": {"query": params["story_text"], "path": "item.bodies.value"}}
-            )
+            search_clauses.append({
+                "text": {
+                    "query": params["story_text"],
+                    "path": "item.bodies.value",
+                    "fuzzy": {
+                        "maxEdits": 2,
+                        "prefixLength": 1
+                    }
+                }
+            })
+
+        if params.get("slugline"):
+            search_clauses.append({
+                "text": {
+                    "query": params["slugline"],
+                    "path": "item.slugline",
+                    "fuzzy": {
+                        "maxEdits": 2,
+                        "prefixLength": 1
+                    }
+                }
+            })
 
         # Add $search as first stage if we have text search criteria
         if search_clauses:
-            pipeline.append(
-                {"$search": {"index": "default", "compound": {"must": search_clauses}}}
-            )
+            pipeline.append({
+                "$search": {
+                    "index": "default",
+                    "compound": {
+                        "should": search_clauses  # Changed from "must" to "should" for more flexible matching
+                    }
+                }
+            })
 
         # Add date range filter as a separate $match stage after $search
         if params.get("from") or params.get("to"):
