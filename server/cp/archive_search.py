@@ -163,6 +163,10 @@ class ArchiveSearchProvider(SearchProvider):
         if params.get("from") or params.get("to"):
             from_date = params.get("from", "")
             to_date = params.get("to", "")
+            if from_date:
+                from_date = self._parse_date_parameter(from_date, "", False)
+            if to_date:
+                to_date = self._parse_date_parameter(to_date, "", True)
 
             pipeline.append(
                 {
@@ -173,13 +177,13 @@ class ArchiveSearchProvider(SearchProvider):
             )
 
         # If no text search but we have date filter, start with a simple $match
-        if not search_clauses and (params.get("from") or params.get("to")):
+        if not search_clauses and (from_date or to_date):
             pipeline = [
                 {
                     "$match": {
                         "item.versioncreated": {
-                            "$gte": params.get("from"),
-                            "$lte": params.get("to"),
+                            "$gte": from_date,
+                            "$lte": to_date,
                         }
                     }
                 }
@@ -187,6 +191,16 @@ class ArchiveSearchProvider(SearchProvider):
 
         logger.info(f"Final pipeline: {pipeline}")
         return pipeline
+
+    def _parse_date_parameter(self, date_str, default_date, is_end_date=False):
+        """Convert date string to ISO format with a default fallback."""
+        date_to_parse = date_str or default_date
+        parsed_date = datetime.strptime(date_to_parse, "%Y-%m-%d")
+        
+        if is_end_date:
+            parsed_date = parsed_date.replace(hour=23, minute=59, second=59)
+            
+        return f"{parsed_date.isoformat()}.000+00:00"
 
     def _build_aggregation_pipeline(self, search_query, pagination_params):
         """Build the MongoDB aggregation pipeline."""
