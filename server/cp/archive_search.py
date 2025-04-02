@@ -45,28 +45,28 @@ class ArchiveSearchProvider(SearchProvider):
         self._initialize_mongodb()
         
     def _initialize_mongodb(self):
-        """Initialize MongoDB connection with error handling"""
-        try:
-            self.client = MongoClient(MONGO_URI)
-            self.client.admin.command("ping")
-            logger.info("Successfully connected to MongoDB Atlas")
-            self.db = self.client[MONGO_CLUSTER]
-            self.collection = self.db[MONGO_COLLECTION]
-            
-        except (ServerSelectionTimeoutError, NetworkTimeout) as e:
-            self._log_mongodb_connection_error(e)
-            raise
-        except Exception as e:
-            logger.info(f"Unexpected error connecting to MongoDB: {e}")
-            raise
+            """Initialize MongoDB connection with error handling"""
+            try:
+                self.client = MongoClient(MONGO_URI)
+                self.client.admin.command("ping")
+                logger.info("Successfully connected to MongoDB Atlas")
+                self.db = self.client[MONGO_CLUSTER]
+                self.collection = self.db[MONGO_COLLECTION]
+
+            except (ServerSelectionTimeoutError, NetworkTimeout) as e:
+                self._log_mongodb_connection_error(e)
+                raise
+            except Exception as e:
+                logger.info(f"Unexpected error connecting to MongoDB: {e}")
+                raise
 
     def _log_mongodb_connection_error(self, error):
-        """Log detailed MongoDB connection error information."""
-        logger.info(f"Failed to connect to MongoDB Atlas: {error}")
-        logger.info("Please verify:")
-        logger.info("1. The MongoDB URI is correct")
-        logger.info("2. Your IP address is whitelisted in MongoDB Atlas")
-        logger.info("3. Network connectivity to MongoDB Atlas is available")
+            """Log detailed MongoDB connection error information."""
+            logger.info(f"Failed to connect to MongoDB Atlas: {error}")
+            logger.info("Please verify:")
+            logger.info("1. The MongoDB URI is correct")
+            logger.info("2. Your IP address is whitelisted in MongoDB Atlas")
+            logger.info("3. Network connectivity to MongoDB Atlas is available")
 
     def __del__(self):
         """Cleanup MongoDB connection when the provider is destroyed"""
@@ -75,172 +75,143 @@ class ArchiveSearchProvider(SearchProvider):
                 self.client.close()
                 logger.info("MongoDB connection closed")
             except Exception as e:
-                logger.error(f"Error closing MongoDB connection: {e}")
+                logger.info(f"Error closing MongoDB connection: {e}")
 
     def find(self, query, params):
         """Execute a search query and return matching items."""
-        # self._log_search_request(query, params)
+        self._log_search_request(query, params)
         params = params or {}
 
         try:
+            logger.info("Extracting pagination parameters...")
             pagination_params = self._extract_pagination_params(params)
+
+            logger.info("Building search query with params: %s", params)
             search_query = self._build_search_query(params)
+            logger.info("Generated search query: %s", search_query)
+
+            logger.info("Building aggregation pipeline...")
             pipeline = self._build_aggregation_pipeline(search_query, pagination_params)
+            logger.info("Generated pipeline: %s", pipeline)
+
+            logger.info("Executing search...")
             items = self._execute_search(pipeline)
+            logger.info("Search returned %d raw items", len(items))
+
+            logger.info("Transforming items...")
             transformed_items = self._transform_items(items)
             total_count = len(transformed_items)
+            logger.info("Search completed successfully with %d results", total_count)
+
             return ArchiveListCursor(transformed_items, total_count)
 
         except Exception as e:
-            logger.error(f"Search failed: {str(e)}")
+            logger.info("Search failed with error: %s", str(e))
             return ArchiveListCursor([], 0)
 
     def _log_search_request(self, query, params):
         """Log debug information about the search request."""
         logger.info("=== Archive Search Provider Debug ===")
-        logger.info(f"Provider ID: {self.provider.get('_id')}")
-        logger.info(f"Raw Query: {query}")
-        logger.info(f"Raw Params: {params}")
+        logger.info("Raw Query: %s", query)
+        logger.info("Raw Params: %s", params)
 
     def _extract_pagination_params(self, params):
-        return {"limit": params.get("limit", 25), "skip": params.get("skip", 0)}
+        return {"limit": params.get("limit", 50), "skip": params.get("skip", 0)}
 
     def _build_search_query(self, params):
-        """Build the MongoDB Atlas Search query based on search parameters."""
         pipeline = []
-        search_clauses = []
-
-        # Only search headlines, not both headlines and bodies
-        if params.get("headline"):
-            search_clauses.append({
-                "text": {
-                    "query": params["headline"],
-                    "path": "item.headlines.value",
-                    "fuzzy": {
-                        "maxEdits": 2,
-                        "prefixLength": 1
-                    },
-                    "score": { "boost": { "value": 2 } }  # Give more weight to headline matches
-                }
-            })
-
-        if params.get("story_text"):
-            search_clauses.append({
-                "text": {
-                    "query": params["story_text"],
-                    "path": "item.bodies.value",
-                    "fuzzy": {
-                        "maxEdits": 2,
-                        "prefixLength": 1
+        
+        if any(params.get(field) and params[field].strip() 
+               for field in ['headline', 'story_text', 'slugline']):
+            should_clauses = []
+            
+            if params.get('headline') and params['headline'].strip():
+                should_clauses.append({
+                    "text": {
+                        "query": params['headline'].strip(),
+                        "path": "item.headlines.value"
                     }
-                }
-            })
-
-        if params.get("slugline"):
-            search_clauses.append({
-                "text": {
-                    "query": params["slugline"],
-                    "path": "item.slugline",
-                    "fuzzy": {
-                        "maxEdits": 2,
-                        "prefixLength": 1
+                })
+                
+            if params.get('story_text') and params['story_text'].strip():
+                should_clauses.append({
+                    "text": {
+                        "query": params['story_text'].strip(),
+                        "path": "item.bodies.value"
                     }
-                }
-            })
-
-        # Add $search as first stage if we have text search criteria
-        if search_clauses:
-            pipeline.append({
-                "$search": {
-                    "index": "default",
-                    "compound": {
-                        "should": search_clauses  # Changed from "must" to "should" for more flexible matching
+                })
+                
+            if params.get('slugline') and params['slugline'].strip():
+                should_clauses.append({
+                    "text": {
+                        "query": params['slugline'].strip(),
+                        "path": "item.slugline"
                     }
-                }
-            })
-
-        # Add date range filter as a separate $match stage after $search
-        if params.get("from") or params.get("to"):
-            from_date = params.get("from", "")
-            to_date = params.get("to", "")
-            if from_date:
-                from_date = self._parse_date_parameter(from_date, "", False)
-            if to_date:
-                to_date = self._parse_date_parameter(to_date, "", True)
-
-            pipeline.append(
-                {
-                    "$match": {
-                        "item.versioncreated": {"$gte": from_date, "$lte": to_date}
-                    }
-                }
-            )
-
-        # If no text search but we have date filter, start with a simple $match
-        if not search_clauses and (from_date or to_date):
-            pipeline = [
-                {
-                    "$match": {
-                        "item.versioncreated": {
-                            "$gte": from_date,
-                            "$lte": to_date,
+                })
+            
+            if should_clauses:  # Only add $search if we have valid clauses
+                pipeline.append({
+                    "$search": {
+                        "index": "default",
+                        "compound": {
+                            "should": should_clauses
                         }
                     }
+                })
+        
+        if params.get('from') or params.get('to'):
+            pipeline.append({
+                "$match": {
+                    "item.versioncreated": {
+                        "$gte": datetime.fromisoformat(params.get('from')) if params.get('from') else datetime.min,
+                        "$lte": datetime.fromisoformat(params.get('to')) if params.get('to') else datetime.max
+                    }
                 }
-            ]
-
-        logger.info(f"Final pipeline: {pipeline}")
+            })
+        
+        pipeline.append({
+            "$sort": {
+                "item.versioncreated": -1  # -1 for descending order
+            }
+        })
+        
         return pipeline
 
-    def _parse_date_parameter(self, date_str, default_date, is_end_date=False):
-        """Convert date string to ISO format with a default fallback."""
-        date_to_parse = date_str or default_date
-        parsed_date = datetime.strptime(date_to_parse, "%Y-%m-%d")
-        
-        if is_end_date:
-            parsed_date = parsed_date.replace(hour=23, minute=59, second=59)
-            
-        return f"{parsed_date.isoformat()}.000+00:00"
-
-    def _build_aggregation_pipeline(self, search_query, pagination_params):
+    def _build_aggregation_pipeline(self, search_query, pagination_params=None):
         """Build the MongoDB aggregation pipeline."""
         pipeline = []
-
+        
         pipeline.extend(search_query)
-
-        pipeline.extend(
-            [
-                {"$skip": pagination_params["skip"]},
-                {"$limit": pagination_params["limit"]},
-                {
-                    "$project": {
-                        "_id": 1,
-                        "guid": "$item.uri",
-                        "version": "$item.version",
-                        "type": "$item.type",
-                        "headline": {"$first": "$item.headlines.value"},
-                        "body_html": {"$first": "$item.bodies.value"},
-                        "versioncreated": "$item.versioncreated",
-                        "firstcreated": "$item.firstcreated",
-                        "slugline": "$item.slugline",
-                        "language": "$item.language",
-                        "subjects": "$item.subjects",
-                        "keywords": "$item.keywords",
-                        "urgency": "$item.urgency",
-                    }
-                },
-            ]
-        )
-
+        
+        pipeline.append({
+            "$sort": {
+                "item.versioncreated": -1  # newest first
+            }
+        })
+        
+        # Add pagination with proper limits
+        if pagination_params:
+            pipeline.extend([
+                {"$skip": int(pagination_params["skip"])},
+                {"$limit": int(pagination_params["limit"])}
+            ])
+        else:
+            pipeline.append({"$limit": 50})  # reasonable default limit
+        
         return pipeline
 
     def _execute_search(self, pipeline):
         """Execute the search pipeline and return results."""
         try:
-            cursor = self.collection.aggregate(pipeline)
-            return list(cursor)
+            cursor = self.collection.aggregate(
+                pipeline,
+                hint="item.versioncreated_1"  # Assuming you have this index
+            )
+            results = list(cursor)
+            return results
         except Exception as e:
-            logger.error(f"Error executing search pipeline: {e}")
+            logger.info(f"Pipeline execution failed: {str(e)}")
+            logger.info(f"Pipeline that failed: {pipeline}")
             return []
 
     def _transform_items(self, items):
@@ -249,33 +220,36 @@ class ArchiveSearchProvider(SearchProvider):
         try:
             for item in items:
                 try:
+                    item_data = item.get('item', item)
+                    
                     transformed_item = {
-                        "guid": item["guid"],
-                        "type": item["type"],
-                        "headline": item["headline"],
+                        "guid": item_data.get("uri", ""),
+                        "type": item_data.get("type", ""),
+                        "headline": item_data.get("descriptions", [{}])[0].get("value", ""),
                         "description_text": (
-                            item["body_html"][:200] + "..." if item["body_html"] else ""
+                            item_data.get("descriptions", [{}])[0].get("value", "")[:200] + "..."
                         ),
-                        "versioncreated": item["versioncreated"],
-                        "slugline": item.get("slugline", ""),
-                        "firstcreated": item["firstcreated"],
-                        "language": item["language"],
-                        "urgency": item["urgency"],
-                        "version": item["version"],
-                        "body_html": item["body_html"],
+                        "versioncreated": item_data.get("versioncreated"),
+                        "slugline": item_data.get("slugline", ""),
+                        "firstcreated": item_data.get("firstcreated"),
+                        "language": item_data.get("language", ""),
+                        "urgency": item_data.get("urgency"),
+                        "version": item_data.get("version", ""),
+                        "body_html": item_data.get("bodies", [{}])[0].get("value", ""),
                     }
                     transformed_items.append(transformed_item)
                 except KeyError as ke:
-                    print(f"Missing required field while transforming item: {ke}")
-                    print(f"Problematic item: {item}")
+                    logger.info(
+                        "Missing required field while transforming item: %s", ke
+                    )
+                    logger.info("Problematic item: %s", item)
                 except Exception as e:
-                    print(f"Error transforming individual item: {str(e)}")
+                    logger.info("Error transforming individual item: %s", str(e))
         except Exception as e:
-            print(f"Error in item transformation process: {str(e)}")
+            logger.info("Error in item transformation process: %s", str(e))
 
-        logger.info(f"Transformed {len(transformed_items)} items successfully")
+        logger.info("Transformed %d items successfully", len(transformed_items))
         return transformed_items
-
 
 def init_app(app):
     logger.info("=== Initializing Archive Search Provider ===")
