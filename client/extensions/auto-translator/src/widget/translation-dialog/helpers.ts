@@ -38,6 +38,7 @@ export const FORM_FIELDS: Record<
       { schema }: { schema: { maxlength: number } }
     ) => string | undefined;
     setFormValue?: (value: string) => string;
+    mapApiValue?: (value: string) => string;
   }
 > = {
   headline: {
@@ -88,13 +89,14 @@ export const FORM_FIELDS: Record<
     getName: (writethru, version) =>
       `translations.${writethru}.${version}.body_html`,
     label: gettext("body HTML"),
-    getFormValue: (article) => stripLinkTags(article.body_html ?? ""),
+    getFormValue: (article) => article.body_html ?? "",
     setEditorValue: (values) => ({
       key: "body_html",
       value: values.translations[values.writethru].manualTranslation.body_html,
     }),
     initialValue: "",
     setFormValue: (value) => stripLinkTags(value),
+    mapApiValue: (value) => stripLinkTags(value),
   },
 };
 
