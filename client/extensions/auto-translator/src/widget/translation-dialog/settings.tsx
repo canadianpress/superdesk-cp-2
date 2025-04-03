@@ -86,12 +86,15 @@ export const TranslationSettings = ({
   const translateArticle = () => {
     const payload = {
       body_html: "",
-      payload: getObjectKeys(FORM_FIELDS).reduce<
+      payload: getObjectEntries(FORM_FIELDS).reduce<
         Omit<FormInputProps, "images">
       >(
-        (payload, field) => {
-          payload[field] =
-            values.translations[values.writethru].original[field];
+        (payload, [key, value]) => {
+          payload[key] = value?.mapApiValue
+            ? value.mapApiValue(
+                values.translations[values.writethru].original[key]
+              )
+            : values.translations[values.writethru].original[key];
           return payload;
         },
         { headline: "", headline_extended: "", body_html: "" }
