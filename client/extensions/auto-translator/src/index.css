@@ -1,12 +1,18 @@
+.translation-form-form-container > :last-child {
+  gap: 1rem;
+}
+
+.translation-form-form-container > :last-child > :nth-child(1),
+.translation-form-form-container > :last-child > :nth-child(3) {
+  overflow-y: scroll !important;
+  padding-right: 1rem;
+}
+
 .translation-form-settings-container {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: 1.5rem;
   align-items: flex-end;
-}
-
-.translation-form-panel-container {
-  margin: 0 1rem;
 }
 
 .compare-accordion-settings-container {
