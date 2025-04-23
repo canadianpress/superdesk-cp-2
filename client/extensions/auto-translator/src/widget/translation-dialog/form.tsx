@@ -292,37 +292,78 @@ const TranslationFormEntry = ({
   );
 };
 
-export const TranslationForm = ({ currentArticle }: TranslationFormProps) => (
-  <>
-    <TranslationSettings currentArticle={currentArticle} />
-    <ContentDivider margin="small" />
-    <CompareAccordion currentArticle={currentArticle} />
-    <ContentDivider margin="small" />
-    <Container>
+export const TranslationForm = ({ currentArticle }: TranslationFormProps) => {
+  const translationFormRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    if (!translationFormRef.current) return;
+
+    const p = translationFormRef.current.parentElement;
+    const c = translationFormRef.current.querySelectorAll<HTMLDivElement>(
+      ":scope > :not(:last-child)"
+    );
+    const resize = translationFormRef.current.querySelector<HTMLDivElement>(
+      ":scope > :last-child"
+    );
+
+    if (!p || !resize || !c.length) return;
+
+    const updateHeight = () => {
+      if (!p || !resize || !c.length) return;
+
+      let heightSum = 0;
+      const pHeight = p.getBoundingClientRect().height;
+      const pStyles = getComputedStyle(p);
+
+      heightSum += parseFloat(pStyles.paddingTop || "0");
+      heightSum += parseFloat(pStyles.paddingBottom || "0");
+      c.forEach((c) => {
+        const cStyles = getComputedStyle(c);
+        heightSum += c.getBoundingClientRect().height;
+        heightSum += parseFloat(cStyles.marginTop || "0");
+        heightSum += parseFloat(cStyles.marginBottom || "0");
+      });
+
+      resize.style.height = `${pHeight - heightSum}px`;
+    };
+
+    const observer = new ResizeObserver(() => {
+      updateHeight();
+    });
+
+    observer.observe(p);
+    updateHeight();
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  return (
+    <div
+      ref={translationFormRef}
+      className="auto-translator__translation-form-form-container"
+    >
+      <TranslationSettings currentArticle={currentArticle} />
+      <ContentDivider margin="small" />
+      <CompareAccordion currentArticle={currentArticle} />
+      <ContentDivider margin="small" />
       <ResizablePanels
         direction="horizontal"
         primarySize={{ min: 33, default: 50 }}
         secondarySize={{ min: 33, default: 50 }}
       >
-        <Container
-          gap="large"
-          direction="column"
-          className="auto-translator__translation-form-panel-container"
-        >
+        <Container gap="large" direction="column">
           <TranslationFormEntry
             initialVersion={TRANSLATION_VERSIONS.original.value}
           />
         </Container>
-        <Container
-          gap="large"
-          direction="column"
-          className="auto-translator__translation-form-panel-container"
-        >
+        <Container gap="large" direction="column">
           <TranslationFormEntry
             initialVersion={TRANSLATION_VERSIONS.aiTranslation.value}
           />
         </Container>
       </ResizablePanels>
-    </Container>
-  </>
-);
+    </div>
+  );
+};
