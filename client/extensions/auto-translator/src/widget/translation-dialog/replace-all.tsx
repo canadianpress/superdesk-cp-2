@@ -1,6 +1,6 @@
 import { Formik, FormikConfig, useFormikContext } from "formik";
 import * as React from "react";
-import { Button } from "superdesk-ui-framework/react";
+import { Button, ButtonGroup } from "superdesk-ui-framework/react";
 import { FormTextInput } from "../../components";
 import { typedSetFieldValue } from "../../formik-utilties";
 import { superdesk } from "../../superdesk";
@@ -58,7 +58,15 @@ export const ReplaceAll = ({ isLoading }: ReplaceAllProps) => {
       initialValues={{ search: "", replace: "" }}
       onSubmit={onSubmit}
     >
-      {({ submitForm }) => {
+      {({ submitForm, setFieldValue: formikSetFieldValue }) => {
+        const setFieldValue =
+          typedSetFieldValue<ReplaceAllFormProps>(formikSetFieldValue);
+
+        const clearReplaceAll = () => {
+          setFieldValue("search", "");
+          setFieldValue("replace", "");
+        };
+
         return (
           <div className="auto-translator__translation-form-settings-container">
             <FormTextInput<ReplaceAllFormProps>
@@ -69,16 +77,30 @@ export const ReplaceAll = ({ isLoading }: ReplaceAllProps) => {
               name="replace"
               label={gettext("Replace")}
             />
-            <Button
-              text={gettext("Replace All")}
-              type="primary"
-              disabled={isLoading}
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                submitForm();
-              }}
-            />
+            <ButtonGroup align="inline">
+              <Button
+                text={gettext("Replace All")}
+                type="primary"
+                expand
+                disabled={isLoading}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  submitForm();
+                }}
+              />
+              <Button
+                text={gettext("Clear")}
+                style="hollow"
+                expand
+                disabled={isLoading}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  clearReplaceAll();
+                }}
+              />
+            </ButtonGroup>
           </div>
         );
       }}
