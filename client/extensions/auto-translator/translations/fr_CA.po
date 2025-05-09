@@ -71,8 +71,8 @@ msgstr "Traduire Automatique"
 msgid "Apply Translation"
 msgstr "Appliquer Traduire"
 
-msgid "Translation Type (Engine)"
-msgstr "Type de Traduction (Moteur)"
+msgid "Translation Engine"
+msgstr "Type de traduction"
 
 msgid "Translate From"
 msgstr "Traduire de"
