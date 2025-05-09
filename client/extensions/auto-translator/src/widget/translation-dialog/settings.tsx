@@ -231,7 +231,7 @@ export const TranslationSettings = ({
           </FormSelect>
           <FormSelect<TranslationDialogFormProps>
             name="translationType"
-            label={gettext("Translation Type (Engine)")}
+            label={gettext("Translation Engine")}
           >
             {getObjectEntries(TRANSLATION_TYPES).map(([value, label]) => (
               <Option value={value} key={`translationType-${value}`}>
