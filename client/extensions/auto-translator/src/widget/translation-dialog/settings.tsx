@@ -116,9 +116,10 @@ export const TranslationSettings = ({
 
         for (const version of versions) {
           for (const [key, value] of getObjectEntries(FORM_FIELDS)) {
+            const rValue = res.analysis.translated_payload?.[key] ?? "";
             const fieldValue = value?.setFormValue
-              ? value.setFormValue(res.analysis.translated_payload[key])
-              : res.analysis.translated_payload[key];
+              ? value.setFormValue(rValue)
+              : rValue;
 
             initialValues.translations[values.writethru][version][key] =
               fieldValue;
