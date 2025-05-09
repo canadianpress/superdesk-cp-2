@@ -224,6 +224,13 @@ const TranslationFormEntry = ({
     React.useState<keyof TranslationEntry>(initialVersion);
   const { values, isValid } = useFormikContext<TranslationDialogFormProps>();
 
+  const translationVersions =
+    initialVersion === TRANSLATION_VERSIONS.original.value
+      ? getObjectEntries(TRANSLATION_VERSIONS).filter(
+          ([key]) => key !== TRANSLATION_VERSIONS.manualTranslation.value
+        )
+      : getObjectEntries(TRANSLATION_VERSIONS);
+
   return (
     <>
       <Select
@@ -244,7 +251,7 @@ const TranslationFormEntry = ({
             : undefined
         }
       >
-        {getObjectEntries(TRANSLATION_VERSIONS).map(([key, value]) => (
+        {translationVersions.map(([key, value]) => (
           <Option value={value.value} key={`version-${key}`}>
             {value.label}
           </Option>
