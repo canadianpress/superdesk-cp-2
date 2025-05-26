@@ -18,7 +18,7 @@ type ReplaceAllFormProps = {
 
 const getReplaceValue = (value: string, search: string, replace: string) => {
   const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const regex = new RegExp(escapedSearch, "g");
+  const regex = new RegExp(escapedSearch, "gi");
   return value.replace(regex, replace);
 };
 
