@@ -9,19 +9,19 @@ msgid "Cancel"
 msgstr "Annuler"
 
 msgid "Original"
-msgstr "Originale"
+msgstr "Original"
 
 msgid "AI Translation"
-msgstr "AI Traduction"
+msgstr "Traduction de l’IA"
 
 msgid "Manual Translation"
-msgstr "Traduction Manuelle"
+msgstr "Traduction manuelle"
 
 msgid "Headline"
 msgstr "Titre"
 
 msgid "Extended Headline"
-msgstr "Titre Étendu"
+msgstr "Titre long"
 
 msgid "body HTML"
 msgstr "corps HTML"
@@ -48,13 +48,13 @@ msgid "Deleted"
 msgstr "Supprimé"
 
 msgid "Auto Translate"
-msgstr "Traduire Automatique"
+msgstr "Traduire automatiquement"
 
 msgid "Apply Translation"
-msgstr "Appliquer Traduction"
+msgstr "Appliquer la traduction"
 
 msgid "Confirm Translate"
-msgstr "Confirmer Traduire"
+msgstr "Confirmer la traduction"
 
 msgid "Yes"
 msgstr "Oui"
@@ -63,13 +63,13 @@ msgid "No"
 msgstr "Non"
 
 msgid "By clicking \"Translate\" again, changes to the current manual translation will be lost. Are you sure you wish to proceed?"
-msgstr "En cliquant à nouveau sur « Traduire », les modifications apportées à la traduction actuelle du manuel seront perdues. Êtes-vous sûr de vouloir continuer?"
+msgstr "En cliquant de nouveau sur «Traduire», les modifications apportées à la traduction manuelle actuelle seront perdues. Êtes-vous sûr de vouloir continuer?"
 
 msgid "Auto Translate"
-msgstr "Traduire Automatique"
+msgstr "Traduire automatiquement"
 
 msgid "Apply Translation"
-msgstr "Appliquer Traduire"
+msgstr "Appliquer la traduction"
 
 msgid "Translation Engine"
 msgstr "Type de traduction"
@@ -81,34 +81,34 @@ msgid "Translate To"
 msgstr "Traduire en"
 
 msgid "Compare Writethru Difference"
-msgstr "Comparer Lead Différence"
+msgstr "Comparer les différences du lead"
 
 msgid "Search"
-msgstr "Recherche"
+msgstr "Rechercher"
 
 msgid "Replace"
 msgstr "Remplacer"
 
 msgid "Replace All"
-msgstr "Remplacer Tout"
+msgstr "Remplacer tout"
 
 msgid "Translation Widget"
-msgstr "Widget de Traduction"
+msgstr "Widget de traduction"
 
 msgid "Current Story"
-msgstr "Histoire Actuelle"
+msgstr "Article actuel"
 
 msgid "Version (Original Content)"
-msgstr "Version (Contenu Original)"
+msgstr "Version (Contenu original)"
 
 msgid "Version (Translated Content)"
-msgstr "Version (Contenu Traduit)"
+msgstr "Version (Contenu traduit)"
 
 msgid "Headline may have a maximum character length of"
-msgstr "Le Titre peut avoir une longueur maximale de caractères de"
+msgstr "Le titre peut comporter un nombre maximal de caractères de"
 
 msgid "Extended Headline may have a maximum character length of"
-msgstr "Le Titre Étendu peut avoir une longueur maximale de caractères de"
+msgstr "Le long titre peut comporter un nombre maximal de caractères de"
 
 msgid "Clear"
 msgstr "Effacer"
@@ -117,16 +117,16 @@ msgid "Corrected"
 msgstr "Corrigè"
 
 msgid "Fix Manual Translation errors to apply translation"
-msgstr "Corriger les erreurs de Traduction Manuelle pour appliquer la traduction"
+msgstr "Corriger les erreurs de la traduction manuelle pour appliquer la traduction"
 
 msgid "Confirm"
 msgstr "Confirmer"
 
 msgid "Confirm clear Translation"
-msgstr "Confirmer la traduction claire"
+msgstr "Confirmer l’effacement de la traduction"
 
 msgid "Are you sure you wish to clear and lose all changes made to this translation?"
 msgstr "Êtes-vous sûr de vouloir effacer et perdre toutes les modifications apportées à cette traduction?"
 
 msgid "Yes, Clear"
-msgid "Oui, Clair"
+msgid "Oui, effacer"
