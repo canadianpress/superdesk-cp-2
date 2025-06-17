@@ -23,21 +23,12 @@ const getWritethrus = (article: IArticle) => {
   const { httpRequestJsonLocal } = superdesk;
 
   const query = prepareSuperdeskQuery("/search", {
-    filter: {
-      $and: [
-        { state: { $ne: "spiked" } },
-        { family_id: { $eq: article.family_id } },
-        { type: { $ne: "composite" } },
-      ],
-    },
+    filter: { family_id: { $eq: article.family_id } },
     sort: [{ versioncreated: "asc" }],
     page: 1,
     max_results: 50,
   });
-  return httpRequestJsonLocal<{ _items: IArticle[] }>({
-    ...query,
-    urlParams: { ...query?.urlParams, repo: "archive,published" },
-  });
+  return httpRequestJsonLocal<{ _items: IArticle[] }>(query);
 };
 
 export const TranslationDialog = ({
