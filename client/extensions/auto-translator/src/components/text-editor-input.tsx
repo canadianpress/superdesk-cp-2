@@ -7,6 +7,7 @@ import { superdesk } from "../superdesk";
 type TextEditorInputProps = {
   label: string;
   value: string;
+  wrapperValue: string;
   readOnly: boolean;
   onChange: (value: string) => void;
   maxLength?: number;
@@ -15,6 +16,7 @@ type TextEditorInputProps = {
 export const TextEditorInput = ({
   label,
   value,
+  wrapperValue,
   readOnly,
   onChange,
   maxLength,
@@ -27,7 +29,7 @@ export const TextEditorInput = ({
       boxedStyle
       boxedLable
       label={label}
-      value={value}
+      value={wrapperValue}
       // max length must be provided to show a character count
       maxLength={maxLength}
     >
@@ -38,7 +40,7 @@ export const TextEditorInput = ({
 
 type FormTextEditorInputProps<T> = Omit<
   TextEditorInputProps,
-  "value" | "onChange"
+  "value" | "wrapperValue" | "onChange"
 > & {
   name: RecursiveKeyOf<T> & string;
   maxLength?: number;
@@ -48,12 +50,14 @@ export const FormTextEditorInput = <T,>({
   name,
   ...props
 }: FormTextEditorInputProps<T>) => {
+  const { stripHtmlTags } = superdesk.utilities;
   const [field, _, helpers] = useField({ name });
   const { setValue } = helpers;
 
   return (
     <TextEditorInput
       value={field.value}
+      wrapperValue={stripHtmlTags(field.value).replace(/\n/g, "")}
       onChange={(value) => {
         setValue(value);
       }}
