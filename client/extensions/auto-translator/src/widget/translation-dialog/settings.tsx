@@ -1,4 +1,4 @@
-import { FormikContextType, useFormikContext } from "formik";
+import { useFormikContext } from "formik";
 import * as React from "react";
 import { IArticle } from "superdesk-api";
 import { Button, Option, Spacer } from "superdesk-ui-framework/react";
@@ -20,6 +20,7 @@ import {
   FORM_FIELDS,
   formatWritethruLabel,
   FormInputProps,
+  isManualTranslationDirty,
   TranslationDialogFormProps,
 } from "./helpers";
 import { ReplaceAll } from "./replace-all";
@@ -38,34 +39,6 @@ const getTranslation = (payload: TranslationPayload) => {
   });
 };
 
-const isManualTranslationDirty = ({
-  values,
-  getFieldMeta,
-}: Pick<
-  FormikContextType<TranslationDialogFormProps>,
-  "values" | "getFieldMeta"
->) => {
-  const { FormFieldType } = superdesk.forms;
-  const { getContentStateFromHtml } = superdesk.helpers;
-
-  return getObjectEntries(FORM_FIELDS).some(([key, value]) => {
-    const field = getFieldMeta<string>(
-      `translations.${values.writethru}.manualTranslation.${key}`
-    );
-    if (value.type === FormFieldType.textEditor3) {
-      const contentState = getContentStateFromHtml(field.value);
-      const text = contentState.getPlainText();
-      const initialContentState = getContentStateFromHtml(
-        field.initialValue ?? ""
-      );
-      const initialText = initialContentState.getPlainText();
-
-      return initialText !== text;
-    }
-    return field.initialValue !== field.value;
-  });
-};
-
 export const TranslationSettings = ({
   currentArticle,
 }: TranslationSettingsProps) => {
@@ -77,6 +50,8 @@ export const TranslationSettings = ({
     setFieldValue: formikSetFieldValue,
     getFieldMeta,
     initialValues,
+    status,
+    setStatus,
   } = useFormikContext<TranslationDialogFormProps>();
   const setFieldValue =
     typedSetFieldValue<TranslationDialogFormProps>(formikSetFieldValue);
@@ -130,6 +105,8 @@ export const TranslationSettings = ({
           }
         }
 
+        if (status.isTranslatePristine)
+          setStatus({ isTranslatePristine: false });
         return;
       })
       .catch((err) => {
