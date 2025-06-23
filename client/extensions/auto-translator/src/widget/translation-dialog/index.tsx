@@ -63,13 +63,15 @@ export const TranslationDialog = ({
       onSubmit={onSubmit}
       validate={validateTranslationDialogForm}
     >
-      {({ setValues, handleSubmit }) => {
+      {({ resetForm, handleSubmit }) => {
         const [isLoading, setIsLoading] = React.useState(true);
 
         React.useEffect(() => {
           getWritethrus(currentArticle)
             .then(({ _items }) => {
-              setValues(getTranslationDialogFormValues(currentArticle, _items));
+              resetForm({
+                values: getTranslationDialogFormValues(currentArticle, _items),
+              });
             })
             .catch((err) => {
               console.error({ err });
