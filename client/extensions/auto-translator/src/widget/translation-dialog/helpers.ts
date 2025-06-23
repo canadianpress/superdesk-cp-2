@@ -1,3 +1,4 @@
+import { FormikContextType } from "formik";
 import { IArticle } from "superdesk-api";
 import {
   TRANSLATION_LANGUAGES_CODES_MAP,
@@ -125,6 +126,13 @@ export type TranslationDialogFormProps = {
   translations: Record<string, TranslationEntry>;
 };
 
+type TranslationDialogFormStatus = { isTranslatePristine: boolean };
+
+export type ExtraTranslationDialogFormProps = {
+  status?: TranslationDialogFormStatus;
+  initialStatus?: TranslationDialogFormStatus;
+};
+
 export const isTranslationVersion = (
   value: string
 ): value is keyof TranslationEntry =>
@@ -148,4 +156,32 @@ export const formatWritethruLabel = ({
     label += ` #${correction_sequence} (${gettext("Corrected")})`;
   if (language) label += ` (${language})`;
   return label;
+};
+
+export const isManualTranslationDirty = ({
+  values,
+  getFieldMeta,
+}: Pick<
+  FormikContextType<TranslationDialogFormProps>,
+  "values" | "getFieldMeta"
+>) => {
+  const { FormFieldType } = superdesk.forms;
+  const { getContentStateFromHtml } = superdesk.helpers;
+
+  return getObjectEntries(FORM_FIELDS).some(([key, value]) => {
+    const field = getFieldMeta<string>(
+      `translations.${values.writethru}.manualTranslation.${key}`
+    );
+    if (value.type === FormFieldType.textEditor3) {
+      const contentState = getContentStateFromHtml(field.value);
+      const text = contentState.getPlainText();
+      const initialContentState = getContentStateFromHtml(
+        field.initialValue ?? ""
+      );
+      const initialText = initialContentState.getPlainText();
+
+      return initialText !== text;
+    }
+    return field.initialValue !== field.value;
+  });
 };

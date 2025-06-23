@@ -11,7 +11,11 @@ import {
   TranslationForm,
   validateTranslationDialogForm,
 } from "./form";
-import { FORM_FIELDS, TranslationDialogFormProps } from "./helpers";
+import {
+  ExtraTranslationDialogFormProps,
+  FORM_FIELDS,
+  TranslationDialogFormProps,
+} from "./helpers";
 
 type TranslationDialogProps = {
   currentArticle: IArticle;
@@ -57,11 +61,12 @@ export const TranslationDialog = ({
   };
 
   return (
-    <Formik<TranslationDialogFormProps>
+    <Formik<TranslationDialogFormProps, ExtraTranslationDialogFormProps>
       enableReinitialize
       initialValues={getTranslationDialogFormInitialValues()}
       onSubmit={onSubmit}
       validate={validateTranslationDialogForm}
+      initialStatus={{ isTranslatePristine: true }}
     >
       {({ resetForm, handleSubmit }) => {
         const [isLoading, setIsLoading] = React.useState(true);
