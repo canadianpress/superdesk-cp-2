@@ -1,6 +1,5 @@
 import { useFormikContext } from "formik";
 import * as React from "react";
-import { IArticle } from "superdesk-api";
 import { Button, Option, Spacer } from "superdesk-ui-framework/react";
 import { FormSelect } from "../../components";
 import {
@@ -15,19 +14,14 @@ import {
   TranslationPayload,
   TranslationResponse,
 } from "../../typings/translation";
-import { getObjectEntries, getObjectKeys } from "../../utilities";
+import { getObjectEntries } from "../../utilities";
 import {
   FORM_FIELDS,
-  formatWritethruLabel,
   FormInputProps,
   isManualTranslationDirty,
   TranslationDialogFormProps,
 } from "./helpers";
 import { ReplaceAll } from "./replace-all";
-
-type TranslationSettingsProps = {
-  currentArticle: IArticle;
-};
 
 const getTranslation = (payload: TranslationPayload) => {
   const { httpRequestJsonLocal } = superdesk;
@@ -39,9 +33,7 @@ const getTranslation = (payload: TranslationPayload) => {
   });
 };
 
-export const TranslationSettings = ({
-  currentArticle,
-}: TranslationSettingsProps) => {
+export const TranslationSettings = () => {
   const { gettext } = superdesk.localization;
   const { confirm } = useConfirm();
 
@@ -193,17 +185,12 @@ export const TranslationSettings = ({
             name="writethru"
             label={gettext("Writethru")}
           >
-            <Option value="current">{`${gettext(
-              "Current Story"
-            )} ${formatWritethruLabel({
-              ...currentArticle,
-              isCurrentStory: true,
-            })}`}</Option>
-            {getObjectKeys(values.translations)
-              .filter((key) => key !== "current")
-              .map((writethru) => (
-                <Option value={writethru} key={`writethru-${writethru}`}>
-                  {writethru}
+            <Option value="current">{values.translations.current.label}</Option>
+            {getObjectEntries(values.translations)
+              .filter(([k]) => k !== "current")
+              .map(([k, v]) => (
+                <Option value={k} key={`writethru-${k}`}>
+                  {v.label}
                 </Option>
               ))}
           </FormSelect>

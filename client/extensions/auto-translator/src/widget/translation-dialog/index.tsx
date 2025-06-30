@@ -97,11 +97,7 @@ export const TranslationDialog = ({
                 <Footer isLoading={isLoading} closeDialog={closeDialog} />
               }
             >
-              {isLoading ? (
-                <Loader />
-              ) : (
-                <TranslationForm currentArticle={currentArticle} />
-              )}
+              {isLoading ? <Loader /> : <TranslationForm />}
             </Modal>
           </form>
         );

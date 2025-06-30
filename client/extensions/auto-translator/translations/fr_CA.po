@@ -9,7 +9,7 @@ msgid "Cancel"
 msgstr "Annuler"
 
 msgid "Original"
-msgstr "Original"
+msgstr "Originale"
 
 msgid "AI Translation"
 msgstr "Traduction de l’IA"
@@ -130,3 +130,6 @@ msgstr "Êtes-vous sûr de vouloir effacer et perdre toutes les modifications ap
 
 msgid "Yes, Clear"
 msgid "Oui, effacer"
+
+msgid "Translation"
+msgid "Traduction"
