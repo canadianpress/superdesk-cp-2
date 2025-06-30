@@ -1,7 +1,6 @@
 import DiffMatchPatch from "diff-match-patch";
 import { useFormikContext } from "formik";
 import * as React from "react";
-import { IArticle } from "superdesk-api";
 import {
   Container,
   Label,
@@ -15,15 +14,10 @@ import { getObjectEntries, getObjectKeys } from "../../../utilities";
 import {
   FORM_FIELDS,
   FORM_FIELDS_INITIAL_VALUES,
-  formatWritethruLabel,
   FormInputProps,
   TranslationDialogFormProps,
 } from "../helpers";
 import { getPrettyDiffHtml, sanitizeHtml } from "./helpers";
-
-type CompareAccordionProps = {
-  currentArticle: IArticle;
-};
 
 const COMPARE_VERSIONS = ["ls", "rs", "diff"] as const;
 
@@ -84,7 +78,7 @@ const CompareContent = (props: Omit<FormInputProps, "images">) => (
   </>
 );
 
-export const CompareAccordion = ({ currentArticle }: CompareAccordionProps) => {
+export const CompareAccordion = () => {
   const { gettext } = superdesk.localization;
 
   const { values } = useFormikContext<TranslationDialogFormProps>();
@@ -119,17 +113,14 @@ export const CompareAccordion = ({ currentArticle }: CompareAccordionProps) => {
               }}
               label={`${gettext("Writethru")} 1`}
             >
-              <Option value="current">{`${gettext(
-                "Current Story"
-              )} ${formatWritethruLabel({
-                ...currentArticle,
-                isCurrentStory: true,
-              })}`}</Option>
-              {getObjectKeys(values.translations)
-                .filter((key) => key !== "current")
-                .map((writethru) => (
-                  <Option value={writethru} key={`left-writethru-${writethru}`}>
-                    {writethru}
+              <Option value="current">
+                {values.translations.current.label}
+              </Option>
+              {getObjectEntries(values.translations)
+                .filter(([k]) => k !== "current")
+                .map(([k, v]) => (
+                  <Option value={k} key={`left-writethru-${k}`}>
+                    {v.label}
                   </Option>
                 ))}
             </Select>
@@ -140,20 +131,14 @@ export const CompareAccordion = ({ currentArticle }: CompareAccordionProps) => {
               }}
               label={`${gettext("Writethru")} 2`}
             >
-              <Option value="current">{`${gettext(
-                "Current Story"
-              )} ${formatWritethruLabel({
-                ...currentArticle,
-                isCurrentStory: true,
-              })}`}</Option>
-              {getObjectKeys(values.translations)
-                .filter((key) => key !== "current")
-                .map((writethru) => (
-                  <Option
-                    value={writethru}
-                    key={`right-writethru-${writethru}`}
-                  >
-                    {writethru}
+              <Option value="current">
+                {values.translations.current.label}
+              </Option>
+              {getObjectEntries(values.translations)
+                .filter(([k]) => k !== "current")
+                .map(([k, v]) => (
+                  <Option value={k} key={`left-writethru-${k}`}>
+                    {v.label}
                   </Option>
                 ))}
             </Select>

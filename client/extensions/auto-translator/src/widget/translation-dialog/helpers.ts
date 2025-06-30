@@ -123,7 +123,7 @@ export type TranslationDialogFormProps = {
   translationType: TranslationType;
   translateFrom: (typeof TRANSLATION_LANGUAGES_CODES_MAP)[keyof typeof TRANSLATION_LANGUAGES_CODES_MAP];
   translateTo: (typeof TRANSLATION_LANGUAGES_CODES_MAP)[keyof typeof TRANSLATION_LANGUAGES_CODES_MAP];
-  translations: Record<string, TranslationEntry>;
+  translations: Record<string, TranslationEntry & { label: string }>;
 };
 
 type TranslationDialogFormStatus = { isTranslatePristine: boolean };

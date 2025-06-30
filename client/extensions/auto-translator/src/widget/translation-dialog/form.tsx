@@ -13,6 +13,7 @@ import {
   TRANSLATION_VERSIONS,
 } from "../../constants";
 import { superdesk } from "../../superdesk";
+import { ValueOf } from "../../typings/utilities";
 import {
   getObjectEntries,
   getObjectKeys,
@@ -32,12 +33,10 @@ import {
 } from "./helpers";
 import { TranslationSettings } from "./settings";
 
+const { gettext } = superdesk.localization;
+
 type TranslationFormEntryProps = {
   initialVersion: keyof TranslationEntry;
-};
-
-type TranslationFormProps = {
-  currentArticle: IArticle;
 };
 
 const getImagesFormValues = (workingArticle: IArticle) =>
@@ -67,7 +66,9 @@ const getTranslationEntryFormValues = (
   article: IArticle,
   images: ReturnType<typeof getImagesFormValues>
 ) =>
-  getObjectKeys(TRANSLATION_VERSIONS).reduce<TranslationEntry>(
+  getObjectKeys(TRANSLATION_VERSIONS).reduce<
+    TranslationDialogFormProps["translations"][string]
+  >(
     (formValues, version) => {
       if (version === TRANSLATION_VERSIONS.original.value) {
         formValues[version] = {
@@ -102,6 +103,7 @@ const getTranslationEntryFormValues = (
         ...FORM_FIELDS_INITIAL_VALUES,
         images: {},
       },
+      label: formatWritethruLabel(article),
     }
   );
 
@@ -125,58 +127,96 @@ export const getTranslationDialogFormInitialValues = () =>
           ...FORM_FIELDS_INITIAL_VALUES,
           images: {},
         },
+        label: gettext("Current Story"),
       },
     },
   } as const);
 
 export const getTranslationDialogFormValues = (
-  currentArticle: IArticle,
+  article: IArticle,
   articleVersions: IArticle[]
 ): TranslationDialogFormProps => {
-  const writethrus = articleVersions.filter((article) => article.anpa_take_key);
-
-  const translations = writethrus.length
-    ? writethrus.reduce<TranslationDialogFormProps["translations"]>(
-        (translations, article) => {
-          const images = getImagesFormValues(article);
-          const translationEntry = getTranslationEntryFormValues(
-            article,
-            images
-          );
-
-          Object.assign(translations, {
-            [formatWritethruLabel(article)]: translationEntry,
-          });
-
-          return translations;
-        },
-        {
-          current: getTranslationEntryFormValues(
-            currentArticle,
-            getImagesFormValues(currentArticle)
-          ),
+  const { writethrus, originals } = articleVersions.reduce<{
+      writethrus: typeof articleVersions;
+      originals: Partial<
+        Record<
+          ValueOf<typeof TRANSLATION_LANGUAGES_CODES_MAP>,
+          (typeof articleVersions)[number]
+        >
+      >;
+    }>(
+      (acc, article) => {
+        if (article.anpa_take_key) {
+          acc.writethrus.push(article);
+          return acc;
         }
-      )
-    : {
-        current: getTranslationEntryFormValues(
-          currentArticle,
-          getImagesFormValues(currentArticle)
-        ),
-      };
 
-  const currentArticleLanguage =
-    typeof currentArticle.language === "string"
-      ? currentArticle.language.toLowerCase()
-      : undefined;
+        const lang = article.language?.toLowerCase();
+        if (!isLanguageCode(lang)) return acc;
 
-  const translateTo =
-    currentArticleLanguage && isLanguageCode(currentArticleLanguage)
-      ? TRANSLATION_LANGUAGES_CODES_MAP[currentArticleLanguage]
-      : TRANSLATION_LANGUAGES_CODES_MAP.en;
-  const translateFrom =
-    translateTo === TRANSLATION_LANGUAGES_CODES_MAP.en
-      ? TRANSLATION_LANGUAGES_CODES_MAP.fr
-      : TRANSLATION_LANGUAGES_CODES_MAP.en;
+        acc.originals[TRANSLATION_LANGUAGES_CODES_MAP[lang]] = article;
+        return acc;
+      },
+      { writethrus: [], originals: {} }
+    ),
+    current = {
+      ...getTranslationEntryFormValues(article, getImagesFormValues(article)),
+      label: `${gettext("Current Story")} ${formatWritethruLabel({
+        ...article,
+        isCurrentStory: true,
+      })}`,
+    },
+    translations = {
+      current,
+      ...(originals.en && {
+        [`${originals.en._id}`]: {
+          ...getTranslationEntryFormValues(
+            originals.en,
+            getImagesFormValues(originals.en)
+          ),
+          label: `${
+            originals.en.translated_from
+              ? gettext("Translation")
+              : gettext("Original")
+          } (${originals.en.language})`,
+        },
+      }),
+      ...(originals.fr && {
+        [`${originals.fr._id}`]: {
+          ...getTranslationEntryFormValues(
+            originals.fr,
+            getImagesFormValues(originals.fr)
+          ),
+          label: `${
+            originals.fr.translated_from
+              ? gettext("Translation")
+              : gettext("Original")
+          } (${originals.fr.language})`,
+        },
+      }),
+      ...(writethrus.length &&
+        writethrus.reduce<TranslationDialogFormProps["translations"]>(
+          (translations, article) => {
+            const images = getImagesFormValues(article),
+              translationEntry = getTranslationEntryFormValues(article, images);
+            translations[`${article._id}`] = translationEntry;
+            return translations;
+          },
+          {}
+        )),
+    },
+    articleLanguage =
+      typeof article.language === "string"
+        ? article.language.toLowerCase()
+        : undefined,
+    translateTo =
+      articleLanguage && isLanguageCode(articleLanguage)
+        ? TRANSLATION_LANGUAGES_CODES_MAP[articleLanguage]
+        : TRANSLATION_LANGUAGES_CODES_MAP.en,
+    translateFrom =
+      translateTo === TRANSLATION_LANGUAGES_CODES_MAP.en
+        ? TRANSLATION_LANGUAGES_CODES_MAP.fr
+        : TRANSLATION_LANGUAGES_CODES_MAP.en;
 
   return {
     writethru: getObjectKeys(translations)[0],
@@ -299,7 +339,7 @@ const TranslationFormEntry = ({
   );
 };
 
-export const TranslationForm = ({ currentArticle }: TranslationFormProps) => {
+export const TranslationForm = () => {
   const translationFormRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useEffect(() => {
@@ -351,9 +391,9 @@ export const TranslationForm = ({ currentArticle }: TranslationFormProps) => {
       ref={translationFormRef}
       className="auto-translator__translation-form-form-container"
     >
-      <TranslationSettings currentArticle={currentArticle} />
+      <TranslationSettings />
       <ContentDivider margin="small" />
-      <CompareAccordion currentArticle={currentArticle} />
+      <CompareAccordion />
       <ContentDivider margin="small" />
       <ResizablePanels
         direction="horizontal"
