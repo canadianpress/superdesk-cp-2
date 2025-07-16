@@ -1,0 +1,956 @@
+import json
+import superdesk
+import logging
+import re
+from typing import Tuple, Dict
+
+from flask import current_app as app
+from eve.utils import config
+from superdesk.publish.formatters import Formatter
+from superdesk.errors import FormatterError
+from superdesk.metadata.item import (
+    ITEM_TYPE,
+    CONTENT_TYPE,
+)
+from superdesk.utils import json_serialize_datetime_objectId
+import superdesk
+from datetime import datetime
+import re
+
+logger = logging.getLogger(__name__)
+
+class NINJS21Formatter(Formatter):
+    name = "NINJS2.1"
+    type = "ninjs2.1"
+
+    direct_copy_properties: Tuple[str, ...] = (
+        "urgency",
+        "pubstatus",
+        "mimetype",
+        "slugline",
+    )
+     
+    def __init__(self):
+        self.can_preview = True
+        self.can_export = True
+        self.internal_renditions = ["original"]
+        self._uri_schemes_cache = None
+        self._infosources_cache = None
+        self._jimi_subjects_cache = None
+
+    def get_locale_name(self, item, language):
+        try:
+            return item["translations"]["name"][language]
+        except (KeyError, TypeError):
+            return item.get("name", "")
+
+
+    def sanitize_text(self, text, remove_p_tags = False):
+        """Remove certain unreadable chars and p tags from text"""
+        if not isinstance(text, str):
+            print("ERROR. The text provided is not a string cannot sanitize it. Returning the object as is")
+            return text
+        
+        try:
+            sanitized_text = re.sub(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]", " ", text)
+            if remove_p_tags:
+                sanitized_text = re.sub(r'</?p>', '', sanitized_text)
+            sanitized_text = sanitized_text.strip()
+            return sanitized_text
+        except Exception as e:
+            print("Error: ", str(e))
+            return text
+
+    def _get_jimi_subjects_mapping(self) -> Dict[str, str]:
+        """Get URI schemes mapping from vocabulary."""
+        if self._jimi_subjects_cache is None:
+            try:
+                cv = superdesk.get_resource_service("vocabularies").find_one(
+                    req=None, _id="subject_custom"
+                )
+                if cv and cv.get("items"):
+                    self._jimi_subjects_cache = {
+                        item["qcode"]: item
+                        for item in cv["items"]
+                        if item.get("in_jimi", False)
+                    }
+                else:
+                    self._jimi_subjects_cache = []
+            except Exception as e:
+                logger.error(f"Error loading jimi subjects vocabulary: {e}")
+                self._jimi_subjects_cache = []
+        
+        return self._jimi_subjects_cache
+
+    def _get_uri_schemes_mapping(self) -> Dict[str, str]:
+        """Get URI schemes mapping from vocabulary."""
+        fallback_mapping = {
+                        "person": "http://cv.cp.org/People/",
+                        "place": "http://cv.cp.org/Places/",
+                        "organisation": "http://cv.cp.org/Organizations/",
+                        "event": "http://cv.cp.org/Events/",
+                        "subject": "http://cv.iptc.org/newscodes/mediatopic/",
+                        "subject_custom": "http://cv.cp.org/Subjects/",
+                        "distribution": "http://cv.cp.org/distribution/",
+                        "destinations": "http://cv.cp.org/destination/",
+                    }
+        if self._uri_schemes_cache is None:
+            try:
+                cv = superdesk.get_resource_service("vocabularies").find_one(
+                    req=None, _id="ninjs_uri_schemes"
+                )
+                if cv and cv.get("items"):
+                    self._uri_schemes_cache = {
+                        item["qcode"]: item["uri_base"]
+                        for item in cv["items"]
+                        if item.get("is_active", True)
+                    }
+                else:
+                    self._uri_schemes_cache = fallback_mapping
+            except Exception as e:
+                logger.error(f"Error loading URI schemes vocabulary: {e}")
+                self._uri_schemes_cache = fallback_mapping
+        
+        return self._uri_schemes_cache
+
+    def _get_infosources_mapping(self) -> Dict[str, Dict]:
+        """Get infosources mapping from vocabulary."""
+        if self._infosources_cache is None:
+            try:
+                cv = superdesk.get_resource_service("vocabularies").find_one(
+                    req=None, _id="ninjs_infosources"
+                )
+                if cv and cv.get("items"):
+                    self._infosources_cache = {
+                        item["qcode"]: {
+                            "name": item.get("name", ""),
+                            "literal": item.get("literal", ""),
+                            "uri": item.get("uri", ""),
+                            "role": item.get("role", "")
+                        }
+                        for item in cv.get("items", [])
+                        if item.get("is_active", True)
+                    }
+                else:
+                    # Fallback to default mappings if vocabulary not found
+                    self._infosources_cache = {
+                        "Globenewswire": {
+                            "name": "Globenewswire",
+                            "literal": "globenewswire.com",
+                            "uri": "http://globenewswire.com",
+                            "role": "originator"
+                        },
+                        "The Associated Press": {
+                            "name": "The Associated Press",
+                            "literal": "ap.org",
+                            "uri": "http://ap.org",
+                            "role": "originator"
+                        },
+                        "The Canadian Press": {
+                            "name": "The Canadian Press",
+                            "literal": "cp.org",
+                            "uri": "http://cp.org",
+                            "role": "originator"
+                        }
+                    }
+            except Exception as e:
+                logger.error(f"Error loading infosources vocabulary: {e}")
+                self._infosources_cache = {}
+        
+        return self._infosources_cache
+
+
+    def format(self, article, subscriber, codes=None):
+        try:
+            pub_seq_num = superdesk.get_resource_service("subscribers").generate_sequence_number(subscriber)
+
+            ninjs = self._transform_to_ninjs(article, subscriber)
+            return [
+                (
+                    pub_seq_num,
+                    json.dumps(ninjs, default=json_serialize_datetime_objectId),
+                )
+            ]
+        except Exception as ex:
+            raise FormatterError.ninjsFormatterError(ex, subscriber)
+
+    def _format_cv_item_base(self, item, language="en-CA"):
+        return {
+            "name": self.get_locale_name(item, language),
+            "qcode": item.get("qcode", ""),
+            "scheme": item.get("scheme", ""),
+            "creator": item.get("creator", "").lower(),
+            "relevance": item.get("relevance", 50),
+        }
+
+    def construct_uri(self, scheme, literal):
+        """Construct URI using vocabulary-based scheme mapping."""
+        uri_schemes = self._get_uri_schemes_mapping()
+        uri= ""
+        
+        if scheme.startswith("http://"):
+            uri = f"{scheme}{literal}" if literal else scheme
+        else:
+            uri_base = uri_schemes.get(scheme, f"http://cv.cp.org/{scheme}/")
+            uri = f"{uri_base}{literal}" if literal else f"{uri_base}"
+            
+        # Remove any spaces from URI before returning
+        return uri.replace(" ", "")
+
+    def is_custom_subject(self, qcode, scheme):
+        return qcode and "-" in qcode and not scheme.startswith("http://") and scheme not in ["destinations", "distribution","destination"]
+
+    def format_cv_items(self, article, items_key):
+        formatted_items = []
+        items = article.get(items_key, [])
+        if not items:
+            logger.warning(f"No {items_key} found in article")
+            return []
+
+        language = article.get("language", "en-CA")
+
+        for item in items:
+            base_item = self._format_cv_item_base(item, language)
+            scheme = base_item.get("scheme", "")
+            qcode = base_item.get("qcode", "") 
+                        
+            if self.is_custom_subject(qcode, scheme):
+                scheme = "subject_custom"
+
+            uri = self.construct_uri(scheme, qcode)
+            rel = self.determine_rel(scheme, qcode)
+
+            item = {
+                "name": base_item.get("name", ""),
+                "uri": uri,
+                "literal": qcode,
+                "rel": rel,
+                "creator": base_item.get("creator", ""),
+                "relevance": base_item.get("relevance", 50)
+            }
+
+            if self.should_remove_creator_relevance(item, items_key, scheme):
+                del item["creator"]
+                del item["relevance"]
+
+            formatted_items.append(item)
+            
+        return formatted_items
+    
+    def determine_rel(self, scheme, qcode):
+        rel_mapping = {
+            "destinations": "destination",
+            "destination": "destination",
+            "distribution": "distribution",
+            "tag": "tag",
+            "ap_product": "product"
+        }
+        return rel_mapping.get(scheme, "about")
+
+    def should_remove_creator_relevance(self, item, items_key, scheme):
+        if items_key == "subject" and item.get("rel") != "about":
+            return True
+        elif scheme in ["tag","ap_product"]:
+            return True
+        return False
+
+    def _transform_to_ninjs(self, article, subscriber, recursive=True):
+        print("article---------------------------------------")
+        print(article)
+
+        ninjs = {}
+        guid = article.get("guid", "")
+        if not guid:
+            logger.warning("No guid found in article")
+            return None
+        ninjs["uri"] = f"http://cp.org/{guid}"
+        ninjs["version"] = str(article.get("rewrite_sequence", 1))
+        ninjs["type"] = self._get_type(article)
+        ninjs["by"] = article.get("byline", "")
+        ninjs["language"] = self._get_language(article)
+
+        now = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S+00:00')
+        
+        try:
+            if article.get('firstcreated'):
+                ninjs['firstcreated'] = article['firstcreated'].strftime('%Y-%m-%dT%H:%M:%S+00:00')
+            else:
+                ninjs['firstcreated'] = now
+        except (AttributeError, ValueError) as e:
+            logger.warning(f"Could not format firstcreated date: {e}")
+            ninjs['firstcreated'] = now
+            
+        try:
+            if article.get('versioncreated'):
+                ninjs['versioncreated'] = article['versioncreated'].strftime('%Y-%m-%dT%H:%M:%S+00:00')
+                ninjs['contentcreated'] = ninjs['versioncreated']
+            else:
+                ninjs['versioncreated'] = now
+                ninjs['contentcreated'] = now
+        except (AttributeError, ValueError) as e:
+            logger.warning(f"Could not format versioncreated date: {e}")
+            ninjs['versioncreated'] = now
+
+        located = article.get("dateline", {}).get("located", {})
+        if located:
+            ninjs["located"] = located.get("city", "")
+
+        for copy_property in self.direct_copy_properties:
+            if article.get(copy_property) is not None:
+                ninjs[copy_property] = article[copy_property]
+
+        ninjs["descriptions"] = self._build_descriptions(article)
+        ninjs["bodies"] = self._build_bodies(article)
+        ninjs["headlines"] = self._build_headlines(article)
+        ninjs["infosources"] = self._build_infosources(article)
+        ninjs["altids"] = self._build_altids(article)
+        ninjs["places"] = self.build_places(article)
+        ninjs["genres"] = self._build_genres(article)
+        
+        subjects, objects = self.build_subjects_and_objects(article)
+        ninjs["subjects"] = subjects
+        if objects:
+            ninjs["objects"] = objects
+            
+        ninjs["people"] = self.format_cv_items(article, "person")
+        ninjs["organisations"] = self.format_cv_items(article, "organisation")
+        ninjs["events"] = self.format_cv_items(article, "event")
+
+        if copyrights:= self._build_copyrights(article):
+            ninjs["copyrightholder"] = copyrights.get("copyrightholder", "")
+            ninjs["copyrightnotice"] = copyrights.get("copyrightnotice", "")
+
+        if ednote := article.get("ednote"):
+            ninjs["ednote"] = ednote
+        
+        if ninjs["type"] == "text":
+            ninjs["associations"] = self._build_associations(article)
+        else:
+            ninjs["renditions"] = self._build_renditions_list(article)
+        
+        return ninjs
+
+    def _get_language(self, article):
+        language = article.get("language", "en-CA")
+        if language in ["en", "fr"] and not language.endswith("-CA"):
+            return f"{language}-CA"
+        else:
+            return language
+
+    def _split_combined_subjects(self, subjects):
+        updated_subjects = []
+        
+        for subject in subjects:
+            if "/" in subject["name"]:
+                names = [name.strip() for name in subject["name"].split("/")]                
+                scheme = subject.get("rel", "")
+
+
+            
+                for name in names:
+                    updated_subjects.append({
+                        "name": name,
+                        "uri": f"http://cv.cp.org/{scheme}/{name}",
+                        "literal": name,
+                        "rel": scheme
+                    })
+            else:
+                updated_subjects.append(subject)
+                
+        return updated_subjects
+
+    def _add_anpa_categories(self, subjects, article):
+        is_ap = article.get("source", "") in ["The Associated Press", "AP"]
+        uri_base = "http://cv.cp.org/anpa/ap/" if is_ap else "http://cv.cp.org/anpa/"
+
+        for category in article.get("anpa_category", []) or []:
+            if qcode := category.get("qcode"):
+                subjects.append({
+                    "literal": qcode,
+                    "uri": f"{uri_base}{qcode}",
+                    "name": category.get("name", ""),
+                    "rel": "category"
+                })
+        return subjects
+
+    def build_subjects(self, article):
+        subjects = self.format_cv_items(article, "subject")
+        subjects = self._split_combined_subjects(subjects)
+        subjects = self._add_anpa_categories(subjects, article)
+
+        return subjects
+
+    def build_subjects_and_objects(self, article):
+        """Build subjects list and separate product subjects into objects list."""
+
+        subjects = self.format_cv_items(article, "subject")
+        subjects = self._split_combined_subjects(subjects)
+        subjects = self._add_anpa_categories(subjects, article)
+        jimi_subjects = self._get_jimi_subjects_mapping()
+
+        non_product_subjects = []
+        product_objects = []
+        
+        for subject in subjects:
+            if subject.get("rel") == "product":
+                product_object = self._create_product_object(subject)
+                product_objects.append(product_object)
+            else:
+                non_product_subjects.append(subject)
+
+            if subject.get("literal") in jimi_subjects:
+                jimi_subject = self._create_jimi_subject(subject, jimi_subjects[subject.get("literal")],article.get("language", "en-CA"))
+                non_product_subjects.append(jimi_subject)
+        
+        return non_product_subjects, product_objects
+
+    def _create_product_object(self, subject):
+        return {
+            "name": subject.get("name", ""),
+            "uri": subject.get("uri", ""),
+            "literal": subject.get("literal", ""),
+            "rel": subject.get("rel", "product")
+        }
+
+    def _create_jimi_subject(self, subject, jimi_subject, language):
+        name = self.get_locale_name(jimi_subject, language)
+        return {
+            "uri": f"http://cv.cp.org/cp-subject-legacy/{subject.get('literal')}",
+            "name": name,
+        }
+
+    def build_places(self, article):
+        places = self.format_cv_items(article, "place")
+        dateline_place = self.get_dateline_place(article)
+        if dateline_place:
+            places.append(dateline_place)
+        return places
+
+    def _filter_out_region_subjects(self, article):
+        """Remove region subjects that are automatically added by dateline."""
+        if not article or "subject" not in article:
+            return article
+
+        filtered_article = article.copy()
+        filtered_article["subject"] = [
+            subject
+            for subject in article["subject"]
+            if subject.get("scheme") != "regions"
+        ]
+        return filtered_article
+
+    def get_dateline_place(self, article):
+        dateline = article.get("dateline")
+        if not dateline:
+            return None
+        located = dateline.get("located")
+        if located is None:
+            return None
+            
+        city = located.get("city", "")
+        state = located.get("state", "")
+        country = located.get("country", "")
+        code = located.get('code', '')
+        lon = located.get("location", {}).get("lon")
+        lat = located.get("location", {}).get("lat")
+
+        # Place is seen in some AP objects without this the lon and lat are empty sometimes
+        place = located.get("place")
+        if place is not None:
+            if not city:
+                city = place.get("city", "")
+            if not state:
+                state = place.get("state", "")
+            if not country:
+                country = place.get("country", "")
+            if not code:
+                code = place.get('code', '')
+            if lon is None:
+                lon = place.get("location", {}).get("lon")
+            if lat is None:
+                lat = place.get("location", {}).get("lat")
+
+        return {
+            "uri": f"urn:geonames:{code}",
+            "literal": code,
+            "name": city,
+            "rel": "placeline",
+            "contactinfo": [
+                {
+                    "type": "physical",
+                    "address": {
+                        "locality": city,
+                        "area": state,
+                        "country": country
+                    }
+                }
+            ],
+            "geojson": {
+                "type": "Point",
+                "coordinates": [
+                    lon,
+                    lat
+                ]
+            }
+        }
+
+    def _get_type(self, article):
+        if article[ITEM_TYPE] == CONTENT_TYPE.PREFORMATTED:
+            return CONTENT_TYPE.TEXT
+        return article[ITEM_TYPE]
+
+    def _build_descriptions(self, article):
+        """Build descriptions list with roles from extra and description fields."""
+        descriptions = []
+
+        # Map of extra fields to roles
+        extra_field_roles = {
+            "update": "update",
+            "correction": "correction", 
+            "caption_writer": "caption_writer"
+        }
+
+        # Process extra fields that map to descriptions
+        extra_fields = article.get("extra", {})
+        for field, role in extra_field_roles.items():
+            if value := extra_fields.get(field):
+                descriptions.append({"role": role, "value": value})
+
+        # Add HTML and text descriptions if present
+        for desc_type in ("html", "text"):
+            if value := article.get(f"description_{desc_type}"):
+                descriptions.append({"role": desc_type, "value": value})
+        
+        return descriptions
+    
+    def _build_bodies(self, article):
+        """Build bodies list with role, charcount, wordcount, contenttype, value."""
+        bodies = []
+        body_html = article.get('body_html', '')
+        body_html = self.sanitize_text(body_html, remove_p_tags=False)
+        wordcount = article.get('word_count', 0)
+        
+        if body_html:
+            charcount = len(body_html)
+            bodies.append({
+                "role": "html",
+                "charcount": charcount,
+                "wordcount": wordcount,
+                "contenttype": "text/html",
+                "value": body_html
+            })
+        
+        return bodies
+
+    def _build_headlines(self, article):
+        """Build headlines list with roles from headline and extra fields."""
+        headlines = []
+        
+        # Add main headline
+        if headline := article.get('headline', ''):
+            headlines.append({"role": "main", "value": headline})
+        
+        # Add extended headline from extra
+        if headline_extended := article.get("extra", {}).get("headline_extended", ""):
+            headlines.append({"role": "extended", "value": headline_extended})
+
+        if headline_short := article.get("extra", {}).get("short_headline", ""):
+            headlines.append({"role": "short", "value": headline_short})
+        
+        return headlines
+
+    def _build_copyrights(self, article):
+        if source := article.get("source", "The Canadian Press"):
+            return {
+                "copyrightholder": source,
+                "copyrightnotice": f"Copyright {datetime.now().year}, {source}. All rights reserved."
+            }
+        return None
+
+    def _build_infosources(self, article):
+        """Build infosources list from source field using vocabulary mapping."""
+        infosources = []
+        source = article.get("source", "The Canadian Press")
+        original_source = article.get("original_source", "")
+        infosources_mapping = self._get_infosources_mapping()
+
+        # Always add The Canadian Press as distributor
+        infosources.append({
+            "name": "The Canadian Press",
+            "literal": "cp.org", 
+            "uri": "http://cp.org",
+            "role": "distributor"
+        })
+
+        # Add source as originator if mapping exists
+        if source in infosources_mapping:
+            infosources.append({
+                **infosources_mapping[source],
+                "role": "originator"
+            })
+        else:
+            logger.warning(f"No infosource mapping found for source {source}")
+            infosources.append({
+                "name": source,
+                "literal": source,
+                "role": "originator"
+            })
+
+        # Add original source as third-party originator if exists and has mapping
+        if original_source and original_source in infosources_mapping:
+            infosources.append({
+                **infosources_mapping[original_source],
+                "role": "originator-third-party"
+            })
+        elif original_source:
+            logger.warning(f"No infosource mapping found for original source {original_source}")
+            infosources.append({
+                "name": original_source,
+                "literal": original_source,
+                "role": "originator-third-party"
+            })
+
+        return infosources
+
+    def _get_original_id_for_article(self, article):
+        """Get the original ID for an article by following the rewrite chain using Superdesk's archive service.
+        
+        This method uses Superdesk's built-in archive service to traverse the rewrite chain
+        and find the original article that this item was rewritten from.
+        
+        Args:
+            article: Superdesk article dictionary
+            
+        Returns:
+            str: Original article GUID, or empty string if not found
+        """
+        try:
+            # Check if this article has a rewrite_of field
+            article_id = article.get('guid', '')
+            print(f"_get_original_id_for_article: Processing article {article_id}")
+            rewrite_of = article.get('rewrite_of')
+            print(f"_get_original_id_for_article: rewrite_of = {rewrite_of}")
+            
+            if not rewrite_of:
+                # No rewrite chain, this is the original
+                print(f"_get_original_id_for_article: No rewrite chain, returning {article_id}")
+                return article_id
+            
+            # Use Superdesk's archive service to find the original article
+            original_guid = self._get_original_item_guid(article)
+            print(f"_get_original_id_for_article: Found original GUID: {original_guid}")
+            return original_guid
+                
+        except Exception as e:
+            logger.error(f"_get_original_id_for_article: Error getting original ID: {str(e)}")
+            return article.get('guid', '')
+
+    def _get_original_item_guid(self, item):
+        """Recursively find the original article GUID by following the rewrite_of chain.
+        
+        This method uses Superdesk's archive service to traverse the rewrite chain
+        and find the original article. It follows the same pattern as other Superdesk formatters.
+        
+        Args:
+            item: Superdesk article dictionary
+            
+        Returns:
+            str: The GUID of the original article, or current article's GUID if not found
+        """
+        orig = item
+        archive_service = superdesk.get_resource_service("archive")
+        
+        # Limit to 100 iterations to prevent infinite loops
+        for i in range(100):
+            if not orig.get("rewrite_of"):
+                # Found the original article
+                print(f"_get_original_item_guid: Found original article with GUID {orig.get('guid', '')}")
+                return orig.get('guid', '')
+            
+            rewrite_of = orig.get("rewrite_of")
+            print(f"_get_original_item_guid: Following rewrite chain from {orig.get('guid', 'unknown')} to {rewrite_of}")
+            
+            # Use Superdesk's archive service to find the parent article
+            next_orig = archive_service.find_one(req=None, _id=rewrite_of)
+            if next_orig is not None:
+                orig = next_orig
+                continue
+            else:
+                logger.warning(f"_get_original_item_guid: Could not find parent article {rewrite_of}")
+                break
+        
+        # Return the current article's GUID if we couldn't find the original
+        logger.warning(f"_get_original_item_guid: Could not find original article, returning current GUID {orig.get('guid', '')}")
+        return orig.get('guid', '')
+
+    def _build_altids(self, article):
+        altids = []
+
+        relationships = {
+            "rewrite_of": "rewrite_of",
+            "rewritten_by": "rewritten_by",
+            "translated_from": "translation_of",
+            "anpa_take_key": "take_key",
+            "item_id": "source_id"
+        }
+        
+        for field, role in relationships.items():
+            if value := article.get(field):
+                altids.append({"role": role, "value": value})
+
+        for author in article.get("authors", []):
+            if code := author.get("code"):
+                altids.append({
+                    "role": author.get("role", ""),
+                    "value": code
+                })
+
+        extra_mappings = {
+            "photographer_code": "photographer_code",
+            "ap_version": "ap_version",
+            "filename": "TransRef"
+        }
+        extra_fields = article.get("extra", {})
+        for field, role in extra_mappings.items():
+            if value := extra_fields.get(field):
+                altids.append({
+                    "role": role,
+                    "value": str(value)
+                })
+
+        # Add original ID by following rewrite chain
+        original_id = self._get_original_id_for_article(article)
+        if original_id:
+            altids.append({
+                "role": "original_id",
+                "value": original_id
+            })
+
+        return altids
+    
+    def _build_genres(self, article):
+        """Build genres list with uri and name."""
+        genres = []
+        genre_list = article.get("genre") or []
+        for genre in genre_list:
+            qcode = genre.get("qcode", "")
+            name = genre.get("name", "")
+            qcode_without_spaces = "".join(qcode.split())
+            if qcode_without_spaces and name:
+                genres.append({
+                    "uri": f"http://cv.cp.org/genre/{qcode_without_spaces}",
+                    "name": name,
+                    "literal": qcode
+                })
+        return genres
+
+    def _build_associations(self, article):
+        """Build associations list with full objects for associated items."""
+        associations = []
+        article_associations = article.get("associations", {})
+            
+        for key, value in article_associations.items():
+            if not value or not isinstance(value, dict):
+                continue
+                
+            association_item = {}
+            
+            # Basic fields
+            guid = value.get("guid", "")
+            if guid:
+                association_item["uri"] = f"http://cp.org/{guid}"
+                association_item["name"] = key
+                association_item["type"] = value.get("type", "text")
+            
+            # Build headlines for associated item
+            headlines = []
+            headline = value.get("headline", "")
+            headline = self.sanitize_text(headline, remove_p_tags=True)
+            headline = headline.strip()
+            if headline:
+                headlines.append({"role": "main", "value": headline})
+            association_item["headlines"] = headlines
+            
+            # Build descriptions for associated item
+            descriptions = []
+            if description_text:= value.get("description_text", ""):
+                description_text = self.sanitize_text(description_text, remove_p_tags=True)
+                descriptions.append({"role": "text", "value": description_text})
+
+            if (order := value.get("order")) is not None:
+                descriptions.append({"role": "sortorder", "value": order})
+
+            association_item["descriptions"] = descriptions
+            
+            # Build altids for associated item
+            altids = []
+            for extra_key, extra_value in value.get("extra", {}).items():
+                if extra_value:
+                    if extra_key == "caption_writer":
+                        descriptions.append({"role": "caption_writer", "value": extra_value})
+                    elif extra_key == "photographer_code":
+                        altids.append({"role": "photographer_code", "value": extra_value})
+                    elif extra_key == "ap_version":
+                        altids.append({"role": "ap_version", "value": str(extra_value)})
+                    elif extra_key == "filename":
+                        altids.append({"role": "TransRef", "value": extra_value})
+            association_item["altids"] = altids
+            
+            # Build renditions for associated item using the new methods
+            renditions = []
+            item_type = value.get("type", "text")
+            
+            for rendition_key, rendition_value in value.get("renditions", {}).items():
+                if not rendition_value:
+                    continue
+                    
+                mimetype = rendition_value.get("mimetype", "")
+                
+                if "image" in mimetype and (item_type == "picture" or item_type == "video"):
+                    rendition = self._handle_images(rendition_key, rendition_value, guid, item_type)
+                    if rendition:
+                        renditions.append(rendition)
+                elif "audio" in mimetype and item_type == "audio":
+                    rendition = self._handle_audios(rendition_key, mimetype, rendition_value, guid)
+                    if rendition:
+                        renditions.append(rendition)
+                elif "video" in mimetype and item_type == "video":
+                    rendition = self._handle_videos(rendition_key, rendition_value, guid, value)
+                    if rendition:
+                        renditions.append(rendition)
+            
+            association_item["renditions"] = renditions
+            associations.append(association_item)
+        
+        return associations
+
+    def _handle_images(self, name, rendition, guid, item_type):
+        """Handle image renditions similar to Lambda function but without S3 upload."""
+        try:
+            href = rendition.get('href', '')
+            if not href:
+                return None
+                
+            # For formatter, we keep the original href (no S3 transformation)
+            return {
+                "name": name,
+                "href": href,
+                "contenttype": "image/jpeg",
+                "height": int(rendition.get('height', 0)),
+                "width": int(rendition.get('width', 0))
+            }
+        except Exception as e:
+            logger.error(f"Error handling image rendition: {str(e)}")
+            return None
+
+    def _handle_audios(self, name, mimetype, rendition, guid):
+        """Handle audio renditions similar to Lambda function but without S3 upload."""
+        try:
+            href = rendition.get('href', '')
+            if not href:
+                return None
+                
+            # For formatter, we keep the original href (no S3 transformation)
+            return {
+                "name": name,
+                "href": href,
+                "contenttype": mimetype
+            }
+        except Exception as e:
+            logger.error(f"Error handling audio rendition: {str(e)}")
+            return None
+
+    def _handle_videos(self, name, rendition, guid, article):
+        """Handle video renditions similar to Lambda function but without S3 upload."""
+        try:
+            href = rendition.get('href', '')
+            if not href:
+                return None
+                
+            # Get filemeta_json from the article
+            filemeta_json = article.get('filemeta_json', {})
+            if isinstance(filemeta_json, str):
+                try:
+                    filemeta_json = json.loads(filemeta_json)
+                except:
+                    filemeta_json = {}
+            
+            # Use 'main' instead of 'original' for video name
+            if name == 'original':
+                name = 'main'
+                
+            width = int(filemeta_json.get('width', 0))
+            height = int(filemeta_json.get('height', 0))
+            duration = self._parse_duration(filemeta_json.get('duration', 0))
+            sizeinbytes = int(filemeta_json.get('length', 0))
+            
+            return {
+                "name": name,
+                "title": f"Full Resolution (MP4 {height}x{width})",
+                "format": "MPEG",
+                "href": href,
+                "sizeinbytes": sizeinbytes,
+                "width": width,
+                "height": height,
+                "duration": duration,
+                "contenttype": filemeta_json.get('mime_type', 'video/mp4')
+            }
+        except Exception as e:
+            logger.error(f"Error handling video rendition: {str(e)}")
+            return None
+
+    def _parse_duration(self, duration_value):
+        """Convert duration value to integer seconds."""
+        if not duration_value:
+            return 0
+            
+        if isinstance(duration_value, int):
+            return duration_value
+            
+        if isinstance(duration_value, str):
+            # Try parsing as timestamp (HH:MM:SS.ms)
+            if ':' in duration_value:
+                try:
+                    parts = duration_value.split(':')
+                    if len(parts) == 3:
+                        hours = int(parts[0])
+                        minutes = int(parts[1]) 
+                        seconds = float(parts[2])
+                        return int(hours * 3600 + minutes * 60 + seconds)
+                except (ValueError, IndexError):
+                    pass
+                    
+            # Try parsing as number string
+            try:
+                return int(float(duration_value))
+            except (ValueError, TypeError):
+                pass
+                
+        return 0
+
+    def _build_renditions_list(self, article):
+        """Build renditions list similar to Lambda function logic."""
+        renditions = []
+        guid = article.get('guid', '')
+        item_type = article.get('type', '')
+        
+        for key, value in article.get("renditions", {}).items():
+            if not value:
+                continue
+                
+            mimetype = value.get('mimetype', '')
+            
+            if "image" in mimetype and (item_type == "picture" or item_type == "video"):
+                rendition = self._handle_images(key, value, guid, item_type)
+                if rendition:
+                    renditions.append(rendition)
+            elif "audio" in mimetype and item_type == "audio":
+                rendition = self._handle_audios(key, mimetype, value, guid)
+                if rendition:
+                    renditions.append(rendition)
+            elif "video" in mimetype and item_type == "video":
+                rendition = self._handle_videos(key, value, guid, article)
+                if rendition:
+                    renditions.append(rendition)
+        
+        return renditions 
