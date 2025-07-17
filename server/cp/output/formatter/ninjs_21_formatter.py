@@ -14,10 +14,19 @@ from superdesk.metadata.item import (
 )
 from superdesk.utils import json_serialize_datetime_objectId
 import superdesk
-from datetime import datetime
+from datetime import datetime, timezone
 import re
 
 logger = logging.getLogger(__name__)
+
+def format_datetime(dt):
+    """Format a datetime object as 'YYYY-MM-DDTHH:MM:SS.mmm+00:00'"""
+    if not isinstance(dt, datetime):
+        raise ValueError("Input must be a datetime object")
+    if not dt.tzinfo:
+        dt = dt.replace(tzinfo=timezone.utc)
+    dt = dt.astimezone(timezone.utc)
+    return dt.isoformat(timespec='milliseconds')
 
 class NINJS21Formatter(Formatter):
     name = "NINJS2.1"
@@ -26,7 +35,6 @@ class NINJS21Formatter(Formatter):
     direct_copy_properties: Tuple[str, ...] = (
         "urgency",
         "pubstatus",
-        "mimetype",
         "slugline",
     )
      
@@ -269,27 +277,30 @@ class NINJS21Formatter(Formatter):
         ninjs["by"] = article.get("byline", "")
         ninjs["language"] = self._get_language(article)
 
-        now = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S+00:00')
-        
+        now_dt = datetime.utcnow().replace(tzinfo=timezone.utc)
         try:
             if article.get('firstcreated'):
-                ninjs['firstcreated'] = article['firstcreated'].strftime('%Y-%m-%dT%H:%M:%S+00:00')
+                print("article['firstcreated']---------------------------------------")
+                print(article['firstcreated'])
+                ninjs['firstcreated'] = format_datetime(article['firstcreated'])
+                print("ninjs['firstcreated']---------------------------------------")
+                print(ninjs['firstcreated'])
             else:
-                ninjs['firstcreated'] = now
+                ninjs['firstcreated'] = format_datetime(now_dt)
         except (AttributeError, ValueError) as e:
             logger.warning(f"Could not format firstcreated date: {e}")
-            ninjs['firstcreated'] = now
-            
+            ninjs['firstcreated'] = format_datetime(now_dt)
         try:
             if article.get('versioncreated'):
-                ninjs['versioncreated'] = article['versioncreated'].strftime('%Y-%m-%dT%H:%M:%S+00:00')
+                ninjs['versioncreated'] = format_datetime(article['versioncreated'])
                 ninjs['contentcreated'] = ninjs['versioncreated']
             else:
-                ninjs['versioncreated'] = now
-                ninjs['contentcreated'] = now
+                ninjs['versioncreated'] = format_datetime(now_dt)
+                ninjs['contentcreated'] = ninjs['versioncreated']
         except (AttributeError, ValueError) as e:
             logger.warning(f"Could not format versioncreated date: {e}")
-            ninjs['versioncreated'] = now
+            ninjs['versioncreated'] = format_datetime(now_dt)
+            ninjs['contentcreated'] = ninjs['versioncreated']
 
         located = article.get("dateline", {}).get("located", {})
         if located:
@@ -299,8 +310,12 @@ class NINJS21Formatter(Formatter):
             if article.get(copy_property) is not None:
                 ninjs[copy_property] = article[copy_property]
 
+        if ninjs["type"] not in ["video", "audio"]:
+            ninjs["mimetype"] = article.get("mimetype", "")
+
         ninjs["descriptions"] = self._build_descriptions(article)
-        ninjs["bodies"] = self._build_bodies(article)
+        if ninjs["type"] not in ["video", "audio"]:
+            ninjs["bodies"] = self._build_bodies(article)
         ninjs["headlines"] = self._build_headlines(article)
         ninjs["infosources"] = self._build_infosources(article)
         ninjs["altids"] = self._build_altids(article)
@@ -309,8 +324,7 @@ class NINJS21Formatter(Formatter):
         
         subjects, objects = self.build_subjects_and_objects(article)
         ninjs["subjects"] = subjects
-        if objects:
-            ninjs["objects"] = objects
+        ninjs["objects"] = objects
             
         ninjs["people"] = self.format_cv_items(article, "person")
         ninjs["organisations"] = self.format_cv_items(article, "organisation")
@@ -887,7 +901,7 @@ class NINJS21Formatter(Formatter):
             return {
                 "name": name,
                 "title": f"Full Resolution (MP4 {height}x{width})",
-                "format": "MPEG",
+                "format": "mp4",
                 "href": href,
                 "sizeinbytes": sizeinbytes,
                 "width": width,
