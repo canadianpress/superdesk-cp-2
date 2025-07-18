@@ -310,11 +310,11 @@ class NINJS21Formatter(Formatter):
             if article.get(copy_property) is not None:
                 ninjs[copy_property] = article[copy_property]
 
-        if ninjs["type"] not in ["video", "audio"]:
-            ninjs["mimetype"] = article.get("mimetype", "")
+        # if ninjs["type"] not in ["video", "audio", "picture"]:
+        #     ninjs["mimetype"] = article.get("mimetype", "")x
 
         ninjs["descriptions"] = self._build_descriptions(article)
-        if ninjs["type"] not in ["video", "audio"]:
+        if ninjs["type"] in ["text"]:
             ninjs["bodies"] = self._build_bodies(article)
         ninjs["headlines"] = self._build_headlines(article)
         ninjs["infosources"] = self._build_infosources(article)
@@ -382,7 +382,7 @@ class NINJS21Formatter(Formatter):
                 subjects.append({
                     "literal": qcode,
                     "uri": f"{uri_base}{qcode}",
-                    "name": category.get("name", ""),
+                    "name": self.get_locale_name(category, article.get("language", "en-CA")),
                     "rel": "category"
                 })
         return subjects
@@ -528,12 +528,12 @@ class NINJS21Formatter(Formatter):
         extra_fields = article.get("extra", {})
         for field, role in extra_field_roles.items():
             if value := extra_fields.get(field):
-                descriptions.append({"role": role, "value": value})
+                descriptions.append({"role": role, "value": self.sanitize_text(value, remove_p_tags=True)})
 
         # Add HTML and text descriptions if present
         for desc_type in ("html", "text"):
             if value := article.get(f"description_{desc_type}"):
-                descriptions.append({"role": desc_type, "value": value})
+                descriptions.append({"role": desc_type, "value": self.sanitize_text(value, remove_p_tags=True)})
         
         return descriptions
     
@@ -559,17 +559,16 @@ class NINJS21Formatter(Formatter):
     def _build_headlines(self, article):
         """Build headlines list with roles from headline and extra fields."""
         headlines = []
-        
         # Add main headline
         if headline := article.get('headline', ''):
-            headlines.append({"role": "main", "value": headline})
+            headlines.append({"role": "main", "value": self.sanitize_text(headline, remove_p_tags=True)})
         
         # Add extended headline from extra
         if headline_extended := article.get("extra", {}).get("headline_extended", ""):
-            headlines.append({"role": "extended", "value": headline_extended})
+            headlines.append({"role": "extended", "value": self.sanitize_text(headline_extended, remove_p_tags=True)})
 
         if headline_short := article.get("extra", {}).get("short_headline", ""):
-            headlines.append({"role": "short", "value": headline_short})
+            headlines.append({"role": "short", "value": self.sanitize_text(headline_short, remove_p_tags=True)})
         
         return headlines
 
@@ -641,18 +640,14 @@ class NINJS21Formatter(Formatter):
         try:
             # Check if this article has a rewrite_of field
             article_id = article.get('guid', '')
-            print(f"_get_original_id_for_article: Processing article {article_id}")
             rewrite_of = article.get('rewrite_of')
-            print(f"_get_original_id_for_article: rewrite_of = {rewrite_of}")
             
             if not rewrite_of:
                 # No rewrite chain, this is the original
-                print(f"_get_original_id_for_article: No rewrite chain, returning {article_id}")
                 return article_id
             
             # Use Superdesk's archive service to find the original article
             original_guid = self._get_original_item_guid(article)
-            print(f"_get_original_id_for_article: Found original GUID: {original_guid}")
             return original_guid
                 
         except Exception as e:
@@ -678,11 +673,9 @@ class NINJS21Formatter(Formatter):
         for i in range(100):
             if not orig.get("rewrite_of"):
                 # Found the original article
-                print(f"_get_original_item_guid: Found original article with GUID {orig.get('guid', '')}")
                 return orig.get('guid', '')
             
             rewrite_of = orig.get("rewrite_of")
-            print(f"_get_original_item_guid: Following rewrite chain from {orig.get('guid', 'unknown')} to {rewrite_of}")
             
             # Use Superdesk's archive service to find the parent article
             next_orig = archive_service.find_one(req=None, _id=rewrite_of)
@@ -776,64 +769,16 @@ class NINJS21Formatter(Formatter):
                 association_item["name"] = key
                 association_item["type"] = value.get("type", "text")
             
-            # Build headlines for associated item
-            headlines = []
-            headline = value.get("headline", "")
-            headline = self.sanitize_text(headline, remove_p_tags=True)
-            headline = headline.strip()
-            if headline:
-                headlines.append({"role": "main", "value": headline})
-            association_item["headlines"] = headlines
+            association_item["headlines"] = self._build_headlines(value)
             
-            # Build descriptions for associated item
-            descriptions = []
-            if description_text:= value.get("description_text", ""):
-                description_text = self.sanitize_text(description_text, remove_p_tags=True)
-                descriptions.append({"role": "text", "value": description_text})
-
+            descriptions = self._build_descriptions(value)
             if (order := value.get("order")) is not None:
                 descriptions.append({"role": "sortorder", "value": order})
 
             association_item["descriptions"] = descriptions
+            association_item["altids"] = self._build_altids(value)
             
-            # Build altids for associated item
-            altids = []
-            for extra_key, extra_value in value.get("extra", {}).items():
-                if extra_value:
-                    if extra_key == "caption_writer":
-                        descriptions.append({"role": "caption_writer", "value": extra_value})
-                    elif extra_key == "photographer_code":
-                        altids.append({"role": "photographer_code", "value": extra_value})
-                    elif extra_key == "ap_version":
-                        altids.append({"role": "ap_version", "value": str(extra_value)})
-                    elif extra_key == "filename":
-                        altids.append({"role": "TransRef", "value": extra_value})
-            association_item["altids"] = altids
-            
-            # Build renditions for associated item using the new methods
-            renditions = []
-            item_type = value.get("type", "text")
-            
-            for rendition_key, rendition_value in value.get("renditions", {}).items():
-                if not rendition_value:
-                    continue
-                    
-                mimetype = rendition_value.get("mimetype", "")
-                
-                if "image" in mimetype and (item_type == "picture" or item_type == "video"):
-                    rendition = self._handle_images(rendition_key, rendition_value, guid, item_type)
-                    if rendition:
-                        renditions.append(rendition)
-                elif "audio" in mimetype and item_type == "audio":
-                    rendition = self._handle_audios(rendition_key, mimetype, rendition_value, guid)
-                    if rendition:
-                        renditions.append(rendition)
-                elif "video" in mimetype and item_type == "video":
-                    rendition = self._handle_videos(rendition_key, rendition_value, guid, value)
-                    if rendition:
-                        renditions.append(rendition)
-            
-            association_item["renditions"] = renditions
+            association_item["renditions"] = self._build_renditions_list(value)
             associations.append(association_item)
         
         return associations
