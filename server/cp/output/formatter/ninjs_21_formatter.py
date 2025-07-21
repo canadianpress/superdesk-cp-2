@@ -129,16 +129,21 @@ class NINJS21Formatter(Formatter):
                     req=None, _id="ninjs_infosources"
                 )
                 if cv and cv.get("items"):
-                    self._infosources_cache = {
-                        item["qcode"]: {
+                    self._infosources_cache = {}
+                    for item in cv.get("items", []):
+                        if not item.get("is_active", True):
+                            continue
+                            
+                        info_source = {
                             "name": item.get("name", ""),
                             "literal": item.get("literal", ""),
-                            "uri": item.get("uri", ""),
-                            "role": item.get("role", "")
+                            "uri": item.get("uri", "")
                         }
-                        for item in cv.get("items", [])
-                        if item.get("is_active", True)
-                    }
+                        
+                        if item.get("is_distributor", False):
+                            self._infosources_cache["distributor"] = info_source
+                        else:
+                            self._infosources_cache[item["qcode"]] = info_source
                 else:
                     # Fallback to default mappings if vocabulary not found
                     self._infosources_cache = {
@@ -146,19 +151,19 @@ class NINJS21Formatter(Formatter):
                             "name": "Globenewswire",
                             "literal": "globenewswire.com",
                             "uri": "http://globenewswire.com",
-                            "role": "originator"
+                            "is_distributor": False
                         },
                         "The Associated Press": {
                             "name": "The Associated Press",
                             "literal": "ap.org",
                             "uri": "http://ap.org",
-                            "role": "originator"
+                            "is_distributor": False
                         },
                         "The Canadian Press": {
                             "name": "The Canadian Press",
                             "literal": "cp.org",
                             "uri": "http://cp.org",
-                            "role": "originator"
+                            "is_distributor": True
                         }
                     }
             except Exception as e:
@@ -183,13 +188,24 @@ class NINJS21Formatter(Formatter):
             raise FormatterError.ninjsFormatterError(ex, subscriber)
 
     def _format_cv_item_base(self, item, language="en-CA"):
-        return {
-            "name": self.get_locale_name(item, language),
-            "qcode": item.get("qcode", ""),
-            "scheme": item.get("scheme", ""),
-            "creator": item.get("creator", "").lower(),
-            "relevance": item.get("relevance", 50),
-        }
+        result = {}
+        
+        if name := self.get_locale_name(item, language):
+            result["name"] = name
+            
+        if qcode := item.get("qcode"):
+            result["qcode"] = qcode
+            
+        if scheme := item.get("scheme"):
+            result["scheme"] = scheme
+            
+        if creator := item.get("creator"):
+            result["creator"] = creator.lower()
+            
+        if relevance := item.get("relevance"):
+            result["relevance"] = relevance
+            
+        return result
 
     def construct_uri(self, scheme, literal):
         """Construct URI using vocabulary-based scheme mapping."""
@@ -198,6 +214,8 @@ class NINJS21Formatter(Formatter):
         
         if scheme.startswith("http://"):
             uri = f"{scheme}{literal}" if literal else scheme
+        elif scheme in ["subject", "subject_custom"] and literal.isdigit():
+            uri = uri_schemes.get("subject", f"http://cv.cp.org/{scheme}/") + literal
         else:
             uri_base = uri_schemes.get(scheme, f"http://cv.cp.org/{scheme}/")
             uri = f"{uri_base}{literal}" if literal else f"{uri_base}"
@@ -206,6 +224,8 @@ class NINJS21Formatter(Formatter):
         return uri.replace(" ", "")
 
     def is_custom_subject(self, qcode, scheme):
+        if qcode.isdigit() and scheme in ["subject", "subject_custom"]:
+            return False
         return qcode and "-" in qcode and not scheme.startswith("http://") and scheme not in ["destinations", "distribution","destination"]
 
     def format_cv_items(self, article, items_key):
@@ -238,8 +258,11 @@ class NINJS21Formatter(Formatter):
             }
 
             if self.should_remove_creator_relevance(item, items_key, scheme):
-                del item["creator"]
-                del item["relevance"]
+                for field in ["creator", "relevance"]:
+                    item.pop(field, None)
+
+            # Remove any empty fields from the item
+            item = {k: v for k, v in item.items() if v not in [None, "", [], {}]}
 
             formatted_items.append(item)
             
@@ -280,11 +303,7 @@ class NINJS21Formatter(Formatter):
         now_dt = datetime.utcnow().replace(tzinfo=timezone.utc)
         try:
             if article.get('firstcreated'):
-                print("article['firstcreated']---------------------------------------")
-                print(article['firstcreated'])
                 ninjs['firstcreated'] = format_datetime(article['firstcreated'])
-                print("ninjs['firstcreated']---------------------------------------")
-                print(ninjs['firstcreated'])
             else:
                 ninjs['firstcreated'] = format_datetime(now_dt)
         except (AttributeError, ValueError) as e:
@@ -310,12 +329,8 @@ class NINJS21Formatter(Formatter):
             if article.get(copy_property) is not None:
                 ninjs[copy_property] = article[copy_property]
 
-        # if ninjs["type"] not in ["video", "audio", "picture"]:
-        #     ninjs["mimetype"] = article.get("mimetype", "")x
-
         ninjs["descriptions"] = self._build_descriptions(article)
-        if ninjs["type"] in ["text"]:
-            ninjs["bodies"] = self._build_bodies(article)
+        ninjs["bodies"] = self._build_bodies(article)
         ninjs["headlines"] = self._build_headlines(article)
         ninjs["infosources"] = self._build_infosources(article)
         ninjs["altids"] = self._build_altids(article)
@@ -325,31 +340,20 @@ class NINJS21Formatter(Formatter):
         subjects, objects = self.build_subjects_and_objects(article)
         ninjs["subjects"] = subjects
         ninjs["objects"] = objects
-            
         ninjs["people"] = self.format_cv_items(article, "person")
         ninjs["organisations"] = self.format_cv_items(article, "organisation")
         ninjs["events"] = self.format_cv_items(article, "event")
+        ninjs["copyrightholder"] = self._build_copyrights(article).get("copyrightholder", "")
+        ninjs["copyrightnotice"] = self._build_copyrights(article).get("copyrightnotice", "")
 
-        if copyrights:= self._build_copyrights(article):
-            ninjs["copyrightholder"] = copyrights.get("copyrightholder", "")
-            ninjs["copyrightnotice"] = copyrights.get("copyrightnotice", "")
-
-        if ednote := article.get("ednote"):
-            ninjs["ednote"] = ednote
-        
-        if ninjs["type"] == "text":
-            ninjs["associations"] = self._build_associations(article)
-        else:
-            ninjs["renditions"] = self._build_renditions_list(article)
-        
+        ninjs["ednote"] = article.get("ednote", "")
+        ninjs["associations"] = self._build_associations(article)
+        ninjs["renditions"] = self._build_renditions_list(article)
+        ninjs = {k: v for k, v in ninjs.items() if v not in (None, "", [], {})}
         return ninjs
 
     def _get_language(self, article):
-        language = article.get("language", "en-CA")
-        if language in ["en", "fr"] and not language.endswith("-CA"):
-            return f"{language}-CA"
-        else:
-            return language
+        return article.get("language", "en-CA")
 
     def _split_combined_subjects(self, subjects):
         updated_subjects = []
@@ -410,7 +414,10 @@ class NINJS21Formatter(Formatter):
                 product_object = self._create_product_object(subject)
                 product_objects.append(product_object)
             else:
+                if subject.get("literal") in jimi_subjects:
+                    subject["name"] = jimi_subjects[subject.get("literal")].get("name")
                 non_product_subjects.append(subject)
+            
 
             if subject.get("literal") in jimi_subjects:
                 jimi_subject = self._create_jimi_subject(subject, jimi_subjects[subject.get("literal")],article.get("language", "en-CA"))
@@ -436,30 +443,17 @@ class NINJS21Formatter(Formatter):
     def build_places(self, article):
         places = self.format_cv_items(article, "place")
         dateline_place = self.get_dateline_place(article)
-        if dateline_place:
+        if dateline_place.get("city"):
             places.append(dateline_place)
         return places
-
-    def _filter_out_region_subjects(self, article):
-        """Remove region subjects that are automatically added by dateline."""
-        if not article or "subject" not in article:
-            return article
-
-        filtered_article = article.copy()
-        filtered_article["subject"] = [
-            subject
-            for subject in article["subject"]
-            if subject.get("scheme") != "regions"
-        ]
-        return filtered_article
 
     def get_dateline_place(self, article):
         dateline = article.get("dateline")
         if not dateline:
-            return None
+            return {}
         located = dateline.get("located")
         if located is None:
-            return None
+            return {}
             
         city = located.get("city", "")
         state = located.get("state", "")
@@ -588,12 +582,12 @@ class NINJS21Formatter(Formatter):
         infosources_mapping = self._get_infosources_mapping()
 
         # Always add The Canadian Press as distributor
-        infosources.append({
-            "name": "The Canadian Press",
-            "literal": "cp.org", 
-            "uri": "http://cp.org",
-            "role": "distributor"
-        })
+        print(f"_build_infosources: infosources_mapping = {infosources_mapping}")
+        if distributor := infosources_mapping.get("distributor"):
+            infosources.append({
+                **distributor,
+                "role": "distributor"
+            })
 
         # Add source as originator if mapping exists
         if source in infosources_mapping:
@@ -697,8 +691,7 @@ class NINJS21Formatter(Formatter):
             "rewrite_of": "rewrite_of",
             "rewritten_by": "rewritten_by",
             "translated_from": "translation_of",
-            "anpa_take_key": "take_key",
-            "item_id": "source_id"
+            "anpa_take_key": "take_key"
         }
         
         for field, role in relationships.items():
@@ -706,16 +699,17 @@ class NINJS21Formatter(Formatter):
                 altids.append({"role": role, "value": value})
 
         for author in article.get("authors", []):
-            if code := author.get("code"):
+            if name := author.get("name"):
                 altids.append({
-                    "role": author.get("role", ""),
-                    "value": code
+                    "role": "writer",
+                    "value": name
                 })
 
         extra_mappings = {
             "photographer_code": "photographer_code",
             "ap_version": "ap_version",
-            "filename": "TransRef"
+            "filename": "TransRef",
+            "itemid": "source_id"
         }
         extra_fields = article.get("extra", {})
         for field, role in extra_mappings.items():
@@ -755,6 +749,7 @@ class NINJS21Formatter(Formatter):
         """Build associations list with full objects for associated items."""
         associations = []
         article_associations = article.get("associations", {})
+        new_associations = self.check_new_associations(article)
             
         for key, value in article_associations.items():
             if not value or not isinstance(value, dict):
@@ -772,8 +767,11 @@ class NINJS21Formatter(Formatter):
             association_item["headlines"] = self._build_headlines(value)
             
             descriptions = self._build_descriptions(value)
+            
             if (order := value.get("order")) is not None:
                 descriptions.append({"role": "sortorder", "value": order})
+            
+            descriptions.append(new_associations.get(guid, {}))
 
             association_item["descriptions"] = descriptions
             association_item["altids"] = self._build_altids(value)
@@ -782,6 +780,60 @@ class NINJS21Formatter(Formatter):
             associations.append(association_item)
         
         return associations
+
+    def check_new_associations(self, article):
+        """Check if associations are new by comparing with rewrite_of associations.
+        Returns a dict mapping association guids to their isNew status."""
+        try:
+            result = {}
+            article_associations = article.get("associations", {})
+            
+            # Get rewrite_of article from archive
+            rewrite_of = article.get("rewrite_of")
+            if not rewrite_of:
+                # If no rewrite_of, all associations are new
+                for key, assoc in article_associations.items():
+                    if assoc and isinstance(assoc, dict):
+                        result[assoc.get("guid")] = {"isNew": True}
+                return result
+
+            archive_service = superdesk.get_resource_service("archive")
+            previous_article = archive_service.find_one(req=None, _id=rewrite_of)
+            
+            if not previous_article:
+                # If previous article not found, all associations are new
+                for key, assoc in article_associations.items():
+                    if assoc and isinstance(assoc, dict):
+                        result[assoc.get("guid")] = {"isNew": True}
+                return result
+                
+            previous_associations = previous_article.get("associations", {})
+            
+            # Compare current associations with previous ones
+            for key, assoc in article_associations.items():
+                if not assoc or not isinstance(assoc, dict):
+                    continue
+                    
+                guid = assoc.get("guid")
+                if not guid:
+                    continue
+                    
+                # Check if association existed in previous version
+                is_new = True
+                for prev_key, prev_assoc in previous_associations.items():
+                    if prev_assoc and isinstance(prev_assoc, dict):
+                        if prev_assoc.get("guid") == guid:
+                            is_new = False
+                            break
+                            
+                result[guid] = {"role": "isNew", "value": is_new}
+                
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error checking new associations: {str(e)}")
+            return {}
+        
 
     def _handle_images(self, name, rendition, guid, item_type):
         """Handle image renditions similar to Lambda function but without S3 upload."""
