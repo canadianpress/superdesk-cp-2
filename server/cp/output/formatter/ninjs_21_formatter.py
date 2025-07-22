@@ -153,8 +153,7 @@ class NINJS21Formatter(Formatter):
                         
                         if item.get("is_distributor", False):
                             self._infosources_cache["distributor"] = info_source
-                        else:
-                            self._infosources_cache[item["qcode"]] = info_source
+                        self._infosources_cache[item["qcode"]] = info_source
                 else:
                     # Fallback to default mappings if vocabulary not found
                     self._infosources_cache = {
@@ -793,57 +792,45 @@ class NINJS21Formatter(Formatter):
         return associations
 
     def check_new_associations(self, article):
-        """Check if associations are new by comparing with rewrite_of associations.
-        Returns a dict mapping association guids to their isNew status."""
-        try:
-            result = {}
-            article_associations = article.get("associations", {})
-            
-            # Get rewrite_of article from archive
-            rewrite_of = article.get("rewrite_of")
-            if not rewrite_of:
-                # If no rewrite_of, all associations are new
-                for key, assoc in article_associations.items():
-                    if assoc and isinstance(assoc, dict):
-                        result[assoc.get("guid")] = {"isNew": True}
-                return result
+        """
+        Returns a dict mapping association guids to their isNew status.
+        An association is 'new' if it does not exist in the previous (rewrite_of) article.
+        """
+        result = {}
+        article_associations = article.get("associations", {})
+        rewrite_of = article.get("rewrite_of")
 
-            archive_service = superdesk.get_resource_service("archive")
-            previous_article = archive_service.find_one(req=None, _id=rewrite_of)
-            
-            if not previous_article:
-                # If previous article not found, all associations are new
-                for key, assoc in article_associations.items():
-                    if assoc and isinstance(assoc, dict):
-                        result[assoc.get("guid")] = {"isNew": True}
-                return result
-                
-            previous_associations = previous_article.get("associations", {})
-            
-            # Compare current associations with previous ones
-            for key, assoc in article_associations.items():
-                if not assoc or not isinstance(assoc, dict):
-                    continue
-                    
-                guid = assoc.get("guid")
-                if not guid:
-                    continue
-                    
-                # Check if association existed in previous version
-                is_new = True
-                for prev_key, prev_assoc in previous_associations.items():
-                    if prev_assoc and isinstance(prev_assoc, dict):
-                        if prev_assoc.get("guid") == guid:
-                            is_new = False
-                            break
-                            
-                result[guid] = {"role": "isNew", "value": is_new}
-                
+        # If no rewrite_of, all associations are new
+        if not rewrite_of:
+            for assoc in article_associations.values():
+                if assoc and isinstance(assoc, dict):
+                    guid = assoc.get("guid")
+                    if guid:
+                        result[guid] = {"role": "isNew", "value": "Yes"}
             return result
-            
-        except Exception as e:
-            logger.error(f"Error checking new associations: {str(e)}")
-            return {}
+
+        # Get previous article from archive
+        archive_service = superdesk.get_resource_service("archive")
+        previous_article = archive_service.find_one(req=None, _id=rewrite_of)
+        previous_guids = set()
+
+        if previous_article:
+            previous_associations = previous_article.get("associations", {})
+            for prev_assoc in previous_associations.values():
+                if prev_assoc and isinstance(prev_assoc, dict):
+                    prev_guid = prev_assoc.get("guid")
+                    if prev_guid:
+                        previous_guids.add(prev_guid)
+
+        # Compare current associations with previous ones
+        for assoc in article_associations.values():
+            if assoc and isinstance(assoc, dict):
+                guid = assoc.get("guid")
+                if guid:
+                    is_new = guid not in previous_guids
+                    result[guid] = {"role": "isNew", "value": "Yes" if is_new else "No"}
+
+        return result
         
 
     def _handle_images(self, name, rendition, guid, item_type):
