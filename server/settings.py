@@ -20,6 +20,7 @@ from superdesk.default_settings import (
     SERVER_URL,
     CORE_APPS as _core_apps,
     CELERY_BEAT_SCHEDULE,
+    NINJS_COMMON_RENDITIONS,
     timedelta,
 )
 
@@ -42,6 +43,9 @@ INSTALLED_APPS = [
     "cp.ultrad",
     "cp.planning_exports",
     "cp.set_province_on_publish",
+    "cp.set_byline_on_publish",
+    "cp.ai.semaphore",
+    "cp.ai.translate",
 ]
 
 MACROS_MODULE = "cp.macros"
@@ -57,6 +61,17 @@ RENDITIONS = {
         "viewImage": {"width": 200, "height": 200},
     },
 }
+
+if strtobool(env("EXTRA_RENDITIONS", "true")):
+    RENDITIONS["picture"].update(
+        {
+            "SVGA": {"width": 800, "height": 600},
+            "XGA": {"width": 1024, "height": 768},
+            "HD 1080p": {"width": 1920, "height": 1080},
+        }
+    )
+
+NINJS_COMMON_RENDITIONS = list(RENDITIONS["picture"].keys())
 
 WS_HOST = env("WSHOST", "0.0.0.0")
 WS_PORT = env("WSPORT", "5100")
@@ -228,13 +243,13 @@ SAML_LABEL = env("SAML_LABEL", "SSO")
 SAML_BASE_PATH = env("SAML_PATH", os.path.join(ABS_PATH, "saml"))
 if SERVER_URL == "http://localhost:5000/api":
     SAML_PATH = os.path.join(SAML_BASE_PATH, "localhost")
-elif 'scp-master' in SERVER_URL:
+elif "scp-master" in SERVER_URL:
     SAML_PATH = os.path.join(SAML_BASE_PATH, "test")
-elif 'cp-uat-api' in SERVER_URL:
+elif "cp-uat-api" in SERVER_URL:
     SAML_PATH = os.path.join(SAML_BASE_PATH, "uat-old")
-elif 'cp-uat' in SERVER_URL:
+elif "cp-uat" in SERVER_URL:
     SAML_PATH = os.path.join(SAML_BASE_PATH, "uat")
-elif 'cms-api' in SERVER_URL:
+elif "cms-api" in SERVER_URL:
     SAML_PATH = os.path.join(SAML_BASE_PATH, "prod-old")
 else:
     SAML_PATH = os.path.join(SAML_BASE_PATH, "prod")
@@ -255,7 +270,7 @@ HIGHCHARTS_LICENSE_EXPIRY = "Perpetual"
 
 AP_INGEST_DEBUG = strtobool(env("AP_INGEST_DEBUG", "false"))
 
-GEONAMES_USERNAME = env("GEONAMES_USERNAME", "andrew.lundy")
+GEONAMES_USERNAME = env("GEONAMES_USERNAME", "TheCanadianPress")
 GEONAMES_FEATURE_CLASSES = ["P"]
 GEONAMES_SEARCH_STYLE = "full"
 
@@ -378,6 +393,7 @@ AP_TAGS_MAPPING = {
     "APR": {
         100216,
         101543,
+        101668,
     },
     "APV": {
         30599,
@@ -421,3 +437,42 @@ DEFAULT_TIMEZONE = "America/Toronto"
 ONCLUSIVE_SERVER_TIMEZONE = os.environ.get("ONCLUSIVE_SERVER_TIMEZONE", "Europe/London")
 
 PLANNING_JSON_ASSIGNED_INFO_EXTENDED = True
+
+SEMAPHORE_BASE_URL = os.getenv("SEMAPHORE_BASE_URL")
+SEMAPHORE_ANALYZE_URL = os.getenv("SEMAPHORE_ANALYZE_URL")
+SEMAPHORE_API_KEY = os.getenv("SEMAPHORE_API_KEY")
+SEMAPHORE_SEARCH_URL = os.getenv("SEMAPHORE_SEARCH_URL")
+SEMAPHORE_GET_PARENT_URL = os.getenv("SEMAPHORE_GET_PARENT_URL")
+SEMAPHORE_CREATE_TAG_URL = os.getenv("SEMAPHORE_CREATE_TAG_URL")
+SEMAPHORE_CREATE_TAG_TASK = os.getenv("SEMAPHORE_CREATE_TAG_TASK")
+SEMAPHORE_CREATE_TAG_QUERY = os.getenv("SEMAPHORE_CREATE_TAG_QUERY")
+
+
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GOOGLE_API_URL = os.getenv("GOOGLE_API_URL")
+GOOGLE_PROJECT_ID = os.getenv("GOOGLE_PROJECT_ID")
+GOOGLE_PROJECT_LOCATION = os.getenv("GOOGLE_PROJECT_LOCATION")
+DEEPL_AUTH_KEY = os.getenv("DEEPL_AUTH_KEY")
+DEEPL_API_URL = os.getenv("DEEPL_API_URL")
+GOOGLE_SERVICE_ACCOUNT_PATH = os.getenv("GOOGLE_SERVICE_ACCOUNT_PATH")
+GOOGLE_SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
+
+PICTURE_METADATA_MAPPING = {
+    "slugline": "Title",
+    "extra.filename": "JobId",
+    "description_text": "Description",
+}
+
+TIME_FORMAT_SHORT = "%I:%M %p"
+DATE_FORMAT_SHORT = "%Y-%m-%d"
+DATETIME_FORMAT = "%I:%M %p %Y-%m-%d"
+
+PLANNING_DUPLICATE_RETAIN_ASSIGNEE_DETAILS = True
+
+ASSIGNMENT_MANUAL_REASSIGNMENT_ONLY = True
+
+DEFAULT_AUTHOR_EN = "cpdefaultauthor"
+
+DEFAULT_AUTHOR_FR = "cpdefaultauthorfr"
+
+HTTP_PUSH_TIMEOUT = (5, int(env("HTTP_PUSH_TIMEOUT", 60)))

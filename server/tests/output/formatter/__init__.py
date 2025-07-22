@@ -8,7 +8,6 @@ from unittest.mock import patch
 
 
 class BaseXmlFormatterTestCase(unittest.TestCase):
-
     subscriber = {}
     formatter = None
     article = None
@@ -21,7 +20,11 @@ class BaseXmlFormatterTestCase(unittest.TestCase):
                 "DEFAULT_LANGUAGE": "en",
             }
         )
-        self.app.app_context().push()
+        self.ctx = self.app.app_context()
+        self.ctx.push()
+
+    def tearDown(self):
+        self.ctx.pop()
 
     def format(self, updates=None, _all=False):
         article = self.article.copy()

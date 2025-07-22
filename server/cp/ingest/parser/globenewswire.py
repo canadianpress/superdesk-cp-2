@@ -11,13 +11,13 @@ SOURCE = "Globenewswire"
 KEYWORD_ROLE = "MWKeyRole:Ticker"
 
 DESCRIPTION = {
-    "en": "Press Release",
-    "fr": "Communiqué",
+    "en-CA": "Press Release",
+    "fr-CA": "Communiqué",
 }
 
 BODY_FOOTER = {
-    "en": "NEWS RELEASE TRANSMITTED BY Globe Newswire",
-    "fr": "COMMUNIQUE DE PRESSE TRANSMIS PAR Globe Newswire",
+    "en-CA": "NEWS RELEASE TRANSMITTED BY Globe Newswire",
+    "fr-CA": "COMMUNIQUE DE PRESSE TRANSMIS PAR Globe Newswire",
 }
 
 NS = {
@@ -29,7 +29,6 @@ logger = logging.getLogger(__name__)
 
 
 class GlobeNewswireParser(NewsMLTwoFeedParser):
-
     NAME = "globenewswire"
     label = SOURCE
     ALLOWED_EXT = {".newsml", ".xml"}
@@ -81,11 +80,11 @@ class GlobeNewswireParser(NewsMLTwoFeedParser):
     def parse_content_meta(self, tree, item):
         meta = super().parse_content_meta(tree, item)
 
-        item["language"] = item["language"].split("-")[0]
+        item["language"] = "{}-CA".format(item["language"].split("-")[0])
         item["description_text"] = DESCRIPTION[item["language"]]
 
         item["slugline"] = "GNW-{lang}-{time}--{symbols}".format(
-            lang=item["language"],
+            lang=item["language"].split("-")[0],
             time=meta.find(self.qname("contentCreated")).text[17:19],
             symbols="-".join(self._get_stock_symbols(tree)),
         )
@@ -101,6 +100,21 @@ class GlobeNewswireParser(NewsMLTwoFeedParser):
         item["abstract"] = meta.find(self.qname("description")).text
 
         return meta
+
+    def _get_attachment_links(self, tree):
+        root = tree.getroottree().getroot()
+        nsmap = {"nar": "http://iptc.org/std/nar/2006-10-01/"}
+
+        attachments = []
+        for remote in root.findall(".//nar:remoteInfo", namespaces=nsmap):
+            href = remote.get("href")
+            if not href:
+                continue
+
+            name = remote.findtext("nar:name", default="Attachment", namespaces=nsmap)
+            attachments.append(f'<a target="_blank" href="{href}">{name}</a>')
+
+        return attachments
 
     def parse_inline_content(self, tree, item, ns=NS["xhtml"]):
         """
@@ -122,8 +136,6 @@ class GlobeNewswireParser(NewsMLTwoFeedParser):
         divs = html.xpath('./xhtml:body/xhtml:*[@class="mw_release"]', namespaces=NS)
         for div in divs:
             for child in div:
-                if "img" in child.tag:
-                    continue
                 child_html = lxml_html.fromstring(
                     lxml_html.tostring(child, encoding="unicode")
                 )
@@ -132,6 +144,9 @@ class GlobeNewswireParser(NewsMLTwoFeedParser):
                     clean_td_br(clean_html)
                 clean_td_br(clean_html)
                 contents.append(lxml_html.tostring(clean_html, encoding="unicode"))
+
+        remote_infos_html = self._get_attachment_links(tree)
+        contents.extend(remote_infos_html)
         content["content"] = "\n".join(contents)
         return content
 

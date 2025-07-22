@@ -32,6 +32,7 @@ class OnclusiveFeedParserTestCase(ParserTestCase):
     maxDiff = None
 
     def test_content(self):
+
         with self.app.app_context():
             with patch.dict(superdesk.resources, resources):
                 item = self.parser.parse(data)[0]
@@ -87,31 +88,42 @@ class OnclusiveFeedParserTestCase(ParserTestCase):
                         "scheme": "onclusive_categories",
                     },
                     {
-                        "qcode": "Conference",
+                        "qcode": "148",
                         "scheme": "event_types",
                     },
                     {
-                        "qcode": "Conference and trade show",
+                        "qcode": "129",
                         "scheme": "event_types",
                     },
                     {
-                        "qcode": "Official visit",
-                        "scheme": "event_types",
-                    },
-                    {
-                        "qcode": "04000000",
+                        "qcode": "00000035",
                         "scheme": "subject_custom",
                     },
                     {
-                        "qcode": "20000638",
+                        "qcode": "00000050",
                         "scheme": "subject_custom",
                     },
                     {
-                        "qcode": "11000000",
+                        "qcode": "00000097",
+                        "scheme": "subject_custom",
+                    },
+                    {
+                        "qcode": "00000133",
+                        "scheme": "subject_custom",
+                    },
+                    {
+                        "qcode": "00000159",
+                        "scheme": "subject_custom",
+                    },
+                    {
+                        "qcode": "02000000",  # mapped via cp_index
                         "scheme": "subject_custom",
                     },
                 ]
-                self.assertEqual(sorted(map(qcode, item["subject"])), sorted(map(qcode, expected_subjects)))
+                self.assertEqual(
+                    sorted(map(qcode, item["subject"])),
+                    sorted(map(qcode, expected_subjects)),
+                )
                 item["anpa_category"].sort(key=lambda i: i["name"])
                 expected_categories = [
                     {
@@ -169,4 +181,19 @@ class OnclusiveFeedParserTestCase(ParserTestCase):
                 self.assertEqual(
                     item["location"][0]["name"],
                     "One King West Hotel & Residence, 1 King St W, Toronto",
+                )
+                self.assertEqual(
+                    item["location"][0]["address"],
+                    {"country": "Canada", "state": "British Columbia"},
+                )
+
+                item2 = self.parser.parse(data)[1]
+
+                self.assertEqual(
+                    item2["location"][0]["name"],
+                    "Canada",
+                )
+                self.assertEqual(
+                    item2["location"][0]["address"],
+                    {"country": "Canada"},
                 )

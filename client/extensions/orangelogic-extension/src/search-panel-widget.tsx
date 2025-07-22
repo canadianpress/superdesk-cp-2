@@ -1,5 +1,6 @@
 import * as React from 'react';
 import {ISearchPanelWidgetProps, ISuperdesk} from 'superdesk-api';
+import {CheckboxButton, Spacer} from 'superdesk-ui-framework/react';
 
 type IMediaType = 'Image' | 'Video';
 
@@ -16,7 +17,9 @@ interface IMediaTypeLabel {
     label: string;
 }
 
-export const searchPanelWidgetFactory = (gettext: ISuperdesk['localization']['gettext']) => {
+export const searchPanelWidgetFactory = (
+    gettext: ISuperdesk['localization']['gettext'],
+): React.ComponentType<ISearchPanelWidgetProps<IParams>> => {
     const mediaTypes: Array<IMediaTypeLabel> = [
         {
             type: 'Image',
@@ -29,7 +32,6 @@ export const searchPanelWidgetFactory = (gettext: ISuperdesk['localization']['ge
     ];
 
     return class SearchPanelWidget extends React.PureComponent<ISearchPanelWidgetProps<IParams>> {
-
         toggleMediaType(type: IMediaType) {
             const mediaTypes = this.props.params.mediaTypes || {};
 
@@ -43,22 +45,20 @@ export const searchPanelWidgetFactory = (gettext: ISuperdesk['localization']['ge
 
         render() {
             const {params} = this.props;
-            
+
             if (this.props.provider !== 'orangelogic') {
                 return null;
             }
 
             return (
                 <fieldset>
-                    <div className="field">
-                        <label className="search-label"></label>
-                        {mediaTypes.map((type) => (
-                            <button key={type.type}
-                                className={'btn btn--primary' + (this.isActive(type.type) ? ' btn--active' : '')}
-                                onClick={() => this.toggleMediaType(type.type)}
-                            >{type.label}</button>
-                        ))}
-                    </div>
+                    <div className="field sd-margin-t--2">
+                        <Spacer h gap={'4'}>
+                            {mediaTypes.map((type, i) => (
+                                <CheckboxButton key={i} checked={this.isActive(type.type)} label={{text: type.label}} onChange={() => this.toggleMediaType(type.type)} />
+                            ))}
+                        </Spacer>
+                    </div>                 
                     <div className="field">
                         <label className="search-label">{gettext('From')}</label>
                         <input type="date" value={params.from || ''}

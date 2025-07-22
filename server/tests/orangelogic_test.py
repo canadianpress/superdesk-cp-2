@@ -58,7 +58,6 @@ def fetch_ok(url, request):
 
 
 class OrangelogicTestCase(unittest.TestCase):
-
     provider = {"config": {"username": "foo", "password": "bar"}}
 
     def setUp(self):
@@ -69,8 +68,7 @@ class OrangelogicTestCase(unittest.TestCase):
         self.ctx.push()
 
     def tearDown(self):
-        if hasattr(self, "ctx"):
-            self.ctx.pop()
+        self.ctx.pop()
 
     def test_instance(self):
         OrangelogicSearchProvider(self.provider)

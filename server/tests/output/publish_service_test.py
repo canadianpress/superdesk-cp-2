@@ -13,7 +13,6 @@ now = utcnow()
 
 
 class CPPublishServiceTestCase(unittest.TestCase):
-
     formatter = JimiFormatter()
 
     def format_queue_item(self, item):
@@ -57,9 +56,9 @@ class CPPublishServiceTestCase(unittest.TestCase):
             }
             self.assertEqual("foo-bar.xml", CPPublishService.get_filename(queue_item))
 
-            queue_item[
-                "formatted_item"
-            ] = "<?xml version='1.0' encoding='utf-8'?><test></test>"
+            queue_item["formatted_item"] = (
+                "<?xml version='1.0' encoding='utf-8'?><test></test>"
+            )
             self.assertEqual("foo-bar.xml", CPPublishService.get_filename(queue_item))
 
             queue_item[
