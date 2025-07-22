@@ -47,10 +47,21 @@ class NINJS21Formatter(Formatter):
         self._jimi_subjects_cache = None
 
     def get_locale_name(self, item, language):
-        try:
-            return item["translations"]["name"][language]
-        except (KeyError, TypeError):
-            return item.get("name", "")
+        if not item:
+            return ""
+            
+        translations = item.get("translations", {}).get("name", {})
+        
+        # Try exact language match
+        if translations.get(language):
+            return translations[language]
+            
+        # Try language with -CA suffix
+        if translations.get(f"{language}-CA"):
+            return translations[f"{language}-CA"]
+            
+        # Fall back to default name
+        return item.get("name", "")
 
 
     def sanitize_text(self, text, remove_p_tags = False):
