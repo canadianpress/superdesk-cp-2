@@ -369,7 +369,7 @@ class NINJS21Formatter(Formatter):
         updated_subjects = []
         
         for subject in subjects:
-            if "/" in subject["name"]:
+            if "/" in subject.get("name", ""):
                 names = [name.strip() for name in subject["name"].split("/")]                
                 scheme = subject.get("rel", "")
 
@@ -401,12 +401,6 @@ class NINJS21Formatter(Formatter):
                 })
         return subjects
 
-    def build_subjects(self, article):
-        subjects = self.format_cv_items(article, "subject")
-        subjects = self._split_combined_subjects(subjects)
-        subjects = self._add_anpa_categories(subjects, article)
-
-        return subjects
 
     def build_subjects_and_objects(self, article):
         """Build subjects list and separate product subjects into objects list."""
@@ -415,6 +409,7 @@ class NINJS21Formatter(Formatter):
         subjects = self._split_combined_subjects(subjects)
         subjects = self._add_anpa_categories(subjects, article)
         jimi_subjects = self._get_jimi_subjects_mapping()
+        language = article.get("language", "en-CA")
 
         non_product_subjects = []
         product_objects = []
@@ -425,12 +420,12 @@ class NINJS21Formatter(Formatter):
                 product_objects.append(product_object)
             else:
                 if subject.get("literal") in jimi_subjects:
-                    subject["name"] = jimi_subjects[subject.get("literal")].get("name")
+                    subject["name"] = self.get_locale_name(jimi_subjects[subject.get("literal")], language)
                 non_product_subjects.append(subject)
             
 
             if subject.get("literal") in jimi_subjects:
-                jimi_subject = self._create_jimi_subject(subject, jimi_subjects[subject.get("literal")],article.get("language", "en-CA"))
+                jimi_subject = self._create_jimi_subject(subject, jimi_subjects[subject.get("literal")],language)
                 non_product_subjects.append(jimi_subject)
         
         return non_product_subjects, product_objects
