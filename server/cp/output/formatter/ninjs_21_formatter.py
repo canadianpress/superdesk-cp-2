@@ -419,9 +419,10 @@ class NINJS21Formatter(Formatter):
                 product_object = self._create_product_object(subject)
                 product_objects.append(product_object)
             else:
-                if subject.get("literal") in jimi_subjects:
-                    subject["name"] = self.get_locale_name(jimi_subjects[subject.get("literal")], language)
-                non_product_subjects.append(subject)
+                if "mediatopic" in subject.get("uri", ""):
+                    non_product_subjects.append({**subject, "name": subject.get("name", "").lower()})
+                else:
+                    non_product_subjects.append(subject)
             
 
             if subject.get("literal") in jimi_subjects:
@@ -793,10 +794,10 @@ class NINJS21Formatter(Formatter):
         """
         result = {}
         article_associations = article.get("associations", {})
-        rewrite_of = article.get("rewrite_of")
+        parent_article_id = article.get("rewrite_of", article.get("translated_from"))
 
-        # If no rewrite_of, all associations are new
-        if not rewrite_of:
+        # If no rewrite_of or translated_from, all associations are new
+        if not parent_article_id:
             for assoc in article_associations.values():
                 if assoc and isinstance(assoc, dict):
                     guid = assoc.get("guid")
@@ -806,7 +807,7 @@ class NINJS21Formatter(Formatter):
 
         # Get previous article from archive
         archive_service = superdesk.get_resource_service("archive")
-        previous_article = archive_service.find_one(req=None, _id=rewrite_of)
+        previous_article = archive_service.find_one(req=None, _id=parent_article_id)
         previous_guids = set()
 
         if previous_article:
