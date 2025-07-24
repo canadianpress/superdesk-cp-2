@@ -39,9 +39,6 @@ class NINJS21Formatter(Formatter):
     )
      
     def __init__(self):
-        self.can_preview = True
-        self.can_export = True
-        self.internal_renditions = ["original"]
         self._uri_schemes_cache = None
         self._infosources_cache = None
         self._jimi_subjects_cache = None
