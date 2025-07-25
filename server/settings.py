@@ -458,9 +458,16 @@ GOOGLE_SERVICE_ACCOUNT_PATH = os.getenv("GOOGLE_SERVICE_ACCOUNT_PATH")
 GOOGLE_SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
 
 PICTURE_METADATA_MAPPING = {
-    "slugline": "Title",
-    "extra.filename": "JobId",
-    "description_text": "Description",
+    "slugline": "ObjectName",
+    "extra.filename": "OriginalTransmissionReference",
+    "description_text": "Caption-Abstract",
+    "byline": "By-line",
+    "copyrightnotice": "CopyrightNotice",
+    "ednote": "SpecialInstructions",
+    "extra.caption_writer": "Writer-Editor",
+    "extra.photographer_code": "By-lineTitle",
+    "headline": "Headline",
+    "language": "LanguageIdentifier",
 }
 
 TIME_FORMAT_SHORT = "%I:%M %p"
