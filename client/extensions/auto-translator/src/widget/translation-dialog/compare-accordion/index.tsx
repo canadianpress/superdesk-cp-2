@@ -123,7 +123,7 @@ export const CompareAccordion = () => {
       </Spacer>
       <SpacerBlock v gap="16" />
       {compareLeft && compareRight && (
-        <Spacer h gap="16" noWrap>
+        <Spacer h gap="16" alignItems="start" noWrap>
           {COMPARE_VERSIONS.map((version, i) => {
             const header =
               version === "diff"
