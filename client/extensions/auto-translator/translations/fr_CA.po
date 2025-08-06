@@ -29,6 +29,9 @@ msgstr "corps HTML"
 msgid "Writethru"
 msgstr "Lead"
 
+msgid "Writethru {{n}}"
+msgstr "Lead {{n}}"
+
 msgid "English"
 msgstr "Anglais"
 
@@ -98,17 +101,20 @@ msgstr "Widget de traduction"
 msgid "Current Story"
 msgstr "Article actuel"
 
+msgid "Current Story {{writethru}}"
+msgstr "Article actuel {{writethru}}"
+
 msgid "Version (Original Content)"
 msgstr "Version (Contenu original)"
 
 msgid "Version (Translated Content)"
 msgstr "Version (Contenu traduit)"
 
-msgid "Headline may have a maximum character length of"
-msgstr "Le titre peut comporter un nombre maximal de caractères de"
+msgid "Headline may have a maximum character length of {{length}}"
+msgstr "Le titre peut comporter un nombre maximal de caractères de {{length}}"
 
-msgid "Extended Headline may have a maximum character length of"
-msgstr "Le long titre peut comporter un nombre maximal de caractères de"
+msgid "Extended Headline may have a maximum character length of {{length}}"
+msgstr "Le long titre peut comporter un nombre maximal de caractères de {{length}}"
 
 msgid "Clear"
 msgstr "Effacer"
@@ -129,7 +135,13 @@ msgid "Are you sure you wish to clear and lose all changes made to this translat
 msgstr "Êtes-vous sûr de vouloir effacer et perdre toutes les modifications apportées à cette traduction?"
 
 msgid "Yes, Clear"
-msgid "Oui, effacer"
+msgstr "Oui, effacer"
 
 msgid "Translation"
-msgid "Traduction"
+msgstr "Traduction"
+
+msgid "Show {{tool}}"
+msgstr "Montrer {{tool}}"
+
+msgid "Hide {{tool}}"
+msgstr "Cacher {{tool}}"

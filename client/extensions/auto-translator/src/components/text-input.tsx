@@ -24,25 +24,23 @@ export const TextInput = <T,>({
   helpers,
   onChange,
   ...props
-}: TextInputProps<T>) => {
-  return (
-    <Input
-      {...field}
-      {...props}
-      type="text"
-      label={label}
-      boxedLable
-      boxedStyle
-      size="medium"
-      value={field?.value as string}
-      onChange={(newValue) => {
-        if (onChange) onChange(newValue);
-        else if (helpers) helpers.setValue(newValue as T);
-      }}
-      error={meta?.error ? meta.error : undefined}
-    />
-  );
-};
+}: TextInputProps<T>) => (
+  <Input
+    {...field}
+    {...props}
+    type="text"
+    label={label}
+    boxedLable
+    boxedStyle
+    size="medium"
+    value={field?.value as string}
+    onChange={(newValue) => {
+      if (onChange) onChange(newValue);
+      else if (helpers) helpers.setValue(newValue as T);
+    }}
+    error={meta?.error ? meta.error : undefined}
+  />
+);
 
 type FormTextInputProps<T> = Omit<TextInputProps<T>, "name"> & {
   name: RecursiveKeyOf<T> & string;

@@ -1,15 +1,12 @@
 import { Formik, FormikConfig, useFormikContext } from "formik";
 import * as React from "react";
-import { Button, ButtonGroup } from "superdesk-ui-framework/react";
+import { Button, ButtonGroup, Spacer } from "superdesk-ui-framework/react";
 import { FormTextInput } from "../../components";
 import { typedSetFieldValue } from "../../formik-utilties";
-import { superdesk } from "../../superdesk";
+
+import { useSuperdesk } from "../../context";
 import { getObjectKeys } from "../../utilities";
 import { FORM_FIELDS, TranslationDialogFormProps } from "./helpers";
-
-type ReplaceAllProps = {
-  isLoading: boolean;
-};
 
 type ReplaceAllFormProps = {
   search: string;
@@ -17,18 +14,18 @@ type ReplaceAllFormProps = {
 };
 
 const getReplaceValue = (value: string, search: string, replace: string) => {
-  const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const regex = new RegExp(escapedSearch, "gi");
+  const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+    regex = new RegExp(escapedSearch, "gi");
   return value.replace(regex, replace);
 };
 
-export const ReplaceAll = ({ isLoading }: ReplaceAllProps) => {
-  const { gettext } = superdesk.localization;
-
-  const { values: translationValues, setFieldValue: formikSetFieldValue } =
-    useFormikContext<TranslationDialogFormProps>();
-  const setFieldValue =
-    typedSetFieldValue<TranslationDialogFormProps>(formikSetFieldValue);
+export const ReplaceAll = () => {
+  const superdesk = useSuperdesk(),
+    { gettext } = superdesk.localization,
+    { values: translationValues, setFieldValue: formikSetFieldValue } =
+      useFormikContext<TranslationDialogFormProps>(),
+    setFieldValue =
+      typedSetFieldValue<TranslationDialogFormProps>(formikSetFieldValue);
 
   const onSubmit: FormikConfig<ReplaceAllFormProps>["onSubmit"] = (
     values,
@@ -38,13 +35,9 @@ export const ReplaceAll = ({ isLoading }: ReplaceAllProps) => {
 
     for (const key of getObjectKeys(FORM_FIELDS)) {
       const value =
-        translationValues.translations[translationValues.writethru]
-          .manualTranslation[key];
-      const replaceValue = getReplaceValue(
-        value,
-        values.search,
-        values.replace
-      );
+          translationValues.translations[translationValues.writethru]
+            .manualTranslation[key],
+        replaceValue = getReplaceValue(value, values.search, values.replace);
 
       setFieldValue(
         `translations.${translationValues.writethru}.manualTranslation.${key}`,
@@ -68,7 +61,7 @@ export const ReplaceAll = ({ isLoading }: ReplaceAllProps) => {
         };
 
         return (
-          <div className="auto-translator__translation-form-settings-container">
+          <Spacer h gap="16" alignItems="end" noWrap>
             <FormTextInput<ReplaceAllFormProps>
               name="search"
               label={gettext("Search")}
@@ -82,26 +75,16 @@ export const ReplaceAll = ({ isLoading }: ReplaceAllProps) => {
                 text={gettext("Replace All")}
                 type="primary"
                 expand
-                disabled={isLoading}
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  submitForm();
-                }}
+                onClick={submitForm}
               />
               <Button
                 text={gettext("Clear")}
                 style="hollow"
                 expand
-                disabled={isLoading}
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  clearReplaceAll();
-                }}
+                onClick={clearReplaceAll}
               />
             </ButtonGroup>
-          </div>
+          </Spacer>
         );
       }}
     </Formik>

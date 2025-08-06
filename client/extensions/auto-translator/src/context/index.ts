@@ -1,3 +1,4 @@
-import { ConfirmProvider } from "./confirm-provider";
+import { ConfirmProvider, useConfirm } from "./confirm-provider";
+import { SuperdeskProvider, useSuperdesk } from "./superdesk-provider";
 
-export { ConfirmProvider };
+export { ConfirmProvider, SuperdeskProvider, useConfirm, useSuperdesk };

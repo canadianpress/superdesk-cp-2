@@ -1,48 +1,31 @@
 import { Formik, FormikConfig } from "formik";
 import * as React from "react";
 import { IArticle } from "superdesk-api";
-import { Loader, Modal } from "superdesk-ui-framework/react";
-import { superdesk } from "../../superdesk";
+import { Modal } from "superdesk-ui-framework/react";
+import { useSuperdesk } from "../../context";
 import { getObjectValues } from "../../utilities";
 import { Footer } from "./footer";
-import {
-  getTranslationDialogFormInitialValues,
-  getTranslationDialogFormValues,
-  TranslationForm,
-  validateTranslationDialogForm,
-} from "./form";
+import { TranslationForm } from "./form";
 import {
   ExtraTranslationDialogFormProps,
   FORM_FIELDS,
+  getTranslationDialogFormInitialValues,
   TranslationDialogFormProps,
+  validateTranslationDialogForm,
 } from "./helpers";
 
-type TranslationDialogProps = {
-  currentArticle: IArticle;
-  closeDialog: () => void;
-};
-
-const getWritethrus = (article: IArticle) => {
-  const { prepareSuperdeskQuery } = superdesk.helpers;
-  const { httpRequestJsonLocal } = superdesk;
-
-  const query = prepareSuperdeskQuery("/search", {
-    filter: { family_id: { $eq: article.family_id } },
-    sort: [{ versioncreated: "asc" }],
-    page: 1,
-    max_results: 50,
-  });
-  return httpRequestJsonLocal<{ _items: IArticle[] }>(query);
-};
-
 export const TranslationDialog = ({
-  currentArticle,
+  article,
   closeDialog,
-}: TranslationDialogProps) => {
-  const { gettext } = superdesk.localization;
-  const { applyFieldChangesToEditor } = superdesk.ui.article;
-
-  const { _id: articleId } = currentArticle;
+}: {
+  article: IArticle;
+  closeDialog: () => void;
+}) => {
+  const superdesk = useSuperdesk(),
+    { gettext } = superdesk.localization,
+    { applyFieldChangesToEditor } = superdesk.ui.article,
+    { _id: articleId } = article,
+    formRef = React.useRef<HTMLFormElement>(null);
 
   const onSubmit: FormikConfig<TranslationDialogFormProps>["onSubmit"] = (
     values,
@@ -50,12 +33,11 @@ export const TranslationDialog = ({
   ) => {
     if (!articleId) return;
 
-    for (const value of getObjectValues(FORM_FIELDS)) {
+    for (const value of getObjectValues(FORM_FIELDS))
       applyFieldChangesToEditor(
         articleId,
-        value.setEditorValue(values, { currentArticle })
+        value.setEditorValue(values, { article })
       );
-    }
 
     closeDialog();
   };
@@ -63,45 +45,20 @@ export const TranslationDialog = ({
   return (
     <Formik<TranslationDialogFormProps, ExtraTranslationDialogFormProps>
       enableReinitialize
-      initialValues={getTranslationDialogFormInitialValues()}
+      initialValues={getTranslationDialogFormInitialValues(superdesk)}
       onSubmit={onSubmit}
-      validate={validateTranslationDialogForm}
-      initialStatus={{ isTranslatePristine: true }}
+      validate={validateTranslationDialogForm(superdesk)}
+      initialStatus={{ isLoading: true, isTranslatePristine: true }}
     >
-      {({ resetForm, handleSubmit }) => {
-        const [isLoading, setIsLoading] = React.useState(true);
-
-        React.useEffect(() => {
-          getWritethrus(currentArticle)
-            .then(({ _items }) => {
-              resetForm({
-                values: getTranslationDialogFormValues(currentArticle, _items),
-              });
-            })
-            .catch((err) => {
-              console.error({ err });
-            })
-            .finally(() => {
-              setIsLoading(false);
-            });
-        }, []);
-
-        return (
-          <form onSubmit={handleSubmit}>
-            <Modal
-              headerTemplate={gettext("Translation Widget")}
-              visible
-              size="x-large"
-              onHide={closeDialog}
-              footerTemplate={
-                <Footer isLoading={isLoading} closeDialog={closeDialog} />
-              }
-            >
-              {isLoading ? <Loader /> : <TranslationForm />}
-            </Modal>
-          </form>
-        );
-      }}
+      <Modal
+        headerTemplate={gettext("Translation Widget")}
+        visible
+        size="x-large"
+        onHide={closeDialog}
+        footerTemplate={<Footer closeDialog={closeDialog} formRef={formRef} />}
+      >
+        <TranslationForm article={article} ref={formRef} />
+      </Modal>
     </Formik>
   );
 };

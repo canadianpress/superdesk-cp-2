@@ -8,34 +8,24 @@ const isArticle = (
 const isNotEmptyObject = (value: any): value is Record<string, any> =>
   typeof value === "object" && value !== null && Object.keys(value).length > 0;
 
-const getObjectKeys = <T extends object>(obj: T): (keyof T)[] => {
-  return Object.keys(obj) as (keyof T)[];
-};
+const getObjectKeys = <T extends object>(obj: T): (keyof T)[] =>
+  Object.keys(obj) as (keyof T)[];
 
-const getObjectValues = <T extends object>(obj: T): T[keyof T][] => {
-  return Object.values(obj) as T[keyof T][];
-};
+const getObjectValues = <T extends object>(obj: T): T[keyof T][] =>
+  Object.values(obj) as T[keyof T][];
 
-const getObjectEntries = <T extends object>(
-  obj: T
-): [keyof T, T[keyof T]][] => {
-  return Object.entries(obj) as [keyof T, T[keyof T]][];
-};
-
-const capitalize = (str: string) => {
-  if (!str) return str;
-  return str.charAt(0).toUpperCase() + str.slice(1);
-};
+const getObjectEntries = <T extends object>(obj: T): [keyof T, T[keyof T]][] =>
+  Object.entries(obj) as [keyof T, T[keyof T]][];
 
 const stripLinkTags = (html: string) => {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, "text/html");
-  const links = doc.querySelectorAll("a");
+  const parser = new DOMParser(),
+    doc = parser.parseFromString(html, "text/html"),
+    links = doc.querySelectorAll("a");
 
   links.forEach((link) => {
     if (link.textContent) {
-      const textNode = document.createTextNode(link.textContent);
-      const parentNode = link.parentNode;
+      const textNode = document.createTextNode(link.textContent),
+        parentNode = link.parentNode;
       if (parentNode) {
         parentNode.replaceChild(textNode, link);
       }
@@ -46,11 +36,10 @@ const stripLinkTags = (html: string) => {
 };
 
 export {
-  isArticle,
-  isNotEmptyObject,
+  getObjectEntries,
   getObjectKeys,
   getObjectValues,
-  getObjectEntries,
-  capitalize,
+  isArticle,
+  isNotEmptyObject,
   stripLinkTags,
 };
