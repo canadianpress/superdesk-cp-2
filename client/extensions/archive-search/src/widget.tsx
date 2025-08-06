@@ -1,6 +1,9 @@
 import * as React from "react";
 import { ISearchPanelWidgetProps, ISuperdesk } from "superdesk-api";
-import { Input } from "superdesk-ui-framework/react";
+import { DatePickerISO, Input } from "superdesk-ui-framework/react";
+import { superdesk } from "./superdesk";
+
+const { gettext } = superdesk.localization;
 
 interface IParams {
   from: string;
@@ -9,6 +12,11 @@ interface IParams {
   headline: string;
   story_text: string;
 }
+
+const DATE_PICKER_HEADER_BUTTONS = [
+  { days: 0, label: gettext("Today") },
+  { days: 1, label: gettext("Tomorrow") },
+];
 
 export const widgetFactory = (
   gettext: ISuperdesk["localization"]["gettext"]
@@ -25,24 +33,22 @@ export const widgetFactory = (
 
       return (
         <fieldset>
-          <div className="field">
-            <label className="search-label">{gettext("From")}</label>
-            <input
-              type="date"
-              value={params.from || ""}
-              onChange={(event) =>
-                this.props.setParams({ from: event.target.value })
-              }
+          <div className="form__row">
+            <DatePickerISO
+              label={gettext("From")}
+              value={params.from ?? ""}
+              dateFormat="YYYY-MM-DD"
+              onChange={(v) => this.props.setParams({ from: v })}
+              headerButtonBar={DATE_PICKER_HEADER_BUTTONS}
             />
           </div>
-          <div className="field">
-            <label className="search-label">{gettext("To")}</label>
-            <input
-              type="date"
-              value={params.to || ""}
-              onChange={(event) =>
-                this.props.setParams({ to: event.target.value })
-              }
+          <div className="form__row">
+            <DatePickerISO
+              label={gettext("To")}
+              value={params.to ?? ""}
+              dateFormat="YYYY-MM-DD"
+              onChange={(v) => this.props.setParams({ to: v })}
+              headerButtonBar={DATE_PICKER_HEADER_BUTTONS}
             />
           </div>
           <div className="form__row form__row--flex gap-1">
