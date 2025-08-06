@@ -31,23 +31,21 @@ export const Select = <T,>({
   onChange,
   error,
   ...props
-}: SelectProps<T>) => {
-  return (
-    <SuperdeskSelect
-      {...field}
-      {...props}
-      label={label}
-      value={(field?.value as string) || (value as string)}
-      onChange={(newValue) => {
-        if (onChange) onChange(newValue);
-        else if (helpers) helpers.setValue(newValue as T);
-      }}
-      error={meta?.error ? meta.error : error ? error : undefined}
-    >
-      {children}
-    </SuperdeskSelect>
-  );
-};
+}: SelectProps<T>) => (
+  <SuperdeskSelect
+    {...field}
+    {...props}
+    label={label}
+    value={(field?.value as string) || (value as string)}
+    onChange={(newValue) => {
+      if (onChange) onChange(newValue);
+      else if (helpers) helpers.setValue(newValue as T);
+    }}
+    error={meta?.error ? meta.error : error ? error : undefined}
+  >
+    {children}
+  </SuperdeskSelect>
+);
 
 type FormSelectProps<T> = Omit<SelectProps<T>, "name"> & {
   name: RecursiveKeyOf<T> & string;

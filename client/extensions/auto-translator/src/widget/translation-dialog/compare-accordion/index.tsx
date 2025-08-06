@@ -1,15 +1,16 @@
 import DiffMatchPatch from "diff-match-patch";
 import { useFormikContext } from "formik";
 import * as React from "react";
+import { ISuperdesk } from "superdesk-api";
 import {
-  Container,
   Label,
   Option,
   Spacer,
-  ToggleBox,
+  SpacerBlock,
+  Text,
 } from "superdesk-ui-framework/react";
 import { Select } from "../../../components";
-import { superdesk } from "../../../superdesk";
+import { useSuperdesk } from "../../../context";
 import { getObjectEntries, getObjectKeys } from "../../../utilities";
 import {
   FORM_FIELDS,
@@ -22,22 +23,25 @@ import { getPrettyDiffHtml, sanitizeHtml } from "./helpers";
 const COMPARE_VERSIONS = ["ls", "rs", "diff"] as const;
 
 const getCompareContentValues = (
-  ls: TranslationDialogFormProps["translations"][string],
-  rs: TranslationDialogFormProps["translations"][string],
-  version: (typeof COMPARE_VERSIONS)[number]
+  {
+    ls,
+    rs,
+    version,
+  }: {
+    ls: TranslationDialogFormProps["translations"][string];
+    rs: TranslationDialogFormProps["translations"][string];
+    version: (typeof COMPARE_VERSIONS)[number];
+  },
+  { localization: { gettext } }: ISuperdesk
 ) => {
-  const { gettext } = superdesk.localization;
-  const dmp = new DiffMatchPatch();
-
-  const result = getObjectKeys(FORM_FIELDS).reduce<
-    Omit<FormInputProps, "images">
-  >(
-    (result, field) => {
-      result[field] = "";
-      return result;
-    },
-    { ...FORM_FIELDS_INITIAL_VALUES }
-  );
+  const dmp = new DiffMatchPatch(),
+    result = getObjectKeys(FORM_FIELDS).reduce<Omit<FormInputProps, "images">>(
+      (result, field) => {
+        result[field] = "";
+        return result;
+      },
+      { ...FORM_FIELDS_INITIAL_VALUES }
+    );
 
   switch (version) {
     case "ls":
@@ -63,117 +67,89 @@ const getCompareContentValues = (
   return result;
 };
 
-const CompareContent = (props: Omit<FormInputProps, "images">) => (
-  <>
-    {getObjectEntries(FORM_FIELDS).map(([key, value]) => (
-      <Spacer
-        key={`compare-${key}`}
-        gap="4"
-        style={{ flexDirection: "column" }}
-      >
-        <Label text={value.label} style="hollow" />
-        <p dangerouslySetInnerHTML={{ __html: props[key] }}></p>
-      </Spacer>
-    ))}
-  </>
-);
-
-export const CompareAccordion = () => {
-  const { gettext } = superdesk.localization;
-
-  const { values } = useFormikContext<TranslationDialogFormProps>();
-
-  const [isOpen, setIsOpen] = React.useState<boolean>(false);
-  const [compareLeft, setCompareLeft] = React.useState<
-    TranslationDialogFormProps["writethru"]
-  >(getObjectKeys(values.translations)?.[0] ?? "");
-  const [compareRight, setCompareRight] = React.useState<
-    TranslationDialogFormProps["writethru"]
-  >(getObjectKeys(values.translations)?.[0] ?? "");
+const CompareContent = (props: Omit<FormInputProps, "images">) => {
+  const superdesk = useSuperdesk();
 
   return (
-    <ToggleBox
-      variant="simple"
-      title={gettext("Compare")}
-      margin="none"
-      onOpen={() => {
-        setIsOpen(true);
-      }}
-      onClose={() => {
-        setIsOpen(false);
-      }}
-    >
-      {isOpen && (
-        <Container gap="large" direction="column">
-          <div className="auto-translator__compare-accordion-settings-container">
-            <Select
-              value={compareLeft}
-              onChange={(newValue) => {
-                setCompareLeft(newValue);
-              }}
-              label={`${gettext("Writethru")} 1`}
-            >
-              <Option value="current">
-                {values.translations.current.label}
-              </Option>
-              {getObjectEntries(values.translations)
-                .filter(([k]) => k !== "current")
-                .map(([k, v]) => (
-                  <Option value={k} key={`left-writethru-${k}`}>
-                    {v.label}
-                  </Option>
-                ))}
-            </Select>
-            <Select
-              value={compareRight}
-              onChange={(newValue) => {
-                setCompareRight(newValue);
-              }}
-              label={`${gettext("Writethru")} 2`}
-            >
-              <Option value="current">
-                {values.translations.current.label}
-              </Option>
-              {getObjectEntries(values.translations)
-                .filter(([k]) => k !== "current")
-                .map(([k, v]) => (
-                  <Option value={k} key={`left-writethru-${k}`}>
-                    {v.label}
-                  </Option>
-                ))}
-            </Select>
-          </div>
-          {compareLeft && compareRight && (
-            <article
-              className="auto-translator__compare-accordion-content-container"
-              tabIndex={0}
-              aria-label={gettext("Compare Writethru Difference")}
-            >
-              {COMPARE_VERSIONS.map((version, index) => {
-                const header =
-                  version === "diff"
-                    ? gettext("Difference (Diff)")
-                    : `${gettext("Writethru")} ${index + 1}`;
+    <>
+      {getObjectEntries(FORM_FIELDS).map(([key, value]) => (
+        <Spacer key={`compare-${key}`} v gap="8" noWrap>
+          <Label text={value.getLabel(superdesk)} style="hollow" />
+          <p dangerouslySetInnerHTML={{ __html: props[key] }}></p>
+        </Spacer>
+      ))}
+    </>
+  );
+};
 
-                return (
-                  <Container key={version} gap="large" direction="column">
-                    <p className="auto-translator__compare-accordion-content-header">
-                      {header}
-                    </p>
-                    <CompareContent
-                      {...getCompareContentValues(
-                        values.translations[compareLeft],
-                        values.translations[compareRight],
-                        version
-                      )}
-                    />
-                  </Container>
-                );
-              })}
-            </article>
-          )}
-        </Container>
+export const CompareAccordion = () => {
+  const superdesk = useSuperdesk(),
+    { gettext } = superdesk.localization,
+    { values } = useFormikContext<TranslationDialogFormProps>(),
+    [compareLeft, setCompareLeft] = React.useState<
+      TranslationDialogFormProps["writethru"]
+    >(getObjectKeys(values.translations)?.[0] ?? ""),
+    [compareRight, setCompareRight] = React.useState<
+      TranslationDialogFormProps["writethru"]
+    >(getObjectKeys(values.translations)?.[0] ?? "");
+
+  return (
+    <>
+      <Spacer h gap="16" noWrap style={{ width: "50%" }}>
+        {(
+          [
+            { value: compareLeft, setter: setCompareLeft },
+            { value: compareRight, setter: setCompareRight },
+          ] as const
+        ).map(({ value, setter }, i) => (
+          <Select
+            key={`compare-select-${i}`}
+            value={value}
+            onChange={(newValue) => {
+              setter(newValue);
+            }}
+            label={gettext("Writethru {{n}}", { n: i + 1 })}
+          >
+            <Option value="current">{values.translations.current.label}</Option>
+            {getObjectEntries(values.translations)
+              .filter(([k]) => k !== "current")
+              .map(([k, v]) => (
+                <Option value={k} key={`${i}-writethru-${k}`}>
+                  {v.label}
+                </Option>
+              ))}
+          </Select>
+        ))}
+      </Spacer>
+      <SpacerBlock v gap="16" />
+      {compareLeft && compareRight && (
+        <Spacer h gap="16" noWrap>
+          {COMPARE_VERSIONS.map((version, i) => {
+            const header =
+              version === "diff"
+                ? gettext("Difference (Diff)")
+                : gettext("Writethru {{n}}", { n: i + 1 });
+
+            return (
+              <Spacer key={version} v gap="16" alignItems="center" noWrap>
+                <Text weight="medium" size="medium">
+                  {header}
+                </Text>
+                <CompareContent
+                  {...getCompareContentValues(
+                    {
+                      ls: values.translations[compareLeft],
+                      rs: values.translations[compareRight],
+                      version,
+                    },
+                    superdesk
+                  )}
+                />
+              </Spacer>
+            );
+          })}
+        </Spacer>
       )}
-    </ToggleBox>
+    </>
   );
 };

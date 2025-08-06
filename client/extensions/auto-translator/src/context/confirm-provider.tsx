@@ -1,7 +1,7 @@
 import * as React from "react";
 import { createPortal } from "react-dom";
 import { Button, ButtonGroup, Modal } from "superdesk-ui-framework/react";
-import { superdesk } from "../superdesk";
+import { useSuperdesk } from "./superdesk-provider";
 
 type ConfirmProps = {
   header?: string | JSX.Element;
@@ -20,36 +20,38 @@ type ConfirmContextType = {
   confirm: (props: ConfirmProps) => Promise<boolean>;
 };
 
-type ConfirmProviderProps = {
-  children: React.ReactNode;
-};
-
 const ConfirmContext = React.createContext<ConfirmContextType | undefined>(
   undefined
 );
 
 export const useConfirm = () => {
   const context = React.useContext(ConfirmContext);
-  if (!context) {
+  if (!context)
     throw new Error("useConfirm must be used within a ConfirmProvider");
-  }
   return context;
 };
 
-export const ConfirmProvider = ({ children }: ConfirmProviderProps) => {
-  const { gettext } = superdesk.localization;
-  const [confirmState, setConfirmState] = React.useState<
-    | (ConfirmProps & {
-        resolve?: (value: boolean) => void;
-      })
-    | null
-  >(null);
+export const ConfirmProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
+  const superdesk = useSuperdesk(),
+    { gettext } = superdesk.localization,
+    [confirmState, setConfirmState] = React.useState<
+      | (ConfirmProps & {
+          resolve?: (value: boolean) => void;
+        })
+      | null
+    >(null);
 
-  const confirm = React.useCallback((props: ConfirmProps): Promise<boolean> => {
-    return new Promise((resolve) => {
-      setConfirmState({ ...props, resolve });
-    });
-  }, []);
+  const confirm = React.useCallback(
+    (props: ConfirmProps): Promise<boolean> =>
+      new Promise((resolve) => {
+        setConfirmState({ ...props, resolve });
+      }),
+    []
+  );
 
   const handleConfirm = () => {
     confirmState?.resolve?.(true);
@@ -78,22 +80,14 @@ export const ConfirmProvider = ({ children }: ConfirmProviderProps) => {
                   <Button
                     text={gettext("Cancel")}
                     style="hollow"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      handleCancel();
-                    }}
+                    onClick={handleCancel}
                     {...confirmState.footerProps?.cancel}
                   />
                   <Button
                     text={gettext("Confirm")}
                     type="primary"
                     style="hollow"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      handleConfirm();
-                    }}
+                    onClick={handleConfirm}
                     {...confirmState.footerProps?.confirm}
                   />
                 </>
