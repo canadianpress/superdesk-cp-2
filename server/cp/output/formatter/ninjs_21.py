@@ -446,7 +446,7 @@ class NINJS21Formatter(Formatter):
     def build_places(self, article):
         places = self.format_cv_items(article, "place")
         dateline_place = self.get_dateline_place(article)
-        if dateline_place.get("city"):
+        if dateline_place.get("name"):
             places.append(dateline_place)
         return places
 
