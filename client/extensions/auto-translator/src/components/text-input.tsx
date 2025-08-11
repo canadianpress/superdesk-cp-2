@@ -1,12 +1,7 @@
-import {
-  FieldHelperProps,
-  FieldInputProps,
-  FieldMetaProps,
-  useField,
-} from "formik";
+import { FieldHelperProps, FieldInputProps, FieldMetaProps } from "formik";
 import * as React from "react";
 import { Input } from "superdesk-ui-framework/react";
-import { RecursiveKeyOf } from "../formik-utilties";
+import { RecursiveKeyOf, useFastField } from "../formik-utilties";
 
 type TextInputProps<T> = React.InputHTMLAttributes<HTMLInputElement> & {
   label: string;
@@ -51,7 +46,7 @@ export const FormTextInput = <T,>({
   label,
   ...props
 }: FormTextInputProps<T>) => {
-  const [field, meta, helpers] = useField<T>({ name });
+  const [field, meta, helpers] = useFastField<T>({ name });
 
   return (
     <TextInput<T>

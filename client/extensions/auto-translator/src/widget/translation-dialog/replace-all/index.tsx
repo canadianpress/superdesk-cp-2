@@ -1,12 +1,16 @@
 import { Formik, FormikConfig, useFormikContext } from "formik";
 import * as React from "react";
 import { Button, ButtonGroup, Spacer } from "superdesk-ui-framework/react";
-import { FormTextInput } from "../../components";
-import { typedSetFieldValue } from "../../formik-utilties";
+import { FormTextInput } from "../../../components";
+import { useSuperdesk } from "../../../context";
+import { typedSetFieldValue } from "../../../formik-utilties";
+import { getObjectKeys } from "../../../utilities";
+import { FORM_FIELDS, TranslationForm } from "../helpers";
 
-import { useSuperdesk } from "../../context";
-import { getObjectKeys } from "../../utilities";
-import { FORM_FIELDS, TranslationDialogFormProps } from "./helpers";
+type TranslationFormRef = {
+  values: TranslationForm;
+  setFieldValue: ReturnType<typeof typedSetFieldValue<TranslationForm>>;
+};
 
 type ReplaceAllFormProps = {
   search: string;
@@ -19,28 +23,29 @@ const getReplaceValue = (value: string, search: string, replace: string) => {
   return value.replace(regex, replace);
 };
 
-export const ReplaceAll = () => {
+const ReplaceAllForm = ({
+  translationFormRef,
+}: {
+  translationFormRef: React.RefObject<TranslationFormRef>;
+}) => {
   const superdesk = useSuperdesk(),
-    { gettext } = superdesk.localization,
-    { values: translationValues, setFieldValue: formikSetFieldValue } =
-      useFormikContext<TranslationDialogFormProps>(),
-    setFieldValue =
-      typedSetFieldValue<TranslationDialogFormProps>(formikSetFieldValue);
+    { gettext } = superdesk.localization;
 
   const onSubmit: FormikConfig<ReplaceAllFormProps>["onSubmit"] = (
     values,
     _formikHelpers
   ) => {
-    if (!values.search) return;
+    if (!translationFormRef.current || !values.search) return;
 
     for (const key of getObjectKeys(FORM_FIELDS)) {
       const value =
-          translationValues.translations[translationValues.writethru]
-            .manualTranslation[key],
+          translationFormRef.current.values.translations[
+            translationFormRef.current.values.writethru
+          ].manualTranslation[key],
         replaceValue = getReplaceValue(value, values.search, values.replace);
 
-      setFieldValue(
-        `translations.${translationValues.writethru}.manualTranslation.${key}`,
+      translationFormRef.current.setFieldValue(
+        `translations.${translationFormRef.current.values.writethru}.manualTranslation.${key}`,
         replaceValue
       );
     }
@@ -89,4 +94,20 @@ export const ReplaceAll = () => {
       }}
     </Formik>
   );
+};
+
+export const ReplaceAll = () => {
+  const { values, setFieldValue: formikSetFieldValue } =
+      useFormikContext<TranslationForm>(),
+    setFieldValue = typedSetFieldValue<TranslationForm>(formikSetFieldValue),
+    translationFormRef = React.useRef<TranslationFormRef>({
+      values,
+      setFieldValue,
+    });
+
+  React.useEffect(() => {
+    translationFormRef.current.values = values;
+  }, [values]);
+
+  return <ReplaceAllForm translationFormRef={translationFormRef} />;
 };

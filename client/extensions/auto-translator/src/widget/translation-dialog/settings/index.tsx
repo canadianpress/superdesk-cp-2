@@ -2,25 +2,25 @@ import { FormikProps, useFormikContext } from "formik";
 import * as React from "react";
 import { ISuperdesk } from "superdesk-api";
 import { Button, Option, Spacer } from "superdesk-ui-framework/react";
-import { FormSelect } from "../../components";
+import { FormSelect } from "../../../components";
 import {
   TRANSLATION_LANGUAGES,
   TRANSLATION_TYPES,
   TRANSLATION_VERSIONS,
-} from "../../constants";
-import { useConfirm, useSuperdesk } from "../../context";
-import { typedSetFieldValue } from "../../formik-utilties";
+} from "../../../constants";
+import { useConfirm, useSuperdesk } from "../../../context";
+import { typedSetFieldValue } from "../../../formik-utilties";
 import {
   TranslationPayload,
   TranslationResponse,
-} from "../../typings/translation";
-import { getObjectEntries } from "../../utilities";
+} from "../../../typings/translation";
+import { getObjectEntries } from "../../../utilities";
 import {
   FORM_FIELDS,
   FormInputProps,
   isManualTranslationDirty,
-  TranslationDialogFormProps,
-} from "./helpers";
+  TranslationForm,
+} from "../helpers";
 
 const getTranslation = (
   payload: TranslationPayload,
@@ -32,9 +32,7 @@ const getTranslation = (
     payload: { service: "translate", item: payload },
   });
 
-const getPayload = (
-  values: FormikProps<TranslationDialogFormProps>["values"]
-) =>
+const getPayload = (values: FormikProps<TranslationForm>["values"]) =>
   ({
     body_html: "",
     payload: getObjectEntries(FORM_FIELDS).reduce<
@@ -55,6 +53,25 @@ const getPayload = (
     translation_type: values.translationType,
   } as const);
 
+const WritethruSelect = () => {
+  const superdesk = useSuperdesk(),
+    { gettext } = superdesk.localization,
+    { values } = useFormikContext<TranslationForm>();
+
+  return (
+    <FormSelect<TranslationForm> name="writethru" label={gettext("Writethru")}>
+      <Option value="current">{values.translations.current.label}</Option>
+      {getObjectEntries(values.translations)
+        .filter(([k]) => k !== "current")
+        .map(([k, v]) => (
+          <Option value={k} key={`writethru-${k}`}>
+            {v.label}
+          </Option>
+        ))}
+    </FormSelect>
+  );
+};
+
 const ClearTranslationButton = () => {
   const superdesk = useSuperdesk(),
     { gettext } = superdesk.localization;
@@ -65,9 +82,8 @@ const ClearTranslationButton = () => {
       getFieldMeta,
       initialValues,
       status,
-    } = useFormikContext<TranslationDialogFormProps>(),
-    setFieldValue =
-      typedSetFieldValue<TranslationDialogFormProps>(formikSetFieldValue);
+    } = useFormikContext<TranslationForm>(),
+    setFieldValue = typedSetFieldValue<TranslationForm>(formikSetFieldValue);
 
   const clearTranslation = () => {
     const versions = [
@@ -89,7 +105,7 @@ const ClearTranslationButton = () => {
 
   const handleClearOnClick = () => {
     if (!isManualTranslationDirty({ values, getFieldMeta }, superdesk))
-      return void clearTranslation();
+      return clearTranslation();
     return void confirm({
       header: gettext("Confirm clear translation"),
       body: gettext(
@@ -125,9 +141,8 @@ const TranslateButton = () => {
       initialValues,
       status,
       setStatus,
-    } = useFormikContext<TranslationDialogFormProps>(),
-    setFieldValue =
-      typedSetFieldValue<TranslationDialogFormProps>(formikSetFieldValue);
+    } = useFormikContext<TranslationForm>(),
+    setFieldValue = typedSetFieldValue<TranslationForm>(formikSetFieldValue);
 
   const translateArticle = () => {
     setStatus({ ...status, isLoading: true });
@@ -155,8 +170,7 @@ const TranslateButton = () => {
           }
         }
 
-        if (status.isTranslatePristine)
-          setStatus({ ...status, isTranslatePristine: false });
+        if (status.isPristine) setStatus({ ...status, isPristine: false });
       })
       .catch((err) => {
         console.error({ err });
@@ -168,7 +182,7 @@ const TranslateButton = () => {
 
   const handleTranslateOnClick = () => {
     if (!isManualTranslationDirty({ values, getFieldMeta }, superdesk))
-      return void translateArticle();
+      return translateArticle();
     return void confirm({
       header: gettext("Confirm Translate"),
       body: gettext(
@@ -195,25 +209,12 @@ const TranslateButton = () => {
 
 export const TranslationSettings = () => {
   const superdesk = useSuperdesk(),
-    { gettext } = superdesk.localization,
-    { values } = useFormikContext<TranslationDialogFormProps>();
+    { gettext } = superdesk.localization;
 
   return (
     <Spacer h gap="16" alignItems="end" noWrap>
-      <FormSelect<TranslationDialogFormProps>
-        name="writethru"
-        label={gettext("Writethru")}
-      >
-        <Option value="current">{values.translations.current.label}</Option>
-        {getObjectEntries(values.translations)
-          .filter(([k]) => k !== "current")
-          .map(([k, v]) => (
-            <Option value={k} key={`writethru-${k}`}>
-              {v.label}
-            </Option>
-          ))}
-      </FormSelect>
-      <FormSelect<TranslationDialogFormProps>
+      <WritethruSelect />
+      <FormSelect<TranslationForm>
         name="translationType"
         label={gettext("Translation Engine")}
       >
@@ -223,7 +224,7 @@ export const TranslationSettings = () => {
           </Option>
         ))}
       </FormSelect>
-      <FormSelect<TranslationDialogFormProps>
+      <FormSelect<TranslationForm>
         name="translateFrom"
         label={gettext("Translate From")}
       >
@@ -233,7 +234,7 @@ export const TranslationSettings = () => {
           </Option>
         ))}
       </FormSelect>
-      <FormSelect<TranslationDialogFormProps>
+      <FormSelect<TranslationForm>
         name="translateTo"
         label={gettext("Translate To")}
       >

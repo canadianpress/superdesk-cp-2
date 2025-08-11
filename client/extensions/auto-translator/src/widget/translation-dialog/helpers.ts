@@ -28,22 +28,22 @@ type TranslationEntry = Record<
   FormInputProps
 >;
 
-type TranslationDialogFormProps = {
+type TranslationForm = {
   writethru: string;
   translationType: TranslationType;
-  translateFrom: (typeof TRANSLATION_LANGUAGES_CODES_MAP)[keyof typeof TRANSLATION_LANGUAGES_CODES_MAP];
-  translateTo: (typeof TRANSLATION_LANGUAGES_CODES_MAP)[keyof typeof TRANSLATION_LANGUAGES_CODES_MAP];
+  translateFrom: ValueOf<typeof TRANSLATION_LANGUAGES_CODES_MAP>;
+  translateTo: ValueOf<typeof TRANSLATION_LANGUAGES_CODES_MAP>;
   translations: Record<string, TranslationEntry & { label: string }>;
 };
 
-type TranslationDialogFormStatus = {
+type TranslationFormStatus = {
   isLoading: boolean;
-  isTranslatePristine: boolean;
+  isPristine: boolean;
 };
 
-type ExtraTranslationDialogFormProps = {
-  status?: TranslationDialogFormStatus;
-  initialStatus?: TranslationDialogFormStatus;
+type ExtraTranslationForm = {
+  status?: TranslationFormStatus;
+  initialStatus?: TranslationFormStatus;
 };
 
 const FORM_FIELDS: Record<
@@ -55,11 +55,11 @@ const FORM_FIELDS: Record<
     getName: (
       writethru: string,
       version: string
-    ) => RecursiveKeyOf<TranslationDialogFormProps>;
+    ) => RecursiveKeyOf<TranslationForm>;
     getLabel: (superdesk: ISuperdesk) => string;
     getFormValue: (article: IArticle) => string;
     setEditorValue: (
-      values: TranslationDialogFormProps,
+      values: TranslationForm,
       props?: { article: IArticle }
     ) => {
       key: string;
@@ -174,10 +174,7 @@ const isManualTranslationDirty = (
   {
     values,
     getFieldMeta,
-  }: Pick<
-    FormikContextType<TranslationDialogFormProps>,
-    "values" | "getFieldMeta"
-  >,
+  }: Pick<FormikContextType<TranslationForm>, "values" | "getFieldMeta">,
   superdesk: ISuperdesk
 ) => {
   const { FormFieldType } = superdesk.forms,
@@ -244,7 +241,7 @@ const getTranslationEntryFormValues = (
   superdesk: ISuperdesk
 ) =>
   getObjectKeys(TRANSLATION_VERSIONS).reduce<
-    TranslationDialogFormProps["translations"][string]
+    TranslationForm["translations"][string]
   >(
     (formValues, version) => {
       if (version === TRANSLATION_VERSIONS.original.value) {
@@ -284,7 +281,7 @@ const getTranslationEntryFormValues = (
     }
   );
 
-const getTranslationDialogFormInitialValues = ({
+const getTranslationFormInitialValues = ({
   localization: { gettext },
 }: ISuperdesk) =>
   ({
@@ -311,11 +308,11 @@ const getTranslationDialogFormInitialValues = ({
     },
   } as const);
 
-const getTranslationDialogFormValues = (
+const getTranslationFormValues = (
   article: IArticle,
   articleVersions: IArticle[],
   superdesk: ISuperdesk
-): TranslationDialogFormProps => {
+): TranslationForm => {
   const { gettext } = superdesk.localization,
     { writethrus, originals } = articleVersions.reduce<{
       writethrus: typeof articleVersions;
@@ -390,7 +387,7 @@ const getTranslationDialogFormValues = (
         },
       }),
       ...(writethrus.length &&
-        writethrus.reduce<TranslationDialogFormProps["translations"]>(
+        writethrus.reduce<TranslationForm["translations"]>(
           (translations, article) => {
             const images = getImagesFormValues(article),
               translationEntry = getTranslationEntryFormValues(
@@ -425,49 +422,48 @@ const getTranslationDialogFormValues = (
   };
 };
 
-const validateTranslationDialogForm: (
+const validateTranslationForm: (
   superdesk: ISuperdesk
-) => FormikConfig<TranslationDialogFormProps>["validate"] =
-  (superdesk) => (values) => {
-    const errors: FormikErrors<TranslationDialogFormProps> = {};
+) => FormikConfig<TranslationForm>["validate"] = (superdesk) => (values) => {
+  const errors: FormikErrors<TranslationForm> = {};
 
-    for (const [key, value] of getObjectEntries(FORM_FIELDS)) {
-      const error = value?.validate?.(
-        values.translations[values.writethru].manualTranslation[key],
-        { schema: superdesk.instance.config.schema?.["Story"]?.[key] },
-        superdesk
-      );
+  for (const [key, value] of getObjectEntries(FORM_FIELDS)) {
+    const error = value?.validate?.(
+      values.translations[values.writethru].manualTranslation[key],
+      { schema: superdesk.instance.config.schema?.["Story"]?.[key] },
+      superdesk
+    );
 
-      if (!error) continue;
+    if (!error) continue;
 
-      Object.assign(errors, {
-        translations: {
-          [values.writethru]: {
-            [TRANSLATION_VERSIONS.manualTranslation.value]: {
-              ...errors?.translations?.[values.writethru]?.manualTranslation,
-              [key]: error,
-            },
+    Object.assign(errors, {
+      translations: {
+        [values.writethru]: {
+          [TRANSLATION_VERSIONS.manualTranslation.value]: {
+            ...errors?.translations?.[values.writethru]?.manualTranslation,
+            [key]: error,
           },
         },
-      });
-    }
+      },
+    });
+  }
 
-    return errors;
-  };
+  return errors;
+};
 
 export {
-  ExtraTranslationDialogFormProps,
+  ExtraTranslationForm,
   FORM_FIELDS,
   FORM_FIELDS_INITIAL_VALUES,
   formatWritethruLabel,
-  getTranslationDialogFormInitialValues,
-  getTranslationDialogFormValues,
+  FormInputProps,
+  getTranslationFormInitialValues,
+  getTranslationFormValues,
   getWritethrus,
   isLanguageCode,
   isManualTranslationDirty,
   isTranslationVersion,
-  TranslationDialogFormProps,
   TranslationEntry,
-  validateTranslationDialogForm,
-  FormInputProps,
+  TranslationForm,
+  validateTranslationForm,
 };
