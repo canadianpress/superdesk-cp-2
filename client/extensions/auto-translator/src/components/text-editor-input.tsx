@@ -1,8 +1,7 @@
-import { useField } from "formik";
 import * as React from "react";
 import { InputWrapper } from "superdesk-ui-framework/react";
 import { useSuperdesk } from "../context";
-import { RecursiveKeyOf } from "../formik-utilties";
+import { RecursiveKeyOf, useFastField } from "../formik-utilties";
 
 type TextEditorInputProps = {
   label: string;
@@ -53,15 +52,16 @@ export const FormTextEditorInput = <T,>({
 }: FormTextEditorInputProps<T>) => {
   const superdesk = useSuperdesk(),
     { stripHtmlTags } = superdesk.utilities,
-    [field, _, helpers] = useField({ name }),
-    { setValue } = helpers;
+    [field, _, helpers] = useFastField<T>({ name }),
+    { setValue } = helpers,
+    value = field.value as string;
 
   return (
     <TextEditorInput
-      value={field.value}
-      wrapperValue={stripHtmlTags(field.value).replace(/\n/g, "")}
-      onChange={(value) => {
-        setValue(value);
+      value={value}
+      wrapperValue={stripHtmlTags(value).replace(/\n/g, "")}
+      onChange={(newValue) => {
+        setValue(newValue as T);
       }}
       {...props}
     />

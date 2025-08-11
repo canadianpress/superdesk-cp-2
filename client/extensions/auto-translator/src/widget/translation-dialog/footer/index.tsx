@@ -1,24 +1,19 @@
 import { useFormikContext } from "formik";
 import * as React from "react";
 import { Button, ButtonGroup } from "superdesk-ui-framework/react";
-import { FORM_ID, SUBMITTER_ID } from "../../constants";
-import { useSuperdesk } from "../../context";
-import {
-  isManualTranslationDirty,
-  TranslationDialogFormProps,
-} from "./helpers";
+import { FORM_ID, SUBMITTER_ID } from "../../../constants";
+import { useSuperdesk } from "../../../context";
+import { isManualTranslationDirty, TranslationForm } from "../helpers";
 
-export const Footer = ({
-  closeDialog,
+const SubmitButton = ({
   formRef,
 }: {
-  closeDialog: () => void;
   formRef: React.RefObject<HTMLFormElement>;
 }) => {
   const superdesk = useSuperdesk(),
     { gettext } = superdesk.localization,
     { isValid, status, values, getFieldMeta } =
-      useFormikContext<TranslationDialogFormProps>();
+      useFormikContext<TranslationForm>();
 
   const handleOnSubmitClick = () => {
     if (!formRef.current) return;
@@ -42,19 +37,34 @@ export const Footer = ({
   };
 
   return (
+    <Button
+      text={gettext("Apply Translation")}
+      type="primary"
+      disabled={
+        !isValid ||
+        status.isLoading ||
+        (status.isPristine &&
+          !isManualTranslationDirty({ values, getFieldMeta }, superdesk))
+      }
+      onClick={handleOnSubmitClick}
+    />
+  );
+};
+
+export const Footer = ({
+  closeDialog,
+  formRef,
+}: {
+  closeDialog: () => void;
+  formRef: React.RefObject<HTMLFormElement>;
+}) => {
+  const superdesk = useSuperdesk(),
+    { gettext } = superdesk.localization;
+
+  return (
     <ButtonGroup align="end">
       <Button text={gettext("Cancel")} style="hollow" onClick={closeDialog} />
-      <Button
-        text={gettext("Apply Translation")}
-        type="primary"
-        disabled={
-          !isValid ||
-          status.isLoading ||
-          (status.isTranslatePristine &&
-            !isManualTranslationDirty({ values, getFieldMeta }, superdesk))
-        }
-        onClick={handleOnSubmitClick}
-      />
+      <SubmitButton formRef={formRef} />
     </ButtonGroup>
   );
 };

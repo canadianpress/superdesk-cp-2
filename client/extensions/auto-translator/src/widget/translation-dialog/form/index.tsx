@@ -3,22 +3,22 @@ import { debounce } from "lodash";
 import * as React from "react";
 import { IArticle } from "superdesk-api";
 import { Option, ResizablePanels, Spacer } from "superdesk-ui-framework/react";
-import { FormTextEditorInput, FormTextInput, Select } from "../../components";
-import { FORM_ID, SUBMITTER_ID, TRANSLATION_VERSIONS } from "../../constants";
-import { useSuperdesk } from "../../context";
-import { getObjectEntries } from "../../utilities";
+import { FormTextEditorInput, FormTextInput, Select } from "../../../components";
+import { FORM_ID, SUBMITTER_ID, TRANSLATION_VERSIONS } from "../../../constants";
+import { useSuperdesk } from "../../../context";
+import { getObjectEntries } from "../../../utilities";
 import {
   FORM_FIELDS,
-  getTranslationDialogFormValues,
+  getTranslationFormValues,
   getWritethrus,
   isTranslationVersion,
-  TranslationDialogFormProps,
+  TranslationForm as TranslationFormType,
   TranslationEntry,
-} from "./helpers";
-import { TranslationSettings } from "./settings";
-import { ToolTabs } from "./tool-tabs";
+} from "../helpers";
+import { TranslationSettings } from "../settings";
+import { ToolTabs } from "../tool-tabs";
 
-const TranslationFormEntry = ({
+const Entry = ({
   initialVersion,
 }: {
   initialVersion: keyof TranslationEntry;
@@ -26,7 +26,7 @@ const TranslationFormEntry = ({
   const superdesk = useSuperdesk(),
     { gettext } = superdesk.localization,
     { FormFieldType } = superdesk.forms,
-    { values, isValid } = useFormikContext<TranslationDialogFormProps>(),
+    { values, isValid } = useFormikContext<TranslationFormType>(),
     [version, setVersion] =
       React.useState<keyof TranslationEntry>(initialVersion),
     translationVersions =
@@ -77,7 +77,7 @@ const TranslationFormEntry = ({
         switch (value.getType(superdesk)) {
           case FormFieldType.textEditor3:
             return (
-              <FormTextEditorInput<TranslationDialogFormProps>
+              <FormTextEditorInput<TranslationFormType>
                 {...sharedProps}
                 readOnly={
                   version !== TRANSLATION_VERSIONS.manualTranslation.value
@@ -91,7 +91,7 @@ const TranslationFormEntry = ({
             );
           default:
             return (
-              <FormTextInput<TranslationDialogFormProps>
+              <FormTextInput<TranslationFormType>
                 {...sharedProps}
                 readonly={
                   version !== TRANSLATION_VERSIONS.manualTranslation.value
@@ -183,9 +183,7 @@ const TranslationPanels = () => {
           }}
         >
           <></>
-          <TranslationFormEntry
-            initialVersion={TRANSLATION_VERSIONS.original.value}
-          />
+          <Entry initialVersion={TRANSLATION_VERSIONS.original.value} />
         </Spacer>
         <Spacer
           h
@@ -200,9 +198,7 @@ const TranslationPanels = () => {
           }}
         >
           <></>
-          <TranslationFormEntry
-            initialVersion={TRANSLATION_VERSIONS.aiTranslation.value}
-          />
+          <Entry initialVersion={TRANSLATION_VERSIONS.aiTranslation.value} />
         </Spacer>
       </ResizablePanels>
     </div>
@@ -220,7 +216,7 @@ export const TranslationForm = React.forwardRef<
     getWritethrus(article, superdesk)
       .then(({ _items }) => {
         resetForm({
-          values: getTranslationDialogFormValues(article, _items, superdesk),
+          values: getTranslationFormValues(article, _items, superdesk),
         });
       })
       .catch((err) => {

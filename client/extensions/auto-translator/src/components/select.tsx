@@ -1,12 +1,7 @@
-import {
-  FieldHelperProps,
-  FieldInputProps,
-  FieldMetaProps,
-  useField,
-} from "formik";
+import { FieldHelperProps, FieldInputProps, FieldMetaProps } from "formik";
 import * as React from "react";
 import { Select as SuperdeskSelect } from "superdesk-ui-framework/react";
-import { RecursiveKeyOf } from "../formik-utilties";
+import { RecursiveKeyOf, useFastField } from "../formik-utilties";
 
 type SelectProps<T> = Omit<
   React.InputHTMLAttributes<HTMLSelectElement>,
@@ -57,10 +52,10 @@ export const FormSelect = <T,>({
   children,
   ...props
 }: FormSelectProps<T>) => {
-  const [field, meta, helpers] = useField(name);
+  const [field, meta, helpers] = useFastField<T>(name);
 
   return (
-    <Select
+    <Select<T>
       {...props}
       label={label}
       field={field}

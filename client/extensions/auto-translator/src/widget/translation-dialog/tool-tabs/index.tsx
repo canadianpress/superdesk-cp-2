@@ -9,7 +9,7 @@ import {
 } from "superdesk-ui-framework/react";
 import { CustomHeaderToggleBox } from "superdesk-ui-framework/react/components/ToggleBox/CustomHeaderToggleBox";
 import { useSuperdesk } from "../../../context";
-import { CompareAccordion } from "../compare-accordion";
+import { Compare } from "../compare";
 import { ReplaceAll } from "../replace-all";
 
 const useTools = () => {
@@ -19,7 +19,7 @@ const useTools = () => {
   return React.useMemo(
     () =>
       [
-        { label: gettext("Compare"), component: CompareAccordion },
+        { label: gettext("Compare"), component: Compare },
         { label: gettext("Replace All"), component: ReplaceAll },
       ] as const,
     [gettext]

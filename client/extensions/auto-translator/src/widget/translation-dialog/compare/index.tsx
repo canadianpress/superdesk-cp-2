@@ -16,7 +16,7 @@ import {
   FORM_FIELDS,
   FORM_FIELDS_INITIAL_VALUES,
   FormInputProps,
-  TranslationDialogFormProps,
+  TranslationForm,
 } from "../helpers";
 import { getPrettyDiffHtml, sanitizeHtml } from "./helpers";
 
@@ -28,8 +28,8 @@ const getCompareContentValues = (
     rs,
     version,
   }: {
-    ls: TranslationDialogFormProps["translations"][string];
-    rs: TranslationDialogFormProps["translations"][string];
+    ls: TranslationForm["translations"][string];
+    rs: TranslationForm["translations"][string];
     version: (typeof COMPARE_VERSIONS)[number];
   },
   { localization: { gettext } }: ISuperdesk
@@ -82,15 +82,15 @@ const CompareContent = (props: Omit<FormInputProps, "images">) => {
   );
 };
 
-export const CompareAccordion = () => {
+export const Compare = () => {
   const superdesk = useSuperdesk(),
     { gettext } = superdesk.localization,
-    { values } = useFormikContext<TranslationDialogFormProps>(),
+    { values } = useFormikContext<TranslationForm>(),
     [compareLeft, setCompareLeft] = React.useState<
-      TranslationDialogFormProps["writethru"]
+      TranslationForm["writethru"]
     >(getObjectKeys(values.translations)?.[0] ?? ""),
     [compareRight, setCompareRight] = React.useState<
-      TranslationDialogFormProps["writethru"]
+      TranslationForm["writethru"]
     >(getObjectKeys(values.translations)?.[0] ?? "");
 
   return (

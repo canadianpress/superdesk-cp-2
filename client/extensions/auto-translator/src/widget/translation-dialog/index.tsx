@@ -7,11 +7,11 @@ import { getObjectValues } from "../../utilities";
 import { Footer } from "./footer";
 import { TranslationForm } from "./form";
 import {
-  ExtraTranslationDialogFormProps,
+  ExtraTranslationForm,
   FORM_FIELDS,
-  getTranslationDialogFormInitialValues,
-  TranslationDialogFormProps,
-  validateTranslationDialogForm,
+  getTranslationFormInitialValues,
+  TranslationForm as TranslationFormType,
+  validateTranslationForm,
 } from "./helpers";
 
 export const TranslationDialog = ({
@@ -27,7 +27,7 @@ export const TranslationDialog = ({
     { _id: articleId } = article,
     formRef = React.useRef<HTMLFormElement>(null);
 
-  const onSubmit: FormikConfig<TranslationDialogFormProps>["onSubmit"] = (
+  const onSubmit: FormikConfig<TranslationFormType>["onSubmit"] = (
     values,
     _formikHelpers
   ) => {
@@ -43,12 +43,12 @@ export const TranslationDialog = ({
   };
 
   return (
-    <Formik<TranslationDialogFormProps, ExtraTranslationDialogFormProps>
+    <Formik<TranslationFormType, ExtraTranslationForm>
       enableReinitialize
-      initialValues={getTranslationDialogFormInitialValues(superdesk)}
+      initialValues={getTranslationFormInitialValues(superdesk)}
       onSubmit={onSubmit}
-      validate={validateTranslationDialogForm(superdesk)}
-      initialStatus={{ isLoading: true, isTranslatePristine: true }}
+      validate={validateTranslationForm(superdesk)}
+      initialStatus={{ isLoading: true, isPristine: true }}
     >
       <Modal
         headerTemplate={gettext("Translation Widget")}
