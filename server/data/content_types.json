@@ -307,7 +307,99 @@
         },
         "company_codes": null
     }
-}, {
+}, 
+{
+    "_id": "video",
+    "label": "Video",
+    "type": "video",
+    "priority": 0,
+    "enabled": true,
+    "is_used": true,
+    "init_version": 1,
+    "schema": {
+        "subject": {
+            "required": false,
+            "nullable": true,
+            "type": "list",
+            "schema": {
+                "schema": {
+                    "parent": {"nullable": true},
+                    "name": {},
+                    "scheme": {"required": true, "nullable": true},
+                    "qcode": {},
+                    "service": {"nullable": true}
+                },
+                "type": "dict"
+            },
+            "default": []
+        },
+        "description_text": {
+            "required": true,
+            "nullable": true,
+            "type": "string"
+        },
+        "slugline": {
+            "required": false,
+            "nullable": true,
+            "type": "string",
+            "maxlength": 80
+        },
+        "headline": {
+            "required": false,
+            "nullable": true,
+            "type": "string"
+        },
+        "byline": {
+            "required": false,
+            "nullable": true,
+            "type": "string"
+        },
+        "dateline": {
+            "required": false,
+            "nullable": true,
+            "type": "dict"
+        },
+        "urgency": {
+            "required": false,
+            "nullable": true,
+            "type": "integer"
+        }
+    },
+    "editor": {
+        "headline": {
+            "required": false,
+            "order": 1,
+            "sdWidth": "full",
+            "enabled": true
+        },
+        "description_text": {
+            "required": true,
+            "order": 2,
+            "sdWidth": "full",
+            "enabled": true,
+            "textarea": true
+        },
+        "byline": {
+            "required": false,
+            "order": 3,
+            "sdWidth": "half",
+            "enabled": true
+        },
+        "dateline": {
+            "required": false,
+            "order": 4,
+            "sdWidth": "half",
+            "enabled": true
+        },
+        "urgency": {
+            "required": false,
+            "order": 5,
+            "sdWidth": "half",
+            "enabled": true
+        }
+    }
+}
+,{
     "_id": "picture",
     "label": "Picture",
     "type": "picture",
