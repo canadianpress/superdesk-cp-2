@@ -107,7 +107,7 @@ const ClearTranslationButton = () => {
     if (!isManualTranslationDirty({ values, getFieldMeta }, superdesk))
       return clearTranslation();
     return void confirm({
-      header: gettext("Confirm clear translation"),
+      header: gettext("Confirm clear Translation"),
       body: gettext(
         "Are you sure you wish to clear and lose all changes made to this translation?"
       ),
