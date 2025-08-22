@@ -1,9 +1,8 @@
+import moment from "moment";
 import * as React from "react";
 import { ISearchPanelWidgetProps, ISuperdesk } from "superdesk-api";
-import { DatePickerISO, Input } from "superdesk-ui-framework/react";
+import { Input } from "superdesk-ui-framework/react";
 import { superdesk } from "./superdesk";
-
-const { gettext } = superdesk.localization;
 
 interface IParams {
   from: string;
@@ -13,11 +12,6 @@ interface IParams {
   story_text: string;
 }
 
-const DATE_PICKER_HEADER_BUTTONS = [
-  { days: 0, label: gettext("Today") },
-  { days: 1, label: gettext("Tomorrow") },
-];
-
 export const widgetFactory = (
   gettext: ISuperdesk["localization"]["gettext"]
 ): React.ComponentType<ISearchPanelWidgetProps<IParams>> => {
@@ -26,6 +20,7 @@ export const widgetFactory = (
   > {
     render() {
       const { params } = this.props;
+      const { DateInput } = superdesk.components;
 
       if (this.props.provider !== "archive_search") {
         return null;
@@ -33,22 +28,26 @@ export const widgetFactory = (
 
       return (
         <fieldset>
-          <div className="form__row">
-            <DatePickerISO
+          <div style={{ width: "100%" }}>
+            <DateInput
               label={gettext("From")}
-              value={params.from ?? ""}
+              value={params.from ? moment(params.from, "YYYY-MM-DD") : ""}
               dateFormat="YYYY-MM-DD"
-              onChange={(v) => this.props.setParams({ from: v })}
-              headerButtonBar={DATE_PICKER_HEADER_BUTTONS}
+              field="from"
+              onChange={(f, v) =>
+                this.props.setParams({ [f]: v.format("YYYY-MM-DD") })
+              }
             />
           </div>
-          <div className="form__row">
-            <DatePickerISO
+          <div style={{ width: "100%" }}>
+            <DateInput
               label={gettext("To")}
-              value={params.to ?? ""}
+              value={params.to ? moment(params.to, "YYYY-MM-DD") : ""}
               dateFormat="YYYY-MM-DD"
-              onChange={(v) => this.props.setParams({ to: v })}
-              headerButtonBar={DATE_PICKER_HEADER_BUTTONS}
+              field="to"
+              onChange={(f, v) =>
+                this.props.setParams({ [f]: v.format("YYYY-MM-DD") })
+              }
             />
           </div>
           <div className="form__row form__row--flex gap-1">
