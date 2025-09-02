@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "cp.set_byline_on_publish",
     "cp.ai.semaphore",
     "cp.ai.translate",
+    "cp.app_config"
 ]
 
 MACROS_MODULE = "cp.macros"
@@ -440,7 +441,6 @@ PLANNING_JSON_ASSIGNED_INFO_EXTENDED = True
 
 SEMAPHORE_BASE_URL = os.getenv("SEMAPHORE_BASE_URL")
 SEMAPHORE_ANALYZE_URL = os.getenv("SEMAPHORE_ANALYZE_URL")
-SEMAPHORE_API_KEY = os.getenv("SEMAPHORE_API_KEY")
 SEMAPHORE_SEARCH_URL = os.getenv("SEMAPHORE_SEARCH_URL")
 SEMAPHORE_GET_PARENT_URL = os.getenv("SEMAPHORE_GET_PARENT_URL")
 SEMAPHORE_CREATE_TAG_URL = os.getenv("SEMAPHORE_CREATE_TAG_URL")
