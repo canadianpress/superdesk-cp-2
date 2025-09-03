@@ -24,14 +24,10 @@ class SemaphoreAPIKeyManager:
         self._expiry_check_cache_duration = 300  # 5 minutes cache
         self._cached_expiry_result = None
 
-        logger.info("SemaphoreAPIKeyManager initialization complete")
-
     def _ensure_api_config_loaded(self):
         """Ensure app_config is loaded when needed (lazy loading)"""
         if self._config_loaded:
             return
-
-        logger.info("Loading API key from api_config resource")
 
         try:
             # Try to get the service - it might not be available yet
@@ -71,23 +67,14 @@ class SemaphoreAPIKeyManager:
                             )
                             self.key_expiry = None
                     else:
-                        logger.warning("No expiry date found in app_config")
                         self.key_expiry = None
 
-                    logger.info("Successfully loaded API key from app_config")
                     self._clear_cache()
-                else:
-                    logger.warning("No API key value found in app_config")
-            else:
-                logger.info("No existing semaphore_api_key found")
-
-            self._config_loaded = True  # Fixed: Use consistent variable name
-            logger.info("App_config loading complete")
+            self._config_loaded = True
 
         except Exception as e:
             logger.warning(f"Could not load key from app_config: {str(e)}")
-            logger.warning("Will use configuration values")
-            self._config_loaded = True  # Fixed: Use consistent variable name
+            self._config_loaded = True
 
     def get_valid_api_key(self) -> str:
         """Get a valid API key, renewing if necessary"""
@@ -98,17 +85,12 @@ class SemaphoreAPIKeyManager:
             and self._last_expiry_check
             and not self._is_key_expired_or_near_expiry()
         ):
-            logger.info("Returning cached valid API key (no expiry check needed)")
             return self.current_key
 
         if self._is_key_expired_or_near_expiry():
-            logger.info("Key is expired or near expiry, initiating renewal process")
             self._renew_api_key()
-        else:
-            logger.info("Key is still valid, no renewal needed")
 
         if not self.current_key:
-            logger.error("No valid API key available after renewal attempt")
             raise ValueError("No valid API key available")
 
         logger.info("Returning valid API key")
@@ -157,7 +139,7 @@ class SemaphoreAPIKeyManager:
                 self.current_key = current_key_info.get("apikey")
                 self.key_expiry = datetime.fromisoformat(
                     current_key_info.get("expiryDate").replace("Z", "+00:00")
-                )  # Clear cache when key is updated
+                )
                 self._clear_cache()
                 return
 
@@ -232,12 +214,10 @@ class SemaphoreAPIKeyManager:
             # Get access token using current key
             token_response = self._get_access_token(self.current_key)
             if not token_response:
-                logger.error("Failed to get access token for key generation")
                 return None
 
             access_token = token_response.get("access_token")
             if not access_token:
-                logger.error("No access token for key generation")
                 return None
 
             # Generate new key
@@ -249,9 +229,6 @@ class SemaphoreAPIKeyManager:
                 logger.info("New API key generated successfully")
                 return new_key_data
             else:
-                logger.error(
-                    f"Failed to generate new key: {response.status_code} - {response.text}"
-                )
                 return None
 
         except Exception as e:
@@ -275,9 +252,6 @@ class SemaphoreAPIKeyManager:
                 logger.info("Access token obtained successfully")
                 return token_data
             else:
-                logger.error(
-                    f"Failed to get access token: {response.status_code} - {response.text}"
-                )
                 return None
 
         except Exception as e:
@@ -317,13 +291,8 @@ class SemaphoreAPIKeyManager:
                     )
 
                     if updated and updated.get("value") == key_data["apikey"]:
-                        logger.info(
-                            "Update verification successful - new key is in database"
-                        )
+                        return
                     else:
-                        logger.warning(
-                            "Update verification failed - new key not found in database"
-                        )
                         raise RuntimeError(
                             "Update appeared to succeed but verification failed"
                         )
