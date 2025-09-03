@@ -55,12 +55,7 @@ class SemaphoreAPIKeyManager:
                         self.key_expiry = None
 
                     self._clear_cache()
-                else:
-                    logger.warning("No API key value found in app_config")
-            else:
-                logger.info("No existing semaphore_api_key found")
-
-            self._config_loaded = True  # Fixed: Use consistent variable name
+            self._config_loaded = True
 
         except Exception as e:
             logger.warning(f"Could not load key from app_config: {str(e)}")
