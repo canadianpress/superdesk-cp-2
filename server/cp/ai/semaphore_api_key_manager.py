@@ -14,8 +14,8 @@ class SemaphoreAPIKeyManager:
     def __init__(self, app):
         self.app = app
         self.base_url = app.config.get("SEMAPHORE_BASE_URL")
-        self.token_url = f"{self.base_url}/token"
-        self.api_key_url = f"{self.base_url}/api/account/apikey"
+        self.token_url = app.config.get("SEMAPHORE_TOKEN_URL")
+        self.api_key_url = app.config.get("SEMAPHORE_API_KEY_URL")
         self.current_key = None
         self.key_expiry = None
         self.renewal_threshold_days = 7
@@ -136,9 +136,6 @@ class SemaphoreAPIKeyManager:
         threshold_date = current_time + timedelta(days=self.renewal_threshold_days)
 
         is_expired = self.key_expiry <= threshold_date
-
-        if is_expired:
-            days_until_expiry = (self.key_expiry - current_time).days
 
         # Cache the result
         self._last_expiry_check = current_time

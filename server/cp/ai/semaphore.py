@@ -123,9 +123,9 @@ class Semaphore(AIServiceBase):
     def get_access_token(self):
         """Get access token for Semaphore using managed API key."""
         # Get valid API key (will auto-renew if needed)
-        api_key = self.api_key_manager.get_valid_api_key()
+        self.api_key = self.api_key_manager.get_valid_api_key()
         
-        payload = f"grant_type=apikey&key={api_key}"
+        payload = f"grant_type=apikey&key={self.api_key}"
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
         response = session.post(self.base_url + "/token", headers=headers, data=payload, timeout=TIMEOUT)
         response.raise_for_status()
