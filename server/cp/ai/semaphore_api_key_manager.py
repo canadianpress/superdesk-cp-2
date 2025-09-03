@@ -36,29 +36,14 @@ class SemaphoreAPIKeyManager:
         try:
             # Try to get the service - it might not be available yet
             api_config_service = superdesk.get_resource_service("app_config")
-            logger.info("API config service retrieved successfully")
-
             semaphore_api_config = api_config_service.find_one(
                 req=None, key="semaphore_api_key"
             )
 
             if semaphore_api_config:
-                logger.info("Found existing semaphore_api_config")
-                logger.info(f"Semaphore API config: {semaphore_api_config}")
-
                 if semaphore_api_config.get("value"):
-                    logger.info("Found API key value in app_config")
-
-                    # Extract the API key from the 'value' field
                     api_key = semaphore_api_config["value"]
-                    logger.info(
-                        f"API key found: ...{api_key[-4:] if len(api_key) > 4 else 'N/A'}"
-                    )
-
-                    # Set the current key
                     self.current_key = api_key
-
-                    # Try to extract expiry from description
                     expiry_date = semaphore_api_config.get("expiry_date", "")
                     if expiry_date:
                         try:
@@ -82,7 +67,6 @@ class SemaphoreAPIKeyManager:
                 logger.info("No existing semaphore_api_key found")
 
             self._config_loaded = True  # Fixed: Use consistent variable name
-            logger.info("App_config loading complete")
 
         except Exception as e:
             logger.warning(f"Could not load key from app_config: {str(e)}")
@@ -111,7 +95,6 @@ class SemaphoreAPIKeyManager:
             logger.error("No valid API key available after renewal attempt")
             raise ValueError("No valid API key available")
 
-        logger.info("Returning valid API key")
         return self.current_key
 
     def _is_key_expired_or_near_expiry(self) -> bool:
@@ -159,7 +142,6 @@ class SemaphoreAPIKeyManager:
                 return
 
             # Generate new key
-            logger.info("Generating new API key")
             new_key_data = self._generate_new_key()
 
             if new_key_data and "apikey" in new_key_data:
@@ -243,7 +225,6 @@ class SemaphoreAPIKeyManager:
 
             if response.status_code == 200:
                 new_key_data = response.json()
-                logger.info("New API key generated successfully")
                 return new_key_data
             else:
                 logger.error(
@@ -257,7 +238,6 @@ class SemaphoreAPIKeyManager:
 
     def _get_access_token(self, api_key: str) -> Optional[Dict[str, Any]]:
         """Get access token using API key"""
-        logger.info("Getting access token from Semaphore")
 
         try:
             payload = f"grant_type=apikey&key={api_key}"
@@ -269,7 +249,6 @@ class SemaphoreAPIKeyManager:
 
             if response.status_code == 200:
                 token_data = response.json()
-                logger.info("Access token obtained successfully")
                 return token_data
             else:
                 logger.error(
