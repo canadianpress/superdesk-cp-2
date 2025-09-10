@@ -1,7 +1,11 @@
 import moment from "moment";
 import * as React from "react";
-import { ISearchPanelWidgetProps, ISuperdesk } from "superdesk-api";
-import { Input } from "superdesk-ui-framework/react";
+import {
+  ISearchPanelWidgetProps,
+  ISuperdesk,
+  IVocabularyItem,
+} from "superdesk-api";
+import { Input, TreeSelect } from "superdesk-ui-framework/react";
 import { superdesk } from "./superdesk";
 
 interface IParams {
@@ -10,8 +14,44 @@ interface IParams {
   slugline: string;
   headline: string;
   story_text: string;
+  services: string[];
 }
 
+const DistributionTreeSelect = ({
+  value,
+  setParams,
+}: {
+  value: IParams["services"];
+  setParams: ISearchPanelWidgetProps<IParams>["setParams"];
+}) => {
+  const { gettext } = superdesk.localization;
+  const { getVocabulary } = superdesk.entities.vocabulary;
+
+  const getOptions = React.useCallback(
+    () =>
+      getVocabulary("distribution").items.map<
+        IVocabularyItem & { value: IVocabularyItem }
+      >((i) => ({ ...i, value: i })),
+    []
+  );
+
+  return (
+    <div className="form__row">
+      <TreeSelect<IVocabularyItem>
+        label={gettext("Services")}
+        value={getOptions().filter((o) => value.includes(o.qcode)) ?? []}
+        kind="synchronous"
+        getOptions={getOptions}
+        getLabel={(item) => item.name}
+        getId={(item) => item.name}
+        allowMultiple
+        onChange={(selected) => {
+          setParams({ services: selected.map((s) => s.qcode) });
+        }}
+      />
+    </div>
+  );
+};
 export const widgetFactory = (
   gettext: ISuperdesk["localization"]["gettext"]
 ): React.ComponentType<ISearchPanelWidgetProps<IParams>> => {
@@ -19,13 +59,10 @@ export const widgetFactory = (
     ISearchPanelWidgetProps<IParams>
   > {
     render() {
-      const { params } = this.props;
+      const { provider, params, setParams } = this.props;
       const { DateInput } = superdesk.components;
 
-      if (this.props.provider !== "archive_search") {
-        return null;
-      }
-
+      if (provider !== "archive_search") return null;
       return (
         <fieldset>
           <div style={{ width: "100%" }}>
@@ -34,9 +71,9 @@ export const widgetFactory = (
               value={params.from ? moment(params.from, "YYYY-MM-DD") : ""}
               dateFormat="YYYY-MM-DD"
               field="from"
-              onChange={(f, v) =>
-                this.props.setParams({ [f]: v.format("YYYY-MM-DD") })
-              }
+              onChange={(f, v) => {
+                setParams({ [f]: v.format("YYYY-MM-DD") });
+              }}
             />
           </div>
           <div style={{ width: "100%" }}>
@@ -45,9 +82,9 @@ export const widgetFactory = (
               value={params.to ? moment(params.to, "YYYY-MM-DD") : ""}
               dateFormat="YYYY-MM-DD"
               field="to"
-              onChange={(f, v) =>
-                this.props.setParams({ [f]: v.format("YYYY-MM-DD") })
-              }
+              onChange={(f, v) => {
+                setParams({ [f]: v.format("YYYY-MM-DD") });
+              }}
             />
           </div>
           <div className="form__row form__row--flex gap-1">
@@ -58,7 +95,7 @@ export const widgetFactory = (
                 type="text"
                 tabindex={0}
                 onChange={(value) => {
-                  this.props.setParams({ slugline: value });
+                  setParams({ slugline: value });
                 }}
               />
             </div>
@@ -69,7 +106,7 @@ export const widgetFactory = (
                 type="text"
                 tabindex={0}
                 onChange={(value) => {
-                  this.props.setParams({ headline: value });
+                  setParams({ headline: value });
                 }}
               />
             </div>
@@ -81,10 +118,14 @@ export const widgetFactory = (
               type="text"
               tabindex={0}
               onChange={(value) => {
-                this.props.setParams({ story_text: value });
+                setParams({ story_text: value });
               }}
             />
           </div>
+          <DistributionTreeSelect
+            value={params.services}
+            setParams={setParams}
+          />
         </fieldset>
       );
     }
