@@ -15,6 +15,7 @@ interface IParams {
   headline: string;
   story_text: string;
   services: string[];
+  categories: string[];
 }
 
 const DistributionTreeSelect = ({
@@ -39,7 +40,9 @@ const DistributionTreeSelect = ({
     <div className="form__row">
       <TreeSelect<IVocabularyItem>
         label={gettext("Services")}
-        value={getOptions().filter((o) => value.includes(o.qcode)) ?? []}
+        value={
+          getOptions().filter((o) => (value ?? []).includes(o.qcode)) ?? []
+        }
         kind="synchronous"
         getOptions={getOptions}
         getLabel={(item) => item.name}
@@ -52,6 +55,45 @@ const DistributionTreeSelect = ({
     </div>
   );
 };
+
+const WireTreeSelect = ({
+  value,
+  setParams,
+}: {
+  value: IParams["categories"];
+  setParams: ISearchPanelWidgetProps<IParams>["setParams"];
+}) => {
+  const { gettext } = superdesk.localization;
+  const { getVocabulary } = superdesk.entities.vocabulary;
+
+  const getOptions = React.useCallback(
+    () =>
+      getVocabulary("categories").items.map<
+        IVocabularyItem & { value: IVocabularyItem }
+      >((i) => ({ ...i, value: i })),
+    []
+  );
+
+  return (
+    <div className="form__row">
+      <TreeSelect<IVocabularyItem>
+        label={gettext("Wire")}
+        value={
+          getOptions().filter((o) => (value ?? []).includes(o.qcode)) ?? []
+        }
+        kind="synchronous"
+        getOptions={getOptions}
+        getLabel={(item) => item.name}
+        getId={(item) => item.name}
+        allowMultiple
+        onChange={(selected) => {
+          setParams({ categories: selected.map((s) => s.qcode) });
+        }}
+      />
+    </div>
+  );
+};
+
 export const widgetFactory = (
   gettext: ISuperdesk["localization"]["gettext"]
 ): React.ComponentType<ISearchPanelWidgetProps<IParams>> => {
@@ -126,6 +168,7 @@ export const widgetFactory = (
             value={params.services}
             setParams={setParams}
           />
+          <WireTreeSelect value={params.categories} setParams={setParams} />
         </fieldset>
       );
     }
