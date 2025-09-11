@@ -17,6 +17,7 @@ interface IParams {
   services: string[];
   categories: string[];
   languages: string[];
+  byline: string;
 }
 
 const DistributionTreeSelect = ({
@@ -209,6 +210,17 @@ export const widgetFactory = (
           />
           <WireTreeSelect value={params.categories} setParams={setParams} />
           <LanguageTreeSelect value={params.languages} setParams={setParams} />
+          <div className="form__row">
+            <Input
+              label={gettext("Byline")}
+              value={params.byline || ""}
+              type="text"
+              tabindex={0}
+              onChange={(value) => {
+                setParams({ byline: value });
+              }}
+            />
+          </div>
         </fieldset>
       );
     }
