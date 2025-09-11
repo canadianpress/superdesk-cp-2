@@ -16,6 +16,7 @@ interface IParams {
   story_text: string;
   services: string[];
   categories: string[];
+  languages: string[];
 }
 
 const DistributionTreeSelect = ({
@@ -88,6 +89,44 @@ const WireTreeSelect = ({
         allowMultiple
         onChange={(selected) => {
           setParams({ categories: selected.map((s) => s.qcode) });
+        }}
+      />
+    </div>
+  );
+};
+
+const LanguageTreeSelect = ({
+  value,
+  setParams,
+}: {
+  value: IParams["languages"];
+  setParams: ISearchPanelWidgetProps<IParams>["setParams"];
+}) => {
+  const { gettext } = superdesk.localization;
+  const { getVocabulary } = superdesk.entities.vocabulary;
+
+  const getOptions = React.useCallback(
+    () =>
+      getVocabulary("languages").items.map<
+        IVocabularyItem & { value: IVocabularyItem }
+      >((i) => ({ ...i, value: i })),
+    []
+  );
+
+  return (
+    <div className="form__row">
+      <TreeSelect<IVocabularyItem>
+        label={gettext("Languages")}
+        value={
+          getOptions().filter((o) => (value ?? []).includes(o.qcode)) ?? []
+        }
+        kind="synchronous"
+        getOptions={getOptions}
+        getLabel={(item) => item.name}
+        getId={(item) => item.name}
+        allowMultiple
+        onChange={(selected) => {
+          setParams({ languages: selected.map((s) => s.qcode) });
         }}
       />
     </div>
@@ -169,6 +208,7 @@ export const widgetFactory = (
             setParams={setParams}
           />
           <WireTreeSelect value={params.categories} setParams={setParams} />
+          <LanguageTreeSelect value={params.languages} setParams={setParams} />
         </fieldset>
       );
     }
