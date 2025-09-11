@@ -2421,6 +2421,17 @@
                         "fr-CA": "Voyage"
                     }
                 }
+            },
+            {
+                "name": "Weather",
+                "qcode": "n",
+                "is_active": true,
+                "translations": {
+                    "name": {
+                        "en-CA": "Weather",
+                        "fr-CA": "Météo"
+                    }
+                }
             }
         ]
     },
