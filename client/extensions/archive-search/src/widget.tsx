@@ -5,7 +5,10 @@ import {
   ISuperdesk,
   IVocabularyItem,
 } from "superdesk-api";
-import { Input, TreeSelect } from "superdesk-ui-framework/react";
+import {
+  Input,
+  TreeSelect as SuperdeskTreeSelect,
+} from "superdesk-ui-framework/react";
 import { superdesk } from "./superdesk";
 
 interface IParams {
@@ -14,63 +17,94 @@ interface IParams {
   slugline: string;
   headline: string;
   story_text: string;
-  services: string[];
+  byline: string;
+  distribution: string[];
   categories: string[];
   languages: string[];
-  byline: string;
+  destinations: string[];
 }
 
-const DistributionTreeSelect = ({
-  value,
-  setParams,
-}: {
-  value: IParams["services"];
-  setParams: ISearchPanelWidgetProps<IParams>["setParams"];
-}) => {
-  const { gettext } = superdesk.localization;
-  const { getVocabulary } = superdesk.entities.vocabulary;
+type TreeSelectProps = Record<
+  string,
+  {
+    label: (gettext: ISuperdesk["localization"]["gettext"]) => string;
+    defaultValue: string[];
+    onChange: (
+      setParams: (params: Partial<IParams>) => void
+    ) => (selected: IVocabularyItem[]) => void;
+  }
+>;
 
-  const getOptions = React.useCallback(
-    () =>
-      getVocabulary("distribution").items.map<
-        IVocabularyItem & { value: IVocabularyItem }
-      >((i) => ({ ...i, value: i })),
-    []
-  );
-
-  return (
-    <div className="form__row">
-      <TreeSelect<IVocabularyItem>
-        label={gettext("Services")}
-        value={
-          getOptions().filter((o) => (value ?? []).includes(o.qcode)) ?? []
-        }
-        kind="synchronous"
-        getOptions={getOptions}
-        getLabel={(item) => item.name}
-        getId={(item) => item.name}
-        allowMultiple
-        onChange={(selected) => {
-          setParams({ services: selected.map((s) => s.qcode) });
-        }}
-      />
-    </div>
-  );
+const treeSelects: TreeSelectProps = {
+  distribution: {
+    label: (gettext) => gettext("Services"),
+    defaultValue: [
+      "Print",
+      "QuickHit",
+      "Print / Broadcast",
+      "NewsBase",
+      "DataSpecials",
+    ],
+    onChange: (setParams) => (selected) => {
+      setParams({ distribution: selected.map((s) => s.qcode) });
+    },
+  },
+  categories: {
+    label: (gettext) => gettext("Wire"),
+    defaultValue: [
+      "a",
+      "as",
+      "b",
+      "e",
+      "f",
+      "w",
+      "l",
+      "g",
+      "c",
+      "d",
+      "p",
+      "y",
+      "x",
+      "s",
+      "j",
+      "n",
+    ],
+    onChange: (setParams) => (selected) => {
+      setParams({ categories: selected.map((s) => s.qcode) });
+    },
+  },
+  languages: {
+    label: (gettext) => gettext("Languages"),
+    defaultValue: [],
+    onChange: (setParams) => (selected) => {
+      setParams({ languages: selected.map((s) => s.qcode) });
+    },
+  },
+  destinations: {
+    label: (gettext) => gettext("Info Source"),
+    defaultValue: [],
+    onChange: (setParams) => (selected) => {
+      setParams({ destinations: selected.map((s) => s.qcode) });
+    },
+  },
 };
 
-const WireTreeSelect = ({
+const TreeSelect = ({
+  vocabularyKey,
+  label,
   value,
-  setParams,
-}: {
-  value: IParams["categories"];
-  setParams: ISearchPanelWidgetProps<IParams>["setParams"];
+  onChange,
+}: Omit<TreeSelectProps[string], "label" | "onChange" | "defaultValue"> & {
+  vocabularyKey: string;
+  label: string;
+  value: any;
+  onChange: (selected: IVocabularyItem[]) => void;
 }) => {
-  const { gettext } = superdesk.localization;
   const { getVocabulary } = superdesk.entities.vocabulary;
 
   const getOptions = React.useCallback(
     () =>
-      getVocabulary("categories").items.map<
+      (getVocabulary(vocabularyKey)?.items ?? []).map<
         IVocabularyItem & { value: IVocabularyItem }
       >((i) => ({ ...i, value: i })),
     []
@@ -78,57 +112,15 @@ const WireTreeSelect = ({
 
   return (
     <div className="form__row">
-      <TreeSelect<IVocabularyItem>
-        label={gettext("Wire")}
-        value={
-          getOptions().filter((o) => (value ?? []).includes(o.qcode)) ?? []
-        }
+      <SuperdeskTreeSelect<IVocabularyItem>
+        label={label}
+        value={getOptions().filter((o) => (value ?? []).includes(o.qcode))}
         kind="synchronous"
         getOptions={getOptions}
         getLabel={(item) => item.name}
         getId={(item) => item.name}
         allowMultiple
-        onChange={(selected) => {
-          setParams({ categories: selected.map((s) => s.qcode) });
-        }}
-      />
-    </div>
-  );
-};
-
-const LanguageTreeSelect = ({
-  value,
-  setParams,
-}: {
-  value: IParams["languages"];
-  setParams: ISearchPanelWidgetProps<IParams>["setParams"];
-}) => {
-  const { gettext } = superdesk.localization;
-  const { getVocabulary } = superdesk.entities.vocabulary;
-
-  const getOptions = React.useCallback(
-    () =>
-      getVocabulary("languages").items.map<
-        IVocabularyItem & { value: IVocabularyItem }
-      >((i) => ({ ...i, value: i })),
-    []
-  );
-
-  return (
-    <div className="form__row">
-      <TreeSelect<IVocabularyItem>
-        label={gettext("Languages")}
-        value={
-          getOptions().filter((o) => (value ?? []).includes(o.qcode)) ?? []
-        }
-        kind="synchronous"
-        getOptions={getOptions}
-        getLabel={(item) => item.name}
-        getId={(item) => item.name}
-        allowMultiple
-        onChange={(selected) => {
-          setParams({ languages: selected.map((s) => s.qcode) });
-        }}
+        onChange={onChange}
       />
     </div>
   );
@@ -140,6 +132,14 @@ export const widgetFactory = (
   return class SearchPanelWidget extends React.PureComponent<
     ISearchPanelWidgetProps<IParams>
   > {
+    componentDidMount(): void {
+      const { params, setParams } = this.props;
+      for (const [key, { defaultValue }] of Object.entries(treeSelects)) {
+        if (params[key as keyof IParams]) continue;
+        setParams({ [key]: defaultValue });
+      }
+    }
+
     render() {
       const { provider, params, setParams } = this.props;
       const { DateInput } = superdesk.components;
@@ -204,12 +204,6 @@ export const widgetFactory = (
               }}
             />
           </div>
-          <DistributionTreeSelect
-            value={params.services}
-            setParams={setParams}
-          />
-          <WireTreeSelect value={params.categories} setParams={setParams} />
-          <LanguageTreeSelect value={params.languages} setParams={setParams} />
           <div className="form__row">
             <Input
               label={gettext("Byline")}
@@ -221,6 +215,15 @@ export const widgetFactory = (
               }}
             />
           </div>
+          {Object.entries(treeSelects).map(([key, { label, onChange }]) => (
+            <TreeSelect
+              key={key}
+              vocabularyKey={key}
+              label={label(gettext)}
+              value={params[key as keyof typeof params]}
+              onChange={onChange(setParams)}
+            />
+          ))}
         </fieldset>
       );
     }
