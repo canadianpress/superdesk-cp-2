@@ -27103,5 +27103,56 @@
                 "is_active": true
             }
         ]
+    },
+    {
+        "_id": "source",
+        "display_name": "Info source",
+        "type": "manageable",
+        "unique_field": "qcode",
+        "selection_type": "multi selection",
+        "schema": {
+            "name": {},
+            "qcode": {},
+            "translations": {}
+        },
+        "service": {
+            "all": 1
+        },
+        "init_version": 1,
+        "items": [
+            {
+                "name": "The Canadian Press",
+                "qcode": "CP",
+                "is_active": true,
+                "translations": {
+                    "name": {
+                        "en-CA": "The Canadian Press",
+                        "fr-CA": "The Canadian Press"
+                    }
+                }
+            },
+            {
+                "name": "La Presse Canadienne",
+                "qcode": "PC",
+                "is_active": true,
+                "translations": {
+                    "name": {
+                        "en-CA": "La Presse Canadienne",
+                        "fr-CA": "La Presse Canadienne"
+                    }
+                }
+            },
+            {
+                "name": "The Associated Press",
+                "qcode": "AP",
+                "is_active": true,
+                "translations": {
+                    "name": {
+                        "en-CA": "The Associated Press",
+                        "fr-CA": "The Associated Press"
+                    }
+                }
+            }
+        ]
     }
 ]

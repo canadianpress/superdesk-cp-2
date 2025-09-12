@@ -21,7 +21,7 @@ interface IParams {
   distribution: string[];
   categories: string[];
   languages: string[];
-  destinations: string[];
+  source: string[];
 }
 
 type TreeSelectProps = Record<
@@ -80,11 +80,11 @@ const treeSelects: TreeSelectProps = {
       setParams({ languages: selected.map((s) => s.qcode) });
     },
   },
-  destinations: {
-    label: (gettext) => gettext("Info Source"),
-    defaultValue: [],
+  source: {
+    label: (gettext) => gettext("Info source"),
+    defaultValue: ["CP", "PC"],
     onChange: (setParams) => (selected) => {
-      setParams({ destinations: selected.map((s) => s.qcode) });
+      setParams({ source: selected.map((s) => s.qcode) });
     },
   },
 };
