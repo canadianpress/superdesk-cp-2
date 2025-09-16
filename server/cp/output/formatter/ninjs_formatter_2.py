@@ -83,20 +83,35 @@ def get_locale_name(item, language):
 
 def format_cv_item(item, language):
     """Format item from controlled vocabulary for output."""
-    if item.get("scheme") == "subject":
-        return filter_empty_vals(
+    scheme = item.get("scheme")
+    if scheme == "subject":
+        scheme = "http://cv.iptc.org/newscodes/mediatopic/"
+    elif scheme == "person":
+        scheme = "http://cv.cp.org/People/"
+    elif scheme == "event":
+        scheme = "http://cv.cp.org/Events/"
+    elif scheme == "organisation":
+        scheme = "http://cv.cp.org/Organizations/"
+    elif scheme == "place":
+        scheme = "http://cv.cp.org/Places/"
+
+    formatted_item = {
+        "code": item.get("qcode"),
+        "name": get_locale_name(item, language),
+        "scheme": scheme,
+    }
+    if scheme in [
+        "http://cv.iptc.org/newscodes/mediatopic/",
+        "http://cv.cp.org/People/",
+        "http://cv.cp.org/Places/",
+        "http://cv.cp.org/Organizations/",
+        "http://cv.cp.org/Events/",
+        "subject_custom",
+    ]:
+        formatted_item.update(
             {
-                "code": item.get("qcode"),
-                "name": get_locale_name(item, language),
-                "scheme": "http://cv.iptc.org/newscodes/mediatopic/",
-            }
-        )
-    else:
-        return filter_empty_vals(
-            {
-                "code": item.get("qcode"),
-                "name": get_locale_name(item, language),
-                "scheme": item.get("scheme"),
+                "creator": item.get("creator", ""),
+                "relevance": item.get("relevance", 47),
             }
         )
     return filter_empty_vals(formatted_item)
@@ -215,44 +230,9 @@ class NINJSFormatter_2(Formatter):
         item["subject"] = updated_subjects
         return item
 
-    # Adding a method to fetch Parents of Manual Tags
-
-    def _add_parent_manual_tags(self, item):
-        cv = superdesk.get_resource_service("vocabularies").find_one(
-            req=None, _id="subject_custom"
-        )
-        vocab_items = cv.get("items", [])
-        vocab_mapping = {v["qcode"]: v for v in vocab_items}
-
-        def find_youngest_parent(qcode):
-            parent_qcode = vocab_mapping[qcode]["parent"]
-            while parent_qcode:
-                if vocab_mapping[parent_qcode]["in_jimi"]:
-                    return vocab_mapping[
-                        parent_qcode
-                    ]  # Return the first parent where in_jimi is true
-                parent_qcode = vocab_mapping.get(parent_qcode, {}).get("parent", None)
-            return None
-
-        updated_subjects = item.get(
-            "subject", []
-        ).copy()  # Copy the current subjects to avoid direct modification
-
-        for subject in item.get("subject", []):
-            if "qcode" in subject and subject["qcode"] in vocab_mapping:
-                youngest_parent = find_youngest_parent(subject["qcode"])
-                if youngest_parent and youngest_parent["qcode"] not in [
-                    s["qcode"] for s in updated_subjects
-                ]:
-                    # Add the first parent tag where in_jimi is true to the item's subjects
-                    updated_subjects.append(youngest_parent)
-
-        item["subject"] = updated_subjects
-        return item
-
     def _transform_to_ninjs(self, article, subscriber, recursive=True):
         # Using the method we created to fetch Parents of all Manual Tags
-
+        article = self._filter_out_region_subjects(article)
         article = self._add_parent_manual_tags(article)
 
         ninjs = {
@@ -468,17 +448,14 @@ class NINJSFormatter_2(Formatter):
             return CONTENT_TYPE.TEXT
         return article[ITEM_TYPE]
 
-    # Added an updated _get_associations method
-
     # Updated _get_association to work with both Pictures and Text
-
     def _get_associations(self, article, subscriber):
         associations = {}
         article_type = self._get_type(article)
 
         if article_type == "text":
             for key, value in article.get("associations", {}).items():
-                if "_id" in value:
+                if value and "_id" in value:
                     associations[key] = {"guid": value["_id"]}
 
             return associations
