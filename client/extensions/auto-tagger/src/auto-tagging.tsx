@@ -13,6 +13,7 @@ import { getGroups } from './groups';
 import { getAutoTaggingVocabularyLabels } from './common';
 import { getExistingTags, createTagsPatch } from './data-transformations';
 import { noop, memoize } from 'lodash';
+import { AdminPanel } from './admin-panel';
 
 export const entityGroups = OrderedSet(['place', 'person', 'organisation', 'event',]);
 
@@ -504,6 +505,7 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
                     </AuthoringWidgetHeading>
                     <div className="widget-content sd-padding-all--2">
                         <div>
+                            <AdminPanel superdesk={superdesk} />
                             <div className="form__row form__row--flex sd-padding-b--1">
                                 <ButtonGroup align="start">
                                     <Switch

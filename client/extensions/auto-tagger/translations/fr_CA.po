@@ -192,8 +192,11 @@ msgstr "Le type est requis."
 msgid "Unable to use Autotagger service"
 msgstr "Erreur du service d'étiquetage automatique"
 
-msgid: "Click "Run" to test Autotagger"
-msgstr: "Cliquez sur Exécuter pour tester l'Étiquetage automatique"
+msgid "Click "Run" to test Autotagger"
+msgstr "Cliquez sur Exécuter pour tester l'Étiquetage automatique"
 
-msgid: "Search for an entity or subject"
-msgstr: "Rechercher une entité ou un sujet"
+msgid "Search for an entity or subject"
+msgstr "Rechercher une entité ou un sujet"
+
+msgid "API Key"
+msgstr "API Key"
