@@ -25,7 +25,7 @@ const Entry = ({
 }) => {
   const superdesk = useSuperdesk(),
     { gettext } = superdesk.localization,
-    { FormFieldType } = superdesk.forms,
+    { GenericFormFieldType } = superdesk.forms,
     { values, isValid } = useFormikContext<TranslationFormType>(),
     [version, setVersion] =
       React.useState<keyof TranslationEntry>(initialVersion),
@@ -75,7 +75,7 @@ const Entry = ({
         };
 
         switch (value.getType(superdesk)) {
-          case FormFieldType.textEditor3:
+          case GenericFormFieldType.textEditor3:
             return (
               <FormTextEditorInput<TranslationFormType>
                 {...sharedProps}

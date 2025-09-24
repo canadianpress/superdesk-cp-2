@@ -51,7 +51,7 @@ const FORM_FIELDS: Record<
   {
     getType: (
       superdesk: ISuperdesk
-    ) => ValueOf<ISuperdesk["forms"]["FormFieldType"]>;
+    ) => ValueOf<ISuperdesk["forms"]["GenericFormFieldType"]>;
     getName: (
       writethru: string,
       version: string
@@ -76,7 +76,7 @@ const FORM_FIELDS: Record<
   }
 > = {
   headline: {
-    getType: ({ forms: { FormFieldType } }) => FormFieldType.plainText,
+    getType: ({ forms: { GenericFormFieldType } }) => GenericFormFieldType.plainText,
     getName: (writethru, version) =>
       `translations.${writethru}.${version}.headline`,
     getLabel: ({ localization: { gettext } }) => gettext("Headline"),
@@ -96,7 +96,7 @@ const FORM_FIELDS: Record<
     },
   },
   headline_extended: {
-    getType: ({ forms: { FormFieldType } }) => FormFieldType.plainText,
+    getType: ({ forms: { GenericFormFieldType } }) => GenericFormFieldType.plainText,
     getName: (writethru, version) =>
       `translations.${writethru}.${version}.headline_extended`,
     getLabel: ({ localization: { gettext } }) => gettext("Extended Headline"),
@@ -121,7 +121,7 @@ const FORM_FIELDS: Record<
     },
   },
   body_html: {
-    getType: ({ forms: { FormFieldType } }) => FormFieldType.textEditor3,
+    getType: ({ forms: { GenericFormFieldType } }) => GenericFormFieldType.textEditor3,
     getName: (writethru, version) =>
       `translations.${writethru}.${version}.body_html`,
     getLabel: ({ localization: { gettext } }) => gettext("body HTML"),
@@ -177,14 +177,14 @@ const isManualTranslationDirty = (
   }: Pick<FormikContextType<TranslationForm>, "values" | "getFieldMeta">,
   superdesk: ISuperdesk
 ) => {
-  const { FormFieldType } = superdesk.forms,
+  const { GenericFormFieldType } = superdesk.forms,
     { getContentStateFromHtml } = superdesk.helpers;
 
   return getObjectEntries(FORM_FIELDS).some(([key, value]) => {
     const field = getFieldMeta<string>(
       `translations.${values.writethru}.manualTranslation.${key}`
     );
-    if (value.getType(superdesk) === FormFieldType.textEditor3) {
+    if (value.getType(superdesk) === GenericFormFieldType.textEditor3) {
       const contentState = getContentStateFromHtml(field.value),
         text = contentState.getPlainText(),
         initialContentState = getContentStateFromHtml(field.initialValue ?? ""),
