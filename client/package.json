@@ -12,7 +12,6 @@
     },
     "scripts": {
         "build": "npx @superdesk/build-tools build-root-repo ./",
-        "start": "npx grunt server",
-        "start:server": "npm run build && npx http-server dist -p 9000 -s"
+        "start": "npx grunt server"
     }
 }
