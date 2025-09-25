@@ -2,18 +2,15 @@ import {
   IExtension,
   IExtensionActivationResult,
   ISearchPanelWidgetProps,
-  ISuperdesk,
 } from "superdesk-api";
 import { widgetFactory } from "./widget";
 
 const extension: IExtension = {
-  // @ts-ignore
-  activate: (superdesk: ISuperdesk) => {
+  activate: () => {
     const result: IExtensionActivationResult = {
       contributions: {
         searchPanelWidgets: [
-          // casting is required because of limitations on use of generics in superdesk-api
-          widgetFactory(superdesk.localization.gettext) as React.ComponentType<
+          widgetFactory() as React.ComponentType<
             ISearchPanelWidgetProps<unknown>
           >,
         ],
