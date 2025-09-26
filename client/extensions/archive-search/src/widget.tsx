@@ -1,15 +1,13 @@
 import moment from "moment";
 import * as React from "react";
-import {
-  ISearchPanelWidgetProps,
-  ISuperdesk,
-  IVocabularyItem,
-} from "superdesk-api";
+import { ISearchPanelWidgetProps, IVocabularyItem } from "superdesk-api";
 import {
   Input,
-  TreeSelect as SuperdeskTreeSelect,
+  MultiSelect as SuperdeskMultiSelect,
 } from "superdesk-ui-framework/react";
 import { superdesk } from "./superdesk";
+
+const { gettext } = superdesk.localization;
 
 interface IParams {
   from: string;
@@ -24,77 +22,49 @@ interface IParams {
   source: string[];
 }
 
-type TreeSelectProps = Record<
+type MultiSelectProps = Record<
   string,
   {
-    label: (gettext: ISuperdesk["localization"]["gettext"]) => string;
-    defaultValue: string[];
+    label: string;
     onChange: (
       setParams: (params: Partial<IParams>) => void
     ) => (selected: IVocabularyItem[]) => void;
   }
 >;
 
-const treeSelects: TreeSelectProps = {
+const multiSelects: MultiSelectProps = {
   distribution: {
-    label: (gettext) => gettext("Services"),
-    defaultValue: [
-      "Print",
-      "QuickHit",
-      "Print / Broadcast",
-      "NewsBase",
-      "DataSpecials",
-    ],
+    label: gettext("Services"),
     onChange: (setParams) => (selected) => {
       setParams({ distribution: selected.map((s) => s.qcode) });
     },
   },
   categories: {
-    label: (gettext) => gettext("Wire"),
-    defaultValue: [
-      "a",
-      "as",
-      "b",
-      "e",
-      "f",
-      "w",
-      "l",
-      "g",
-      "c",
-      "d",
-      "p",
-      "y",
-      "x",
-      "s",
-      "j",
-      "n",
-    ],
+    label: gettext("Wire"),
     onChange: (setParams) => (selected) => {
       setParams({ categories: selected.map((s) => s.qcode) });
     },
   },
   languages: {
-    label: (gettext) => gettext("Languages"),
-    defaultValue: [],
+    label: gettext("Languages"),
     onChange: (setParams) => (selected) => {
       setParams({ languages: selected.map((s) => s.qcode) });
     },
   },
   source: {
-    label: (gettext) => gettext("Info source"),
-    defaultValue: ["CP", "PC"],
+    label: gettext("Info source"),
     onChange: (setParams) => (selected) => {
       setParams({ source: selected.map((s) => s.qcode) });
     },
   },
 };
 
-const TreeSelect = ({
+const MultiSelect = ({
   vocabularyKey,
   label,
   value,
   onChange,
-}: Omit<TreeSelectProps[string], "label" | "onChange" | "defaultValue"> & {
+}: Omit<MultiSelectProps[string], "label" | "onChange" | "defaultValue"> & {
   vocabularyKey: string;
   label: string;
   value: any;
@@ -102,44 +72,32 @@ const TreeSelect = ({
 }) => {
   const { getVocabulary } = superdesk.entities.vocabulary;
 
-  const getOptions = React.useCallback(
-    () =>
-      (getVocabulary(vocabularyKey)?.items ?? []).map<
-        IVocabularyItem & { value: IVocabularyItem }
-      >((i) => ({ ...i, value: i })),
+  const options = React.useMemo(
+    () => getVocabulary(vocabularyKey)?.items ?? [],
     []
   );
 
   return (
     <div className="form__row">
-      <SuperdeskTreeSelect<IVocabularyItem>
+      <SuperdeskMultiSelect<IVocabularyItem>
+        filter
+        showSelectAll
         label={label}
-        value={getOptions().filter((o) => (value ?? []).includes(o.qcode))}
-        kind="synchronous"
-        getOptions={getOptions}
-        getLabel={(item) => item.name}
-        getId={(item) => item.name}
-        allowMultiple
+        value={options.filter((o) => (value ?? []).includes(o.qcode))}
+        options={options}
+        optionLabel={(item) => item.name}
         onChange={onChange}
       />
     </div>
   );
 };
 
-export const widgetFactory = (
-  gettext: ISuperdesk["localization"]["gettext"]
-): React.ComponentType<ISearchPanelWidgetProps<IParams>> => {
+export const widgetFactory = (): React.ComponentType<
+  ISearchPanelWidgetProps<IParams>
+> => {
   return class SearchPanelWidget extends React.PureComponent<
     ISearchPanelWidgetProps<IParams>
   > {
-    componentDidMount(): void {
-      const { params, setParams } = this.props;
-      for (const [key, { defaultValue }] of Object.entries(treeSelects)) {
-        if (params[key as keyof IParams]) continue;
-        setParams({ [key]: defaultValue });
-      }
-    }
-
     render() {
       const { provider, params, setParams } = this.props;
       const { DateInput } = superdesk.components;
@@ -215,11 +173,11 @@ export const widgetFactory = (
               }}
             />
           </div>
-          {Object.entries(treeSelects).map(([key, { label, onChange }]) => (
-            <TreeSelect
+          {Object.entries(multiSelects).map(([key, { label, onChange }]) => (
+            <MultiSelect
               key={key}
               vocabularyKey={key}
-              label={label(gettext)}
+              label={label}
               value={params[key as keyof typeof params]}
               onChange={onChange(setParams)}
             />
