@@ -34,21 +34,30 @@ class ArchiveSearchProvider(SearchProvider):
 
         self.api_base = app.config.get("ARCHIVE_SEARCH_API_BASE_URL", "").rstrip("/")
         self.api_path = app.config.get("ARCHIVE_SEARCH_API_SEARCH_PATH", "/search")
-        self.api_key  = app.config.get("ARCHIVE_SEARCH_API_KEY", "")
+        self.api_key = app.config.get("ARCHIVE_SEARCH_API_KEY", "")
 
         if not self.api_base:
             raise RuntimeError("ARCHIVE_SEARCH_API_BASE_URL is not configured")
 
-        self.timeout_seconds = int(app.config.get("ARCHIVE_SEARCH_API_TIMEOUT_SECONDS", 15))
-        self.max_retries     = int(app.config.get("ARCHIVE_SEARCH_API_MAX_RETRIES", 3))
-        self.retry_min_sleep = float(app.config.get("ARCHIVE_SEARCH_API_RETRY_MIN", 0.2))
-        self.retry_max_sleep = float(app.config.get("ARCHIVE_SEARCH_API_RETRY_MAX", 0.8))
+        self.timeout_seconds = int(
+            app.config.get("ARCHIVE_SEARCH_API_TIMEOUT_SECONDS", 15)
+        )
+        self.max_retries = int(app.config.get("ARCHIVE_SEARCH_API_MAX_RETRIES", 3))
+        self.retry_min_sleep = float(
+            app.config.get("ARCHIVE_SEARCH_API_RETRY_MIN", 0.2)
+        )
+        self.retry_max_sleep = float(
+            app.config.get("ARCHIVE_SEARCH_API_RETRY_MAX", 0.8)
+        )
 
-        self.search_profile  = app.config.get("ARCHIVE_SEARCH_PROFILE", None)
+        self.search_profile = app.config.get("ARCHIVE_SEARCH_PROFILE", None)
 
         logger.info(
             "ArchiveSearchProvider using API: %s%s (timeout=%ss, retries=%d)",
-            self.api_base, self.api_path, self.timeout_seconds, self.max_retries
+            self.api_base,
+            self.api_path,
+            self.timeout_seconds,
+            self.max_retries,
         )
 
     @staticmethod
@@ -62,6 +71,7 @@ class ArchiveSearchProvider(SearchProvider):
             if len(s) == 10 and s[4] == "-" and s[7] == "-":
                 s = s + "T00:00:00+00:00"
             from datetime import datetime, timezone
+
             dt = datetime.fromisoformat(s)
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=timezone.utc)
@@ -76,13 +86,20 @@ class ArchiveSearchProvider(SearchProvider):
             logger.info("Frontend query=%s params=%s", query, params)
 
             size = int((query or {}).get("size", 50))
-            frm  = int((query or {}).get("from", 0))
+            frm = int((query or {}).get("from", 0))
 
             p = dict(params or {})
 
-            if not any(bool((p.get(k) or "").strip()) for k in (
-                "query_text", "headline", "story_text", "slugline", "slugline_exact"
-            )):
+            if not any(
+                bool((p.get(k) or "").strip())
+                for k in (
+                    "query_text",
+                    "headline",
+                    "story_text",
+                    "slugline",
+                    "slugline_exact",
+                )
+            ):
                 lifted = self._extract_query_text_from_es(query or {})
                 if lifted:
                     p["query_text"] = lifted
@@ -109,7 +126,6 @@ class ArchiveSearchProvider(SearchProvider):
         except Exception:
             logger.exception("Archive API search failed")
             return ArchiveListCursor([], 0)
-    
 
     def _headers(self) -> Dict[str, str]:
         h = {
@@ -133,7 +149,9 @@ class ArchiveSearchProvider(SearchProvider):
                     s = node["query_string"].get("query")
                     if isinstance(s, str) and s.strip():
                         return s.strip()
-                if "simple_query_string" in node and isinstance(node["simple_query_string"], dict):
+                if "simple_query_string" in node and isinstance(
+                    node["simple_query_string"], dict
+                ):
                     s = node["simple_query_string"].get("query")
                     if isinstance(s, str) and s.strip():
                         return s.strip()
@@ -141,7 +159,9 @@ class ArchiveSearchProvider(SearchProvider):
             pass
         return ""
 
-    def _pick_dates(self, params: Dict[str, Any], es_query: Dict[str, Any]) -> tuple[Optional[str], Optional[str]]:
+    def _pick_dates(
+        self, params: Dict[str, Any], es_query: Dict[str, Any]
+    ) -> tuple[Optional[str], Optional[str]]:
         def _looks_like_date(v: Any) -> bool:
             if not isinstance(v, str):
                 return False
@@ -169,13 +189,14 @@ class ArchiveSearchProvider(SearchProvider):
             return pf, pt
 
         raw_from = params.get("from")
-        raw_to   = params.get("to")
+        raw_to = params.get("to")
         pf = _ymd(raw_from) if (raw_from and _looks_like_date(raw_from)) else None
-        pt = _ymd(raw_to)   if (raw_to and _looks_like_date(raw_to))   else None
+        pt = _ymd(raw_to) if (raw_to and _looks_like_date(raw_to)) else None
         if pf or pt:
             return pf, pt
 
         try:
+
             def _scan(obj):
                 if isinstance(obj, dict):
                     if "range" in obj and isinstance(obj["range"], dict):
@@ -185,9 +206,13 @@ class ArchiveSearchProvider(SearchProvider):
                                 r = rng[field]
                                 gte = r.get("gte") or r.get("from")
                                 lte = r.get("lte")
-                                lt  = r.get("lt")
+                                lt = r.get("lt")
                                 df = _ymd(str(gte)) if gte else None
-                                dt = _ymd(str(lte)) if lte else (_ymd(str(lt)) if lt else None)
+                                dt = (
+                                    _ymd(str(lte))
+                                    if lte
+                                    else (_ymd(str(lt)) if lt else None)
+                                )
                                 if df or dt:
                                     return df, dt
                     for v in obj.values():
@@ -209,7 +234,9 @@ class ArchiveSearchProvider(SearchProvider):
 
         return None, None
 
-    def _build_api_params(self, params: Dict[str, Any], size: int, frm: int) -> Dict[str, Any]:
+    def _build_api_params(
+        self, params: Dict[str, Any], size: int, frm: int
+    ) -> Dict[str, Any]:
         def _normalize_sort(s: str) -> str | None:
             if not isinstance(s, str) or ":" not in s:
                 return None
@@ -218,20 +245,26 @@ class ArchiveSearchProvider(SearchProvider):
             dir_ = (dir_ or "").strip().lower()
             return f"{fld}:{dir_}"
 
-        default_sort = str(app.config.get("ARCHIVE_SEARCH_DEFAULT_SORT", "versioncreated:desc")).strip()
+        default_sort = str(
+            app.config.get("ARCHIVE_SEARCH_DEFAULT_SORT", "versioncreated:desc")
+        ).strip()
         out: Dict[str, Any] = {
             "limit": size,
             "from": max(0, int(frm)),
             "types": "text",
         }
 
-        out["sort"] = _normalize_sort(params.get("sort", "")) or _normalize_sort(default_sort) or "versioncreated:desc"
+        out["sort"] = (
+            _normalize_sort(params.get("sort", ""))
+            or _normalize_sort(default_sort)
+            or "versioncreated:desc"
+        )
 
         qtext = (params.get("query_text") or "").strip()
-        hq    = (params.get("headline") or "").strip()
-        bq    = (params.get("story_text") or "").strip()
-        sexact   = (params.get("slugline_exact") or "").strip()
-        sq    = (params.get("slugline") or "").strip()
+        hq = (params.get("headline") or "").strip()
+        bq = (params.get("story_text") or "").strip()
+        sexact = (params.get("slugline_exact") or "").strip()
+        sq = (params.get("slugline") or "").strip()
         use_phrase = bool(params.get("use_phrase", False))
         byline = (params.get("byline") or "").strip()
 
@@ -249,7 +282,7 @@ class ArchiveSearchProvider(SearchProvider):
         if use_phrase:
             out["phrase"] = True
         if byline:
-                out["byline"] = byline
+            out["byline"] = byline
 
         def looks_like_date(s: Any) -> bool:
             if not isinstance(s, str):
@@ -264,7 +297,7 @@ class ArchiveSearchProvider(SearchProvider):
             dd = str(params["date"]).strip()
             if looks_like_date(dd):
                 out["from_date"] = ymd(dd)
-                out["to_date"]   = ymd(dd)
+                out["to_date"] = ymd(dd)
 
         if params.get("from_date"):
             fd = str(params["from_date"]).strip()
@@ -276,8 +309,10 @@ class ArchiveSearchProvider(SearchProvider):
                 out["to_date"] = ymd(td)
 
         raw_from = params.get("from")
-        raw_to   = params.get("to")
-        logger.info("Provider received date-ish from/to? from=%r to=%r", raw_from, raw_to)
+        raw_to = params.get("to")
+        logger.info(
+            "Provider received date-ish from/to? from=%r to=%r", raw_from, raw_to
+        )
 
         if raw_from and looks_like_date(raw_from):
             out["from_date"] = ymd(raw_from)
@@ -290,7 +325,7 @@ class ArchiveSearchProvider(SearchProvider):
             recent_days = int(app.config.get("ARCHIVE_SEARCH_DEFAULT_RECENT_DAYS", 30))
             today = datetime.utcnow().date()
             out["from_date"] = (today - timedelta(days=recent_days)).isoformat()
-            out["to_date"]   = (today + timedelta(days=1)).isoformat()
+            out["to_date"] = (today + timedelta(days=1)).isoformat()
 
         def _as_list(v):
             if v is None:
@@ -338,13 +373,16 @@ class ArchiveSearchProvider(SearchProvider):
 
         try:
             import json
+
             logger.info("API params: %s", json.dumps(send_params, sort_keys=True))
         except Exception:
             pass
 
         for attempt in range(1, self.max_retries + 1):
             try:
-                req = requests.Request("GET", url, headers=self._headers(), params=send_params)
+                req = requests.Request(
+                    "GET", url, headers=self._headers(), params=send_params
+                )
                 prepared = req.prepare()
                 logger.info("API call (attempt %d): %s", attempt, prepared.url)
 
@@ -354,24 +392,38 @@ class ArchiveSearchProvider(SearchProvider):
                     items, total = self._normalize_api_response(data)
                     return items, total
                 elif resp.status_code in (429, 502, 503, 504):
-                    last_err = RuntimeError(f"Retryable status {resp.status_code}: {resp.text[:200]}")
+                    last_err = RuntimeError(
+                        f"Retryable status {resp.status_code}: {resp.text[:200]}"
+                    )
                     sleep_s = self._jitter_sleep(attempt)
-                    logger.warning("Retryable API error %s; sleeping %.2fs", resp.status_code, sleep_s)
+                    logger.warning(
+                        "Retryable API error %s; sleeping %.2fs",
+                        resp.status_code,
+                        sleep_s,
+                    )
                     time.sleep(sleep_s)
                     continue
                 else:
-                    raise RuntimeError(f"Archive API error {resp.status_code}: {resp.text[:500]}")
+                    raise RuntimeError(
+                        f"Archive API error {resp.status_code}: {resp.text[:500]}"
+                    )
             except (requests.Timeout, requests.ConnectionError) as e:
                 last_err = e
                 sleep_s = self._jitter_sleep(attempt)
-                logger.warning("Archive API network error (%s); sleeping %.2fs", str(e), sleep_s)
+                logger.warning(
+                    "Archive API network error (%s); sleeping %.2fs", str(e), sleep_s
+                )
                 time.sleep(sleep_s)
                 continue
             except Exception as e:
                 if attempt < self.max_retries:
                     last_err = e
                     sleep_s = self._jitter_sleep(attempt)
-                    logger.warning("Archive API unexpected error (%s); retry in %.2fs", str(e), sleep_s)
+                    logger.warning(
+                        "Archive API unexpected error (%s); retry in %.2fs",
+                        str(e),
+                        sleep_s,
+                    )
                     time.sleep(sleep_s)
                     continue
                 raise
@@ -380,7 +432,9 @@ class ArchiveSearchProvider(SearchProvider):
             raise last_err
         return [], 0
 
-    def _normalize_api_response(self, data: Dict[str, Any]) -> (List[Dict[str, Any]], int):
+    def _normalize_api_response(
+        self, data: Dict[str, Any]
+    ) -> (List[Dict[str, Any]], int):
         items = []
         total = 0
 
@@ -394,7 +448,9 @@ class ArchiveSearchProvider(SearchProvider):
 
             if isinstance(data.get("total"), int):
                 total = data["total"]
-            elif isinstance(data.get("total"), dict) and isinstance(data["total"].get("value"), int):
+            elif isinstance(data.get("total"), dict) and isinstance(
+                data["total"].get("value"), int
+            ):
                 total = data["total"]["value"]
             elif isinstance(data.get("total_count"), int):
                 total = data["total_count"]
@@ -406,7 +462,9 @@ class ArchiveSearchProvider(SearchProvider):
             if "item" in it and isinstance(it["item"], dict):
                 normalized_items.append(it)
             else:
-                if isinstance(it, dict) and any(k in it for k in ("uri", "type", "headlines", "bodies")):
+                if isinstance(it, dict) and any(
+                    k in it for k in ("uri", "type", "headlines", "bodies")
+                ):
                     normalized_items.append({"item": it})
                 else:
                     normalized_items.append(it)
@@ -450,7 +508,9 @@ class ArchiveSearchProvider(SearchProvider):
         def pick_headline_from_arrays(headlines, role):
             if not isinstance(headlines, list):
                 return ""
-            return next((h.get("value", "") for h in headlines if h.get("role") == role), "")
+            return next(
+                (h.get("value", "") for h in headlines if h.get("role") == role), ""
+            )
 
         def pick_any_headline(headlines):
             if not isinstance(headlines, list):
@@ -460,10 +520,14 @@ class ArchiveSearchProvider(SearchProvider):
         def pick_body_from_arrays(bodies):
             if not isinstance(bodies, list):
                 return ""
-            html = next((b.get("value") for b in bodies if b.get("role") == "html"), None)
+            html = next(
+                (b.get("value") for b in bodies if b.get("role") == "html"), None
+            )
             if html:
                 return html
-            return next((b.get("value") for b in bodies if b.get("role") == "text"), "")  # fallback
+            return next(
+                (b.get("value") for b in bodies if b.get("role") == "text"), ""
+            )  # fallback
 
         def prefer_top_level(whole: dict, data: dict, key: str, default=""):
             v = whole.get(key)
@@ -475,9 +539,11 @@ class ArchiveSearchProvider(SearchProvider):
         for whole in items:
             data = whole.get("item", {}) if isinstance(whole, dict) else {}
 
-            hl_ext = (whole.get("headline_extended") or data.get("headline_extended") or "")
-            hl_main = (whole.get("headline_main") or data.get("headline_main") or "")
-            body_html = (whole.get("body_html") or data.get("body_html") or "")
+            hl_ext = (
+                whole.get("headline_extended") or data.get("headline_extended") or ""
+            )
+            hl_main = whole.get("headline_main") or data.get("headline_main") or ""
+            body_html = whole.get("body_html") or data.get("body_html") or ""
 
             if not hl_ext or not hl_main or not body_html:
                 headlines = data.get("headlines", []) or []
@@ -485,7 +551,11 @@ class ArchiveSearchProvider(SearchProvider):
                 if not hl_ext:
                     hl_ext = pick_headline_from_arrays(headlines, "extended") or ""
                 if not hl_main:
-                    hl_main = pick_headline_from_arrays(headlines, "main") or pick_any_headline(headlines) or ""
+                    hl_main = (
+                        pick_headline_from_arrays(headlines, "main")
+                        or pick_any_headline(headlines)
+                        or ""
+                    )
                 if not body_html:
                     body_html = pick_body_from_arrays(bodies) or ""
 
@@ -503,29 +573,33 @@ class ArchiveSearchProvider(SearchProvider):
                 wordcount = data.get("wordcount")
             if not isinstance(wordcount, int):
                 wordcount = 0
-            language  = prefer_top_level(whole, data, "language", "")
-            located   = prefer_top_level(whole, data, "located", "")
+            language = prefer_top_level(whole, data, "language", "")
+            located = prefer_top_level(whole, data, "located", "")
 
-            transformed.append({
-                "guid": data.get("uri", ""),
-                "type": data.get("type", ""),
-                "headline": legacy_headline or "",
-                "headline_extended": hl_ext or "",
-                "headline_main": hl_main or "",
-                "description_text": (description[:200] + "...") if description else "",
-                "versioncreated": self._format_sd_iso(data.get("versioncreated")),
-                "slugline": data.get("slugline", ""),
-                "firstcreated": data.get("firstcreated"),
-                "urgency": data.get("urgency"),
-                "version": data.get("version", ""),
-                "body_html": body_html or "",
-                "source": source,
-                "state": "published",
-                "language": language,
-                "byline": byline or "",
-                "located": located,
-                "wordcount": wordcount,
-            })
+            transformed.append(
+                {
+                    "guid": data.get("uri", ""),
+                    "type": data.get("type", ""),
+                    "headline": legacy_headline or "",
+                    "headline_extended": hl_ext or "",
+                    "headline_main": hl_main or "",
+                    "description_text": (description[:200] + "...")
+                    if description
+                    else "",
+                    "versioncreated": self._format_sd_iso(data.get("versioncreated")),
+                    "slugline": data.get("slugline", ""),
+                    "firstcreated": data.get("firstcreated"),
+                    "urgency": data.get("urgency"),
+                    "version": data.get("version", ""),
+                    "body_html": body_html or "",
+                    "source": source,
+                    "state": "published",
+                    "language": language,
+                    "byline": byline or "",
+                    "located": located,
+                    "wordcount": wordcount,
+                }
+            )
         return transformed
 
 
