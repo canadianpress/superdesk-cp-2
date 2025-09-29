@@ -32,13 +32,17 @@ export const AdminPanel = ({ superdesk }: { superdesk: ISuperdesk }) => {
     httpRequestJsonLocal<{ _items: Array<APIItem> }>({
       method: "GET",
       path: "/app_config",
-    }).then(({ _items }) => {
-      const found = _items.find((i) => i.key === API_KEY_ID);
-      if (!found) return;
-      apiItem.current = found;
-      setApiKey(found.value);
-      setIsLoading(false);
-    });
+    })
+      .then(({ _items }) => {
+        const found = _items.find((i) => i.key === API_KEY_ID);
+        if (!found) return;
+        apiItem.current = found;
+        setApiKey(found.value);
+      })
+      .catch(() => {})
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, [isAdmin]);
 
   const updateApiKey = () => {
@@ -51,11 +55,15 @@ export const AdminPanel = ({ superdesk }: { superdesk: ISuperdesk }) => {
       headers: {
         "If-Match": apiItem.current._etag,
       },
-    }).then((item) => {
-      apiItem.current = item;
-      setApiKey(item.value);
-      setIsLoading(false);
-    });
+    })
+      .then((item) => {
+        apiItem.current = item;
+        setApiKey(item.value);
+      })
+      .catch(() => {})
+      .finally(() => {
+        setIsLoading(false);
+      });
   };
 
   if (!isAdmin) return null;
