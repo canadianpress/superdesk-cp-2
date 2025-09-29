@@ -20,6 +20,7 @@ from superdesk.default_settings import (
     SERVER_URL,
     CORE_APPS as _core_apps,
     CELERY_BEAT_SCHEDULE,
+    NINJS_COMMON_RENDITIONS,
     timedelta,
 )
 
@@ -34,9 +35,7 @@ INSTALLED_APPS = [
     "apps.languages",
     "planning",
     "analytics",
-    "superdesk.auth.saml",
-    "superdesk.macros.imperial",
-    "cp.orangelogic",
+    "superdesk.auth.sam
     "cp.ingest",
     "cp.output",
     "cp.ultrad",
@@ -44,6 +43,7 @@ INSTALLED_APPS = [
     "cp.set_province_on_publish",
     "cp.set_byline_on_publish",
     "cp.ai.semaphore",
+    "cp.ai.translate",
     "cp.app_config"
 ]
 
@@ -60,6 +60,17 @@ RENDITIONS = {
         "viewImage": {"width": 200, "height": 200},
     },
 }
+
+if strtobool(env("EXTRA_RENDITIONS", "true")):
+    RENDITIONS["picture"].update(
+        {
+            "SVGA": {"width": 800, "height": 600},
+            "XGA": {"width": 1024, "height": 768},
+            "HD 1080p": {"width": 1920, "height": 1080},
+        }
+    )
+
+NINJS_COMMON_RENDITIONS = list(RENDITIONS["picture"].keys())
 
 WS_HOST = env("WSHOST", "0.0.0.0")
 WS_PORT = env("WSPORT", "5100")
@@ -381,6 +392,7 @@ AP_TAGS_MAPPING = {
     "APR": {
         100216,
         101543,
+        101668,
     },
     "APV": {
         30599,
@@ -435,10 +447,26 @@ SEMAPHORE_CREATE_TAG_URL = os.getenv("SEMAPHORE_CREATE_TAG_URL")
 SEMAPHORE_CREATE_TAG_TASK = os.getenv("SEMAPHORE_CREATE_TAG_TASK")
 SEMAPHORE_CREATE_TAG_QUERY = os.getenv("SEMAPHORE_CREATE_TAG_QUERY")
 
+
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GOOGLE_API_URL = os.getenv("GOOGLE_API_URL")
+GOOGLE_PROJECT_ID = os.getenv("GOOGLE_PROJECT_ID")
+GOOGLE_PROJECT_LOCATION = os.getenv("GOOGLE_PROJECT_LOCATION")
+DEEPL_AUTH_KEY = os.getenv("DEEPL_AUTH_KEY")
+DEEPL_API_URL = os.getenv("DEEPL_API_URL")
+GOOGLE_SERVICE_ACCOUNT_PATH = os.getenv("GOOGLE_SERVICE_ACCOUNT_PATH")
+GOOGLE_SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
+
 PICTURE_METADATA_MAPPING = {
     "slugline": "Title",
     "extra.filename": "JobId",
     "description_text": "Description",
+    "byline": "Creator",
+    "copyrightnotice": "CopyrightNotice",
+    "ednote": "Instructions",
+    "extra.caption_writer": "DescriptionWriter",
+    "extra.photographer_code": "CreatorsJobtitle",
+    "headline": "Headline",
 }
 
 TIME_FORMAT_SHORT = "%I:%M %p"
@@ -446,3 +474,11 @@ DATE_FORMAT_SHORT = "%Y-%m-%d"
 DATETIME_FORMAT = "%I:%M %p %Y-%m-%d"
 
 PLANNING_DUPLICATE_RETAIN_ASSIGNEE_DETAILS = True
+
+ASSIGNMENT_MANUAL_REASSIGNMENT_ONLY = True
+
+DEFAULT_AUTHOR_EN = "cpdefaultauthor"
+
+DEFAULT_AUTHOR_FR = "cpdefaultauthorfr"
+
+HTTP_PUSH_TIMEOUT = (5, int(env("HTTP_PUSH_TIMEOUT", 60)))
