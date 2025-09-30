@@ -16,14 +16,13 @@ SCHEMA = {
     },
     'description': {
         'type': 'string',
-        'required': True,
+        'required': False,
         'minlength': 1,
         'maxlength': 500,
     },
     'category': {
         'type': 'string',
-        'required': True,
-        'allowed': ['api_key', 'secret', 'configuration', 'endpoint', 'custom'],
+        'required': False,
     },
     'is_active': {
         'type': 'boolean',
@@ -31,6 +30,6 @@ SCHEMA = {
     },
     'expiry_date': {
         'type': 'string',
-        'required': True,
+        'required': False,
     },
 }

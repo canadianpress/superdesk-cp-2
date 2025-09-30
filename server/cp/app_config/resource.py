@@ -29,10 +29,12 @@ class AppConfigResource(Resource):
 class AppConfigService(BaseService):
     """Service for application configuration items."""
     
-    def on_insert(self, docs):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+    
+    def on_create(self, docs):
         """Handle insertion of configuration items - runs BEFORE schema validation."""
         for doc in docs:
-            # Validate that the key is unique
             existing = self.find_one(req=None, key=doc['key'])
             if existing:
                 raise ValueError(f"Configuration key '{doc['key']}' already exists")
@@ -41,48 +43,30 @@ class AppConfigService(BaseService):
             if doc.get('key') == 'semaphore_api_key' and 'value' in doc:
                 self._validate_and_update_semaphore_api_key(doc, {})
 
+    def on_created(self, docs):
+        """Handle creation of configuration items - runs AFTER the creation is applied."""
+        pass
+
     def on_update(self, updates, original):
-        """Handle updates to configuration items - runs BEFORE the update is applied."""
-        
-        # Update the updated_at timestamp
+        """Handle updates to configuration items - runs BEFORE the update is applied."""        
         updates['updated_at'] = datetime.now(timezone.utc)
         
-        # If the key is being changed, check for uniqueness
         if 'key' in updates and updates['key'] != original['key']:
             existing = self.find_one(req=None, key=updates['key'])
             if existing:
-                raise ValueError(f"Configuration key '{updates['key']}' already exists")
+                raise ValueError(f"Configuration key '{updates['key']}' already exists")    
         
-        # Special handling for semaphore_api_key updates
         if original.get('key') == 'semaphore_api_key' and 'value' in updates:
             self._validate_and_update_semaphore_api_key(updates, original)
 
     def on_updated(self, updates, original):
         """Handle updates to configuration items - runs AFTER the update is applied."""
-        # This hook runs after the update is successfully applied to the database
-        # Use this for post-update actions like notifications, cache clearing, etc.
-        if original.get('key') == 'semaphore_api_key':
-            logger.info(f"Semaphore API key was updated.")
+        pass
 
     def on_delete(self, doc):
         """Handle deletion of configuration items."""
         # Add any cleanup logic here
         pass
-
-    def get_config_value(self, key, default=None):
-        """Get a configuration value by key."""
-        config = self.find_one(req=None, key=key)
-        if config and config.get('is_active'):
-            return config['value']
-        return default
-
-    def get_config_by_category(self, category):
-        """Get all active configurations for a specific category."""
-        return self.find(req=None, category=category, is_active=True)
-
-    def get_all_active_configs(self):
-        """Get all active configuration items."""
-        return self.find(req=None, is_active=True)
 
     def _validate_and_update_semaphore_api_key(self, updates, original):
         """Validate and update semaphore API key with proper expiry information"""
