@@ -19,16 +19,9 @@ class SemaphoreAPIKeyManager:
         self.current_key = None
         self.key_expiry = None
         self.renewal_threshold_days = 7
-        self._config_loaded = False
-        self._last_expiry_check = None
-        self._expiry_check_cache_duration = 300  # 5 minutes cache
-        self._cached_expiry_result = None
 
     def _ensure_api_config_loaded(self):
         """Ensure app_config is loaded when needed (lazy loading)"""
-        if self._config_loaded:
-            return
-
         try:
             # Try to get the service - it might not be available yet
             api_config_service = superdesk.get_resource_service("app_config")
@@ -54,12 +47,9 @@ class SemaphoreAPIKeyManager:
                     else:
                         self.key_expiry = None
 
-                    self._clear_cache()
-            self._config_loaded = True
 
         except Exception as e:
             logger.warning(f"Could not load key from app_config: {str(e)}")
-            self._config_loaded = True
 
     def get_valid_api_key(self) -> str:
         """Get a valid API key, renewing if necessary"""
@@ -67,7 +57,6 @@ class SemaphoreAPIKeyManager:
         self._ensure_api_config_loaded()
         if (
             self.current_key
-            and self._last_expiry_check
             and not self._is_key_expired_or_near_expiry()
         ):
             return self.current_key
@@ -78,34 +67,20 @@ class SemaphoreAPIKeyManager:
         if not self.current_key:
             raise ValueError("No valid API key available")
 
+        logger.info(f"Valid API key found: {self.current_key}")
         return self.current_key
 
     def _is_key_expired_or_near_expiry(self) -> bool:
         """Check if current API key is expired or will expire within threshold"""
         current_time = datetime.now(timezone.utc)
 
-        # Check cache first
-        if (
-            self._last_expiry_check
-            and self._cached_expiry_result is not None
-            and (current_time - self._last_expiry_check).total_seconds()
-            < self._expiry_check_cache_duration
-        ):
-            return self._cached_expiry_result
-
         if not self.key_expiry:
-            self._last_expiry_check = current_time
-            self._cached_expiry_result = True
             return True
 
         # Add buffer time to avoid edge cases
         threshold_date = current_time + timedelta(days=self.renewal_threshold_days)
 
         is_expired = self.key_expiry <= threshold_date
-
-        # Cache the result
-        self._last_expiry_check = current_time
-        self._cached_expiry_result = is_expired
 
         return is_expired
 
@@ -121,7 +96,6 @@ class SemaphoreAPIKeyManager:
                 self.key_expiry = datetime.fromisoformat(
                     current_key_info.get("expiryDate").replace("Z", "+00:00")
                 )
-                self._clear_cache()
                 return
 
             # Generate new key
@@ -136,8 +110,7 @@ class SemaphoreAPIKeyManager:
                 # Persist the new key to vocabularies
                 self._persist_key(new_key_data)
 
-                # Clear cache when key is updated
-                self._clear_cache()
+
             else:
                 logger.error("Failed to get valid API key from renewal endpoint")
 
@@ -147,10 +120,6 @@ class SemaphoreAPIKeyManager:
                 logger.error("No current key available, raising error")
                 raise
 
-    def _clear_cache(self):
-        """Clear the expiry check cache when key is updated"""
-        self._last_expiry_check = None
-        self._cached_expiry_result = None
 
     def _get_current_key_info(self) -> Optional[Dict[str, Any]]:
         """Get current API key information from Semaphore"""
