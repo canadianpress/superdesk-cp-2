@@ -12,7 +12,8 @@ import { toClientFormat, IServerResponse, toServerFormat } from './adapter';
 import { getGroups } from './groups';
 import { getAutoTaggingVocabularyLabels } from './common';
 import { getExistingTags, createTagsPatch } from './data-transformations';
-import { noop } from 'lodash';
+import { noop, memoize } from 'lodash';
+import { AdminPanel } from './admin-panel';
 
 export const entityGroups = OrderedSet(['place', 'person', 'organisation', 'event',]);
 
@@ -145,7 +146,7 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
     const { preferences } = superdesk;
     const { httpRequestJsonLocal } = superdesk;
     const { gettext, gettextPlural } = superdesk.localization;
-    const { memoize, generatePatch, arrayToTree } = superdesk.utilities;
+    const { generatePatch, arrayToTree } = superdesk.utilities;
     const { AuthoringWidgetHeading, Alert } = superdesk.components;
     const groupLabels = getGroups(superdesk);
 
@@ -157,7 +158,10 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
         private _mounted: boolean;
         private semaphoreFields = superdesk.instance.config.semaphoreFields ?? { entities: {}, others: {} };
         private replaceAmpersand(input: string) {
-            return input.replace(/&/g, 'and');
+            if (input) {
+                return input.replace(/&/g, 'and');
+            }
+            return input;
         }
 
         constructor(props: IProps) {
@@ -192,7 +196,7 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
                 // Apply the ampersand replacement
                 const safeHeadline = this.replaceAmpersand(headline);
                 const safeSlugline = this.replaceAmpersand(slugline);
-                const safeHeadlineExtended = extra ? this.replaceAmpersand(extra.headline_extended) : undefined;
+                const safeHeadlineExtended = this.replaceAmpersand(extra?.headline_extended);
 
                 httpRequestJsonLocal<{ analysis: IServerResponse }>({
                     method: 'POST',
@@ -206,7 +210,6 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
                             headline: safeHeadline,
                             body_html,
                             abstract: safeHeadlineExtended,
-                            headline_extended: extra ? extra.headline_extended : undefined,
                         },
                     },
                 }).then((res) => {
@@ -214,11 +217,11 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
 
                     if (this._mounted) {
                         const existingTags = dataBeforeLoading !== 'loading' && dataBeforeLoading !== 'not-initialized'
-                            ? dataBeforeLoading.changes.analysis // keep existing tags
+                            ? dataBeforeLoading.changes.analysis.filter(tag => tag.creator !== 'Machine') // filter out tags with creator as "Machine"
                             : OrderedMap<string, ITagUi>();
 
                         // Merge new analysis with existing tags
-                        const mergedTags = existingTags.merge(resClient);
+                        const mergedTags = OrderedMap<string, ITagUi>().merge(existingTags).merge(resClient);
 
                         this.setState({
                             data: {
@@ -389,7 +392,7 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
                             language,
                             headline,
                             body_html,
-                            headline_extended: extra ? extra.headline_extended : undefined,
+                            abstract: extra?.headline_extended,
                         },
                         tags: toServerFormat(tags, superdesk),
                     },
@@ -402,14 +405,13 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
             Promise.all([
                 getAutoTaggingVocabularyLabels(superdesk),
                 preferences.get(RUN_AUTOMATICALLY_PREFERENCE),
-                // Need to remove false from the line below to run the analysis automatically
-            ]).then(([vocabularyLabels, runAutomatically = false]) => {
+            ]).then(([vocabularyLabels, runAutomaticallyPreference]) => {
                 this.setState({
                     vocabularyLabels,
-                    runAutomaticallyPreference: runAutomatically,
+                    runAutomaticallyPreference,
                 });
 
-                this.initializeData(runAutomatically);
+                this.initializeData(runAutomaticallyPreference);
             });
         }
         componentWillUnmount() {
@@ -503,8 +505,8 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
                     </AuthoringWidgetHeading>
                     <div className="widget-content sd-padding-all--2">
                         <div>
-                            {/* Run automatically button is hidden for the next release */}
-                            <div className="form__row form__row--flex sd-padding-b--1" style={{ display: 'none' }}>
+                            <AdminPanel superdesk={superdesk} />
+                            <div className="form__row form__row--flex sd-padding-b--1">
                                 <ButtonGroup align="start">
                                     <Switch
                                         value={runAutomaticallyPreference}
@@ -520,7 +522,7 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
                                                 this.runAnalysis();
                                             }
                                         }}
-                                        aria-label="Run automatically"
+                                        aria-label={gettext('Run automatically')}
                                         label={{ content: gettext('Run automatically') }}
                                     />
                                 </ButtonGroup>
@@ -536,7 +538,7 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
                                                     key={this.state.forceRenderKey}
                                                     keyValue="keyValue"
                                                     items={[]}
-                                                    placeholder="Search for an entity or subject"
+                                                    placeholder={gettext("Search for an entity or subject")}
                                                     search={(searchString, callback) => {
                                                         let cancelled = false;
 
@@ -640,7 +642,7 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
                                         </div>
                                         <div className="form__row form__row--flex" style={{ alignItems: 'center' }}>
                                             <Button
-                                                aria-label="Add a tag"
+                                                aria-label={gettext('Add a tag')}
                                                 type="primary"
                                                 size="small"
                                                 shape="round"
@@ -794,7 +796,11 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
                                             )
                                         }
 
-                                        <div className="widget-content__main">
+                                        <div className="widget-content__main" style={{
+                                            width: '100%',
+                                            overflowX: 'auto',  // Enable horizontal scrolling
+                                            whiteSpace: 'nowrap',  // Prevent content from wrapping
+                                        }}>
                                             {allGroupedAndSorted.map((item) => item).toArray()}
                                         </div>
                                     </React.Fragment>
@@ -809,7 +815,7 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
                                     } else if (data === 'not-initialized') {
                                         return (
                                             <Button
-                                                aria-label="Run"
+                                                aria-label={gettext('Run')}
                                                 type="primary"
                                                 text={gettext('Run')}
                                                 expand={true}
