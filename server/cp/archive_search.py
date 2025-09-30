@@ -1,14 +1,15 @@
 import logging
 import time
 import random
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Optional, List
+from datetime import datetime, timedelta, timezone, date
+from typing import Any, Dict
 
 import requests
 from flask import current_app as app
 import superdesk
 from superdesk.utils import ListCursor
 from superdesk.search_provider import SearchProvider
+from superdesk.utc import utc_to_local
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,24 @@ class ArchiveListCursor(ListCursor):
 class ArchiveSearchProvider(SearchProvider):
     label = "Archive Search"
 
+    TZ = "UTC"
+
+    DATETIME_FORMATS = ["%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%d"]
+
+    SORT_KEYS = ["versioncreated", "firstcreated"]
+
+    QUERY_KEYS = [
+        "query_text",
+        "headline",
+        "story_text",
+        "slugline",
+        "slugline_exact",
+    ]
+
+    SELECT_KEYS = ["categories", "distribution", "languages", "source"]
+
+    SEARCH_RETRY_CODES = [429, 502, 503, 504]
+
     def __init__(self, provider):
         super().__init__(provider)
         self.config = provider.get("config") or {}
@@ -35,6 +54,11 @@ class ArchiveSearchProvider(SearchProvider):
         self.api_base = app.config.get("ARCHIVE_SEARCH_API_BASE_URL", "").rstrip("/")
         self.api_path = app.config.get("ARCHIVE_SEARCH_API_SEARCH_PATH", "/search")
         self.api_key = app.config.get("ARCHIVE_SEARCH_API_KEY", "")
+        self.headers = {
+            "Accept": "application/json",
+            "User-Agent": "cp-archive-search-provider/1.0",
+            **({"x-api-key": self.api_key} if self.api_key else {}),
+        }
 
         if not self.api_base:
             raise RuntimeError("ARCHIVE_SEARCH_API_BASE_URL is not configured")
@@ -52,6 +76,14 @@ class ArchiveSearchProvider(SearchProvider):
 
         self.search_profile = app.config.get("ARCHIVE_SEARCH_PROFILE", None)
 
+        self.default_sort = app.config.get(
+            "ARCHIVE_SEARCH_DEFAULT_SORT", "versioncreated:desc"
+        ).strip()
+
+        self.default_recent_days = int(
+            app.config.get("ARCHIVE_SEARCH_DEFAULT_RECENT_DAYS", 30)
+        )
+
         logger.info(
             "ArchiveSearchProvider using API: %s%s (timeout=%ss, retries=%d)",
             self.api_base,
@@ -60,62 +92,52 @@ class ArchiveSearchProvider(SearchProvider):
             self.max_retries,
         )
 
-    @staticmethod
-    def _format_sd_iso(value) -> str:
-        if not value:
-            return ""
-        s = str(value).strip()
+    def _parse_datetime(self, value):
+        for fmt in self.DATETIME_FORMATS:
+            try:
+                dt = datetime.strptime(str(value).strip(), fmt)
+
+                return utc_to_local(self.TZ, dt)
+            except ValueError:
+                continue
+
+        return None
+
+    def _parse_date(self, value):
         try:
-            if s.endswith("Z"):
-                s = s[:-1] + "+00:00"
-            if len(s) == 10 and s[4] == "-" and s[7] == "-":
-                s = s + "T00:00:00+00:00"
-            from datetime import datetime, timezone
+            return date.fromisoformat(str(value).strip())
+        except (ValueError, TypeError):
+            return None
 
-            dt = datetime.fromisoformat(s)
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            else:
-                dt = dt.astimezone(timezone.utc)
-            return dt.strftime("%Y-%m-%dT%H:%M:%S%z")
-        except Exception:
-            return ""
+    def find(self, query=None, params=None):
+        logger.info("Frontend query=%s params=%s", query, params)
 
-    def find(self, query, params):
+        if query is None:
+            query = {}
+
+        if params is None:
+            params = {}
+
+        size = int(query.get("size", 50))
+        frm = int(query.get("from", 0))
+
         try:
-            logger.info("Frontend query=%s params=%s", query, params)
+            sort = query.get("sort")[0]
+        except (IndexError, AttributeError, TypeError):
+            sort = {"versioncreated": "desc"}
 
-            size = int((query or {}).get("size", 50))
-            frm = int((query or {}).get("from", 0))
+        if any(k in sort for k in self.SORT_KEYS):
+            params["sort"] = sort
 
-            p = dict(params or {})
+        has_query = any(bool(params.get(k, "").strip()) for k in self.QUERY_KEYS)
 
-            if not any(
-                bool((p.get(k) or "").strip())
-                for k in (
-                    "query_text",
-                    "headline",
-                    "story_text",
-                    "slugline",
-                    "slugline_exact",
-                )
-            ):
-                lifted = self._extract_query_text_from_es(query or {})
-                if lifted:
-                    p["query_text"] = lifted
+        if not has_query:
+            query_text = self._extract_query_text_from_es(query)
+            if query_text:
+                params["query_text"] = query_text
 
-            if not str(p.get("sort", "")).strip():
-                es_sort = (query or {}).get("sort")
-                if isinstance(es_sort, list) and es_sort:
-                    first = es_sort[0]
-                    if isinstance(first, dict) and first:
-                        field, direction = next(iter(first.items()))
-                        fld = str(field).lower()
-                        dir_ = "asc" if str(direction).lower() == "asc" else "desc"
-                        if fld in ("versioncreated", "firstcreated"):
-                            p["sort"] = f"{fld}:{dir_}"
-
-            api_params = self._build_api_params(params=p, size=size, frm=frm)
+        try:
+            api_params = self._build_api_params(params, size, frm)
 
             logger.info("Final API params: %s", api_params)
 
@@ -127,374 +149,176 @@ class ArchiveSearchProvider(SearchProvider):
             logger.exception("Archive API search failed")
             return ArchiveListCursor([], 0)
 
-    def _headers(self) -> Dict[str, str]:
-        h = {
-            "Accept": "application/json",
-            "User-Agent": "cp-archive-search-provider/1.0",
-        }
-        if self.api_key:
-            h["x-api-key"] = self.api_key
-        return h
-
     @staticmethod
-    def _extract_query_text_from_es(es_query: dict) -> str:
+    def _extract_query_text_from_es(es_query: dict) -> str | None:
         try:
-            q = es_query or {}
-            node = q.get("query") or {}
-            if "filtered" in node:
-                node = node["filtered"].get("query") or {}
-
-            if isinstance(node, dict):
-                if "query_string" in node and isinstance(node["query_string"], dict):
-                    s = node["query_string"].get("query")
-                    if isinstance(s, str) and s.strip():
-                        return s.strip()
-                if "simple_query_string" in node and isinstance(
-                    node["simple_query_string"], dict
-                ):
-                    s = node["simple_query_string"].get("query")
-                    if isinstance(s, str) and s.strip():
-                        return s.strip()
-        except Exception:
-            pass
-        return ""
-
-    def _pick_dates(
-        self, params: Dict[str, Any], es_query: Dict[str, Any]
-    ) -> tuple[Optional[str], Optional[str]]:
-        def _looks_like_date(v: Any) -> bool:
-            if not isinstance(v, str):
-                return False
-            s = v.strip()
-            return (len(s) == 10 and s[4] == "-" and s[7] == "-") or ("T" in s)
-
-        def _ymd(s: str) -> Optional[str]:
-            if not s:
+            query = es_query.get("query", {}).get("filtered", {}).get("query", {})
+            query_string = query.get("query_string") or query.get("simple_query_string")
+            if not query_string:
                 return None
-            s = str(s).strip()
-            if len(s) >= 10 and s[4] == "-" and s[7] == "-":
-                return s[:10]
-            if "T" in s:
-                return s.split("T", 1)[0]
+
+            return query_string.get("query").strip()
+        except (AttributeError, TypeError):
             return None
 
-        if params.get("date"):
-            d = _ymd(params["date"])
-            if d:
-                return d, d
+    def _build_api_params(self, params: Dict[str, Any], size: int, frm: int):
+        qtext = (params.get("query_text") or "").strip()
+        headline = (params.get("headline") or "").strip()
+        story_text = (params.get("story_text") or "").strip()
+        slugline_exact = (params.get("slugline_exact") or "").strip()
+        slugline = (params.get("slugline") or "").strip()
+        byline = (params.get("byline") or "").strip()
+        use_phrase = bool(params.get("use_phrase", False))
+        date = self._parse_date(params.get("date"))
+        from_date = params.get("from_date")
+        to_date = params.get("to_date")
+        raw_from_date = params.get("from")
+        raw_to_date = params.get("to")
 
-        pf = _ymd(params.get("from_date", ""))
-        pt = _ymd(params.get("to_date", ""))
-        if pf or pt:
-            return pf, pt
+        logger.info(
+            "Provider received date-ish from/to? from=%r to=%r",
+            raw_from_date,
+            raw_to_date,
+        )
 
-        raw_from = params.get("from")
-        raw_to = params.get("to")
-        pf = _ymd(raw_from) if (raw_from and _looks_like_date(raw_from)) else None
-        pt = _ymd(raw_to) if (raw_to and _looks_like_date(raw_to)) else None
-        if pf or pt:
-            return pf, pt
+        sort = params.get("sort")
+        if isinstance(sort, dict):
+            sort = ",".join(f"{k}:{v}" for k, v in sort.items())
 
-        try:
-
-            def _scan(obj):
-                if isinstance(obj, dict):
-                    if "range" in obj and isinstance(obj["range"], dict):
-                        rng = obj["range"]
-                        for field in ("versioncreated", "firstcreated"):
-                            if field in rng and isinstance(rng[field], dict):
-                                r = rng[field]
-                                gte = r.get("gte") or r.get("from")
-                                lte = r.get("lte")
-                                lt = r.get("lt")
-                                df = _ymd(str(gte)) if gte else None
-                                dt = (
-                                    _ymd(str(lte))
-                                    if lte
-                                    else (_ymd(str(lt)) if lt else None)
-                                )
-                                if df or dt:
-                                    return df, dt
-                    for v in obj.values():
-                        found = _scan(v)
-                        if found:
-                            return found
-                elif isinstance(obj, list):
-                    for v in obj:
-                        found = _scan(v)
-                        if found:
-                            return found
-                return None
-
-            found = _scan(es_query)
-            if found:
-                return found
-        except Exception:
-            pass
-
-        return None, None
-
-    def _build_api_params(
-        self, params: Dict[str, Any], size: int, frm: int
-    ) -> Dict[str, Any]:
-        def _normalize_sort(s: str) -> str | None:
-            if not isinstance(s, str) or ":" not in s:
-                return None
-            fld, dir_ = s.split(":", 1)
-            fld = (fld or "").strip().lower()
-            dir_ = (dir_ or "").strip().lower()
-            return f"{fld}:{dir_}"
-
-        default_sort = str(
-            app.config.get("ARCHIVE_SEARCH_DEFAULT_SORT", "versioncreated:desc")
-        ).strip()
         out: Dict[str, Any] = {
             "limit": size,
             "from": max(0, int(frm)),
             "types": "text",
+            **({"sort": sort} if sort else {"sort": self.default_sort}),
+            **({"text": qtext} if qtext else {}),
+            **({"text": story_text} if not qtext and story_text else {}),
+            **({"headline": headline} if headline else {}),
+            **({"slugline": slugline_exact, "phrase": True} if slugline_exact else {}),
+            **({"slugline": slugline} if not slugline_exact and slugline else {}),
+            **({"phrase": True} if use_phrase else {}),
+            **({"byline": byline} if byline else {}),
+            **(
+                {"from_date": from_date, "to_date": to_date}
+                if self._parse_date(date)
+                else {}
+            ),
+            **({"from_date": from_date} if self._parse_date(from_date) else {}),
+            **({"to_date": to_date} if self._parse_date(to_date) else {}),
+            **({"from_date": raw_from_date} if self._parse_date(raw_from_date) else {}),
+            **({"to_date": raw_to_date} if self._parse_date(raw_to_date) else {}),
+            **{
+                key: ",".join(params[key] or [])
+                for key in self.SELECT_KEYS
+                if key in params
+            },
         }
 
-        out["sort"] = (
-            _normalize_sort(params.get("sort", ""))
-            or _normalize_sort(default_sort)
-            or "versioncreated:desc"
+        no_text = not any(
+            [qtext, headline, story_text, slugline_exact, slugline, byline]
         )
-
-        qtext = (params.get("query_text") or "").strip()
-        hq = (params.get("headline") or "").strip()
-        bq = (params.get("story_text") or "").strip()
-        sexact = (params.get("slugline_exact") or "").strip()
-        sq = (params.get("slugline") or "").strip()
-        use_phrase = bool(params.get("use_phrase", False))
-        byline = (params.get("byline") or "").strip()
-
-        if qtext:
-            out["text"] = qtext
-        if hq:
-            out["headline"] = hq
-        if bq:
-            out["text"] = bq
-        if sexact:
-            out["slugline"] = sexact
-            out["phrase"] = True
-        elif sq:
-            out["slugline"] = sq
-        if use_phrase:
-            out["phrase"] = True
-        if byline:
-            out["byline"] = byline
-
-        def looks_like_date(s: Any) -> bool:
-            if not isinstance(s, str):
-                return False
-            s = s.strip()
-            return len(s) >= 10 and s[4] == "-" and s[7] == "-"
-
-        def ymd(s: str) -> str:
-            return s.strip()[:10]
-
-        if params.get("date"):
-            dd = str(params["date"]).strip()
-            if looks_like_date(dd):
-                out["from_date"] = ymd(dd)
-                out["to_date"] = ymd(dd)
-
-        if params.get("from_date"):
-            fd = str(params["from_date"]).strip()
-            if looks_like_date(fd):
-                out["from_date"] = ymd(fd)
-        if params.get("to_date"):
-            td = str(params["to_date"]).strip()
-            if looks_like_date(td):
-                out["to_date"] = ymd(td)
-
-        raw_from = params.get("from")
-        raw_to = params.get("to")
-        logger.info(
-            "Provider received date-ish from/to? from=%r to=%r", raw_from, raw_to
-        )
-
-        if raw_from and looks_like_date(raw_from):
-            out["from_date"] = ymd(raw_from)
-        if raw_to and looks_like_date(raw_to):
-            out["to_date"] = ymd(raw_to)
-
-        no_text = not any([qtext, hq, bq, sexact, sq, byline])
         no_dates = not any([out.get("from_date"), out.get("to_date")])
         if no_text and no_dates:
-            recent_days = int(app.config.get("ARCHIVE_SEARCH_DEFAULT_RECENT_DAYS", 30))
-            today = datetime.utcnow().date()
-            out["from_date"] = (today - timedelta(days=recent_days)).isoformat()
+            today = datetime.now(timezone.utc).date()
+            out["from_date"] = (
+                today - timedelta(days=self.default_recent_days)
+            ).isoformat()
             out["to_date"] = (today + timedelta(days=1)).isoformat()
-
-        def _as_list(v):
-            if v is None:
-                return []
-            if isinstance(v, (list, tuple)):
-                return [str(x).strip() for x in v if str(x).strip()]
-            s = str(v).strip()
-            if not s:
-                return []
-            if "," in s:
-                return [x.strip() for x in s.split(",") if x.strip()]
-            return [s]
-
-        cats = _as_list(params.get("categories"))
-        if cats:
-            out["categories"] = cats
-
-        dist = _as_list(params.get("distribution"))
-        if dist:
-            out["distribution"] = dist
-
-        langs = _as_list(params.get("languages"))
-        if langs:
-            out["languages"] = langs
-
-        byline = (params.get("byline") or "").strip()
-        if byline:
-            out["byline"] = byline
-
-        srcs = _as_list(params.get("source"))
-        if srcs:
-            out["source"] = srcs
 
         return out
 
-    def _api_search(self, api_params: Dict[str, Any]) -> (List[Dict[str, Any]], int):
-        url = f"{self.api_base}{self.api_path}"
+    def _api_search(self, api_params: Dict[str, Any]):
         last_err = None
 
-        send_params = dict(api_params)
-        for k in ("categories", "distribution", "languages", "source"):
-            v = send_params.get(k)
-            if isinstance(v, (list, tuple)):
-                send_params[k] = ",".join(str(x).strip() for x in v if str(x).strip())
+        with requests.Session() as session:
+            url = f"{self.api_base}{self.api_path}"
 
-        try:
-            import json
-
-            logger.info("API params: %s", json.dumps(send_params, sort_keys=True))
-        except Exception:
-            pass
-
-        for attempt in range(1, self.max_retries + 1):
-            try:
-                req = requests.Request(
-                    "GET", url, headers=self._headers(), params=send_params
-                )
-                prepared = req.prepare()
-                logger.info("API call (attempt %d): %s", attempt, prepared.url)
-
-                resp = requests.Session().send(prepared, timeout=self.timeout_seconds)
-                if 200 <= resp.status_code < 300:
-                    data = resp.json() if resp.content else {}
-                    items, total = self._normalize_api_response(data)
-                    return items, total
-                elif resp.status_code in (429, 502, 503, 504):
-                    last_err = RuntimeError(
-                        f"Retryable status {resp.status_code}: {resp.text[:200]}"
+            for attempt in range(1, self.max_retries + 1):
+                try:
+                    req = requests.Request(
+                        "GET", url, headers=self.headers, params=api_params
                     )
-                    sleep_s = self._jitter_sleep(attempt)
-                    logger.warning(
-                        "Retryable API error %s; sleeping %.2fs",
-                        resp.status_code,
-                        sleep_s,
-                    )
-                    time.sleep(sleep_s)
-                    continue
-                else:
+                    prepared = req.prepare()
+                    logger.info("API call (attempt %d): %s", attempt, prepared.url)
+
+                    resp = session.send(prepared, timeout=self.timeout_seconds)
+
+                    if 200 <= resp.status_code < 300:
+                        data = resp.json() if resp.content else {}
+                        return self._normalize_api_response(data)
+
+                    if resp.status_code in self.SEARCH_RETRY_CODES:
+                        last_err = RuntimeError(
+                            f"Retryable status {resp.status_code}: {resp.text[:200]}"
+                        )
+                        self._handle_search_retry(
+                            f"Retryable API error {resp.status_code}", attempt
+                        )
+                        continue
+
                     raise RuntimeError(
                         f"Archive API error {resp.status_code}: {resp.text[:500]}"
                     )
-            except (requests.Timeout, requests.ConnectionError) as e:
-                last_err = e
-                sleep_s = self._jitter_sleep(attempt)
-                logger.warning(
-                    "Archive API network error (%s); sleeping %.2fs", str(e), sleep_s
-                )
-                time.sleep(sleep_s)
-                continue
-            except Exception as e:
-                if attempt < self.max_retries:
+                except (requests.Timeout, requests.ConnectionError) as e:
                     last_err = e
-                    sleep_s = self._jitter_sleep(attempt)
-                    logger.warning(
-                        "Archive API unexpected error (%s); retry in %.2fs",
-                        str(e),
-                        sleep_s,
+                    self._handle_search_retry(
+                        f"Retryable API error res:{resp} err:{e}", attempt
                     )
-                    time.sleep(sleep_s)
                     continue
-                raise
+                except Exception as e:
+                    if attempt < self.max_retries:
+                        last_err = e
+                        self._handle_search_retry(
+                            f"Retryable API error res:{resp} err:{e}", attempt
+                        )
+                        continue
+                    raise
 
         if last_err:
             raise last_err
         return [], 0
 
-    def _normalize_api_response(
-        self, data: Dict[str, Any]
-    ) -> (List[Dict[str, Any]], int):
-        items = []
-        total = 0
+    def _normalize_api_response(self, data: Dict[str, Any]):
+        if not isinstance(data, dict):
+            return [], 0
 
-        if isinstance(data, dict):
-            if isinstance(data.get("items"), list):
-                items = data["items"]
-            elif isinstance(data.get("hits"), list):
-                items = data["hits"]
-            elif isinstance(data.get("results"), list):
-                items = data["results"]
+        items = data.get("items") or data.get("hits") or data.get("results") or []
+        if not isinstance(items, list):
+            items = []
 
-            if isinstance(data.get("total"), int):
-                total = data["total"]
-            elif isinstance(data.get("total"), dict) and isinstance(
-                data["total"].get("value"), int
-            ):
-                total = data["total"]["value"]
-            elif isinstance(data.get("total_count"), int):
-                total = data["total_count"]
-            else:
-                total = len(items)
+        total = data.get("total", {})
+        total = (
+            total
+            if isinstance(total, int)
+            else total.get("value")
+            if isinstance(total, dict) and isinstance(total.get("value"), int)
+            else data.get("total_count")
+            if isinstance(data.get("total_count"), int)
+            else len(items)
+        )
 
         normalized_items = []
         for it in items:
             if "item" in it and isinstance(it["item"], dict):
                 normalized_items.append(it)
+                continue
+
+            if isinstance(it, dict) and any(
+                k in it for k in ("uri", "type", "headlines", "bodies")
+            ):
+                normalized_items.append({"item": it})
             else:
-                if isinstance(it, dict) and any(
-                    k in it for k in ("uri", "type", "headlines", "bodies")
-                ):
-                    normalized_items.append({"item": it})
-                else:
-                    normalized_items.append(it)
+                normalized_items.append(it)
+
         return normalized_items, int(total)
+
+    def _handle_search_retry(self, msg: str, attempt: int):
+        sleep_s = self._jitter_sleep(attempt)
+        logger.warning("%s; sleeping %.2fs", msg, sleep_s)
+        time.sleep(sleep_s)
 
     def _jitter_sleep(self, attempt: int) -> float:
         base = min(self.retry_max_sleep, self.retry_min_sleep * (2 ** (attempt - 1)))
         return random.uniform(self.retry_min_sleep, base)
-
-    @staticmethod
-    def _parse_date_ymd(s: str) -> Optional[datetime]:
-        try:
-            d = datetime.strptime(s, "%Y-%m-%d")
-            return d.replace(tzinfo=timezone.utc)
-        except Exception:
-            return None
-
-    @staticmethod
-    def _parse_iso(s: str) -> Optional[datetime]:
-        try:
-            if len(s) == 10 and s[4] == "-" and s[7] == "-":
-                return ArchiveSearchProvider._parse_date_ymd(s)
-            if s.endswith("Z"):
-                s = s[:-1] + "+00:00"
-            dt = datetime.fromisoformat(s)
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            return dt.astimezone(timezone.utc)
-        except Exception:
-            return None
 
     def _transform_items(self, items):
         def get_nested(obj, path, default=""):
@@ -586,7 +410,7 @@ class ArchiveSearchProvider(SearchProvider):
                     "description_text": (description[:200] + "...")
                     if description
                     else "",
-                    "versioncreated": self._format_sd_iso(data.get("versioncreated")),
+                    "versioncreated": self._parse_datetime(data.get("versioncreated")),
                     "slugline": data.get("slugline", ""),
                     "firstcreated": data.get("firstcreated"),
                     "urgency": data.get("urgency"),
