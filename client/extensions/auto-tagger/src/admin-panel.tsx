@@ -1,6 +1,6 @@
 import * as React from "react";
 import { ISuperdesk } from "superdesk-api";
-import { ToggleBox, Input, Button } from "superdesk-ui-framework/react";
+import { Button, Input, ToggleBox } from "superdesk-ui-framework/react";
 
 type APIItem = {
   _id: string;
@@ -45,17 +45,26 @@ export const AdminPanel = ({ superdesk }: { superdesk: ISuperdesk }) => {
       });
   }, [isAdmin]);
 
-  const updateApiKey = () => {
-    if (!apiItem.current) return;
-    setIsLoading(true);
-    httpRequestJsonLocal<APIItem>({
+  const sendApiRequest = React.useCallback(() => {
+    if (!apiItem.current)
+      return httpRequestJsonLocal<APIItem>({
+        method: "POST",
+        path: "/app_config",
+        payload: { key: API_KEY_ID, value: apiKey },
+      });
+    return httpRequestJsonLocal<APIItem>({
       method: "PATCH",
       path: `/app_config/${apiItem.current._id}`,
       payload: { value: apiKey },
       headers: {
         "If-Match": apiItem.current._etag,
       },
-    })
+    });
+  }, [apiKey, apiItem.current]);
+
+  const updateApiKey = () => {
+    setIsLoading(true);
+    sendApiRequest()
       .then((item) => {
         apiItem.current = item;
         setApiKey(item.value);
@@ -79,7 +88,7 @@ export const AdminPanel = ({ superdesk }: { superdesk: ISuperdesk }) => {
         <Button
           text={gettext("Save")}
           onClick={updateApiKey}
-          disabled={isLoading || !apiItem.current}
+          disabled={isLoading || !apiKey}
           isLoading={isLoading}
         />
       </div>
