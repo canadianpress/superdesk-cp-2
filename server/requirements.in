@@ -10,6 +10,6 @@ deepl==1.23.0
 dotenv==0.9.9
 pyexiftool==0.5.6
 
-Superdesk-Core[exiv2] @ git+https://github.com/canadianpress/superdesk-core.git@dev
+Superdesk-Core[exiv2] @ git+https://github.com/canadianpress/superdesk-core.git@release/2.10
 git+https://github.com/superdesk/superdesk-planning.git@release/2.10#egg=superdesk-planning
 git+https://github.com/superdesk/superdesk-analytics.git@release/2.10#egg=superdesk-analytics
