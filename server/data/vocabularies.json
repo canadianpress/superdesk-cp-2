@@ -1,5 +1,29 @@
 [
     {
+        "_id": "tags",
+        "display_name": "Tags",
+        "type": "manageable",
+        "unique_field": "qcode",
+        "field_type": "custom",
+        "custom_field_type": "tags",
+        "helper_text": "Add tags with Autotagger",
+        "items": [],
+        "schema": {
+            "name": {},
+            "qcode": {}
+        },
+        "translations": {
+            "display_name": {
+                "en-CA": "Tags",
+                "fr-CA": "Étiquettes"
+            },
+            "helper_text": {
+                "en-CA": "Add tags with Autotagger",
+                "fr-CA": "Ajouter des étiquettes avec Étiquetage automatique"
+            }
+        }
+    },
+    {
         "_id": "coverage_providers",
         "display_name": "Coverage providers",
         "type": "manageable",

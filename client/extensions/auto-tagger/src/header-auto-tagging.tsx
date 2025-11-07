@@ -2,27 +2,25 @@ import * as React from 'react';
 import {OrderedMap} from 'immutable';
 import {getTagsListComponent} from './tag-list';
 import {toClientFormat} from './adapter';
-import {IArticle, ISuperdesk} from 'superdesk-api';
+import {ICommonFieldConfig, IEditorComponentProps, ISuperdesk} from 'superdesk-api';
 import {getGroups} from './groups';
 
 import {getExistingTags} from './data-transformations';
 
 import {getAutoTaggingData, hasConfig} from './auto-tagging';
 
-interface IProps {
-    article: IArticle;
-}
-
 export function getHeaderAutoTaggingComponent(superdesk: ISuperdesk) {
     const {gettext} = superdesk.localization;
     const TagListComponent = getTagsListComponent(superdesk);
     const groupLabels = getGroups(superdesk);
 
-    return class HeaderAutoTagging extends React.PureComponent<IProps> {
+    return class HeaderAutoTagging extends React.PureComponent<
+      IEditorComponentProps<Array<any>, ICommonFieldConfig, never>
+    > {
         private semaphoreFields = superdesk.instance.config.semaphoreFields ?? {entities: {}, others: {}};
 
         render() {
-            const existingTags = getExistingTags(this.props.article);
+            const existingTags = getExistingTags(this.props.item);
             const resClient = toClientFormat(existingTags);
             const data = {original: {analysis: resClient}, changes: {analysis: resClient}};
 
