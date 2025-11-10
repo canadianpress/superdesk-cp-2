@@ -370,9 +370,17 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
                 return;
             }
 
+            const tags = createTagsPatch(this.props.article, data.changes.analysis, superdesk);
+
             superdesk.entities.article.patch(
                 this.props.article,
-                createTagsPatch(this.props.article, data.changes.analysis, superdesk),
+                {
+                    ...tags,
+                    extra: {
+                        ...this.props.article.extra,
+                        tags: Object.values(tags).flat() 
+                    },
+                }
             ).then(() => {
                 this.reload();
                 this.sendFeedback(this.props.article, data.changes.analysis);
