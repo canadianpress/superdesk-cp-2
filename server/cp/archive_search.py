@@ -410,6 +410,62 @@ class ArchiveSearchProvider(SearchProvider):
             )
         return transformed
 
+    def fetch(self, guid):
+        logger.info("FETCH guid=%s", guid)
+
+        retries = Retry(
+            total=self.max_retries,
+            backoff_factor=0.1,
+            status_forcelist=self.SEARCH_RETRY_CODES,
+            allowed_methods={"GET"},
+            raise_on_status=False,
+        )
+        adapter = HTTPAdapter(max_retries=retries)
+
+        with requests.Session() as session:
+            session.mount("https://", adapter)
+            url = f"{self.api_base}{self.api_path}"
+            params = {            
+                "limit": 1,
+                "from": 0,
+                "types": "text",
+                "sort": self.default_sort,
+                "guid": guid,
+            }
+
+            try:
+                req = requests.Request(
+                    "GET", url, headers=self.headers, params=params
+                )
+                prepared = req.prepare()
+                logger.info(f"API call: {prepared.url}")
+
+                resp = session.send(prepared, timeout=self.timeout_seconds)
+
+                if 200 <= resp.status_code < 300:
+                    data = resp.json() if resp.content else {}
+                    [items, _] = self._normalize_api_response(data)
+                    items = self._transform_items(items)
+
+                    if not items: return None
+
+                    item = items[0]
+                    item["profile"]= "Story"
+                    return item
+
+                if resp.status_code in self.SEARCH_RETRY_CODES:
+                    raise RuntimeError(
+                        f"Retryable status {resp.status_code}: {resp.text[:200]}"
+                    )
+
+                raise RuntimeError(
+                    f"Archive API error {resp.status_code}: {resp.text[:500]}"
+                )
+
+            except (requests.Timeout, requests.ConnectionError) as e:
+                logger.error(f"API request failed after retries: {e}")
+                raise
+        return None
 
 def init_app(app):
     logger.info("=== Initializing Archive Search Provider===")
