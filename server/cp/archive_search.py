@@ -425,7 +425,7 @@ class ArchiveSearchProvider(SearchProvider):
         with requests.Session() as session:
             session.mount("https://", adapter)
             url = f"{self.api_base}{self.api_path}"
-            params = {            
+            params = {
                 "limit": 1,
                 "from": 0,
                 "types": "text",
@@ -434,9 +434,7 @@ class ArchiveSearchProvider(SearchProvider):
             }
 
             try:
-                req = requests.Request(
-                    "GET", url, headers=self.headers, params=params
-                )
+                req = requests.Request("GET", url, headers=self.headers, params=params)
                 prepared = req.prepare()
                 logger.info(f"API call: {prepared.url}")
 
@@ -447,10 +445,11 @@ class ArchiveSearchProvider(SearchProvider):
                     [items, _] = self._normalize_api_response(data)
                     items = self._transform_items(items)
 
-                    if not items: return None
+                    if not items:
+                        return None
 
                     item = items[0]
-                    item["profile"]= "Story"
+                    item["profile"] = "Story"
                     return item
 
                 if resp.status_code in self.SEARCH_RETRY_CODES:
@@ -466,6 +465,7 @@ class ArchiveSearchProvider(SearchProvider):
                 logger.error(f"API request failed after retries: {e}")
                 raise
         return None
+
 
 def init_app(app):
     logger.info("=== Initializing Archive Search Provider===")
