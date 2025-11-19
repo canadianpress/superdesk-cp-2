@@ -163,7 +163,8 @@ module.exports = function(grunt) {
                 'translations',
                 'assignment',
                 'associatedItems',
-                'used'
+                'used',
+                'family_id',
             ]
         },        
 
