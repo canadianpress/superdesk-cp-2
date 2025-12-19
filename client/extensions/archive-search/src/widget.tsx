@@ -25,7 +25,7 @@ interface IParams {
   byline: string;
   distribution: string[];
   categories: string[];
-  languages: string[];
+  language: string[];
   source: string[];
 }
 
@@ -67,12 +67,12 @@ const multiSelects: MultiSelectProps = {
       });
     },
   },
-  languages: {
+  language: {
     vocabularyKey: "languages",
     label: gettext("Languages"),
     onChange: (setParams) => (selected) => {
       setParams({
-        languages:
+        language:
           selected.length > 0 ? selected.map((s) => s.qcode) : undefined,
       });
     },
@@ -185,15 +185,15 @@ export class SearchPanelWidget extends React.PureComponent<
               setParams({ byline: value ? value : undefined });
             }}
           />
-          {Object.values(multiSelects).map(
-            ({ vocabularyKey, label, onChange }, i) => (
-              <React.Fragment key={vocabularyKey}>
+          {Object.entries(multiSelects).map(
+            ([key, { vocabularyKey, label, onChange }], i) => (
+              <React.Fragment key={`search-multiselect-${key}`}>
                 {i !== 0 && <SpacerBlock v gap="16" />}
                 <MultiSelect
                   vocabularyKey={vocabularyKey}
                   label={label}
                   value={
-                    params[vocabularyKey as keyof typeof params] as string[]
+                    params[key as keyof typeof params] as string[]
                   }
                   onChange={onChange(setParams)}
                 />

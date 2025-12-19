@@ -115,7 +115,8 @@ module.exports = function(grunt) {
             {id: 'subject_custom', name:'Index', field: 'subject', list: 'subject_custom'},
             {id: 'distribution', name:'Services', field: 'subject', list: 'distribution'},
             {id: 'language', name:'Language', field: 'language', list: 'languages'},
-            {id: 'tag', name:'Tag', field: 'subject', list: 'tag'}
+            {id: 'tag', name:'Tag', field: 'subject', list: 'tag'},
+            {id: "source", name: "Source", field: "source", "list": "source"},
         ],
         
         search: {
