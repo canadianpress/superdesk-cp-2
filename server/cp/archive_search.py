@@ -205,7 +205,11 @@ class ArchiveSearchProvider(SearchProvider):
                 for key in self.SELECT_KEYS
                 if key in params
             },
-            **({"languages": ",".join(params["language"] or [])} if "language" in params else {}),
+            **(
+                {"languages": ",".join(params["language"] or [])}
+                if "language" in params
+                else {}
+            ),
         }
 
         no_text = not any(
