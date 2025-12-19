@@ -5,7 +5,7 @@ import {
   Spacer,
   SpacerBlock,
   MultiSelect as SuperdeskMultiSelect,
-  DatePickerISO
+  DatePickerISO,
 } from "superdesk-ui-framework/react";
 import { superdesk } from "./superdesk";
 
@@ -51,28 +51,39 @@ const multiSelects: MultiSelectProps = {
     vocabularyKey: "distribution",
     label: gettext("Services"),
     onChange: (setParams) => (selected) => {
-      setParams({ distribution: selected.map((s) => s.qcode) });
+      setParams({
+        distribution:
+          selected.length > 0 ? selected.map((s) => s.qcode) : undefined,
+      });
     },
   },
   categories: {
     vocabularyKey: "categories",
     label: gettext("Wire"),
     onChange: (setParams) => (selected) => {
-      setParams({ categories: selected.map((s) => s.qcode) });
+      setParams({
+        categories:
+          selected.length > 0 ? selected.map((s) => s.qcode) : undefined,
+      });
     },
   },
   languages: {
     vocabularyKey: "languages",
     label: gettext("Languages"),
     onChange: (setParams) => (selected) => {
-      setParams({ languages: selected.map((s) => s.qcode) });
+      setParams({
+        languages:
+          selected.length > 0 ? selected.map((s) => s.qcode) : undefined,
+      });
     },
   },
   source: {
     vocabularyKey: "source",
     label: gettext("Info source"),
     onChange: (setParams) => (selected) => {
-      setParams({ source: selected.map((s) => s.qcode) });
+      setParams({
+        source: selected.length > 0 ? selected.map((s) => s.qcode) : undefined,
+      });
     },
   },
 };
@@ -123,7 +134,7 @@ export class SearchPanelWidget extends React.PureComponent<
               payload: getLocaleForDatePicker(default_language),
             }}
             onChange={(v) => {
-              setParams({ from: v });
+              setParams({ from: v ? v : undefined });
             }}
             headerButtonBar={HEADER_BUTTON_BAR_PROPS}
           />
@@ -136,7 +147,7 @@ export class SearchPanelWidget extends React.PureComponent<
               payload: getLocaleForDatePicker(default_language),
             }}
             onChange={(v) => {
-              setParams({ to: v });
+              setParams({ to: v ? v : undefined });
             }}
             headerButtonBar={HEADER_BUTTON_BAR_PROPS}
           />
@@ -146,7 +157,7 @@ export class SearchPanelWidget extends React.PureComponent<
               value={params.slugline || ""}
               type="text"
               onChange={(value) => {
-                setParams({ slugline: value });
+                setParams({ slugline: value ? value : undefined });
               }}
             />
             <Input
@@ -154,7 +165,7 @@ export class SearchPanelWidget extends React.PureComponent<
               value={params.headline || ""}
               type="text"
               onChange={(value) => {
-                setParams({ headline: value });
+                setParams({ headline: value ? value : undefined });
               }}
             />
           </Spacer>
@@ -163,7 +174,7 @@ export class SearchPanelWidget extends React.PureComponent<
             value={params.story_text || ""}
             type="text"
             onChange={(value) => {
-              setParams({ story_text: value });
+              setParams({ story_text: value ? value : undefined });
             }}
           />
           <Input
@@ -171,7 +182,7 @@ export class SearchPanelWidget extends React.PureComponent<
             value={params.byline || ""}
             type="text"
             onChange={(value) => {
-              setParams({ byline: value });
+              setParams({ byline: value ? value : undefined });
             }}
           />
           {Object.values(multiSelects).map(
