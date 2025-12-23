@@ -38,7 +38,7 @@ const extension: IExtension = {
             icon: "tag",
             order: 1,
             component: getAutoTaggingComponent(superdesk, label),
-            isAllowed: (item: IArticle) => item.type === "text",
+            isAllowed: (item: IArticle) => item.type === "text" || item.type === "picture",
           },
         ],
         customFieldTypes: [tagsCustomField],

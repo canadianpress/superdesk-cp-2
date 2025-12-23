@@ -187,7 +187,12 @@ export function getAutoTaggingComponent(superdesk: ISuperdesk, label: string): I
             const dataBeforeLoading = this.state.data;
 
             this.setState({ data: 'loading' }, () => {
-                const { guid, language, headline, body_html, extra, slugline } = this.props.article;
+                const { guid, language, headline, extra, slugline, type } = this.props.article;
+                const body_html =
+                    type === "picture"
+                        ? this.props.article.description_text ??
+                            this.props.article.body_html
+                        : this.props.article.body_html;
 
                 httpRequestJsonLocal<{ analysis: IServerResponse }>({
                     method: 'POST',
