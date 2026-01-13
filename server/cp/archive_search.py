@@ -43,7 +43,7 @@ class ArchiveSearchProvider(SearchProvider):
         "slugline_exact",
     ]
 
-    SELECT_KEYS = ["categories", "distribution", "languages", "source"]
+    SELECT_KEYS = ["categories", "distribution", "language", "source"]
 
     SEARCH_RETRY_CODES = [429, 502, 503, 504]
 
@@ -205,6 +205,11 @@ class ArchiveSearchProvider(SearchProvider):
                 for key in self.SELECT_KEYS
                 if key in params
             },
+            **(
+                {"languages": ",".join(params["language"] or [])}
+                if "language" in params
+                else {}
+            ),
         }
 
         no_text = not any(
