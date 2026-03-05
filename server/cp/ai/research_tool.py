@@ -1,13 +1,16 @@
+from asyncio import sleep
 from logging import getLogger
-from time import sleep
+from typing import AsyncIterator
 
-from flask import Blueprint, Response, request
-from flask.json import dumps
+from aiohttp import ClientSession
+from quart import Response, request
+from quart.json import dumps
 from superdesk import get_resource_service
 from superdesk.auth.decorator import blueprint_auth
+from superdesk.eve_async.service import AsyncBaseService
+from superdesk.flask import Blueprint
 from superdesk.resource import Resource
-from superdesk.services import BaseService
-from superdesk.utils import ListCursor, get_cors_headers
+from superdesk.utils import get_cors_headers
 
 logger = getLogger(__name__)
 
@@ -16,12 +19,14 @@ bp = Blueprint("research_tool", __name__, url_prefix="/api")
 
 @bp.route("/research_tool/stream", methods=["GET", "OPTIONS"])
 @blueprint_auth()
-def research_tool_stream():
+async def research_tool_stream():
     research_tool_service = get_resource_service("research_tool")
     query = request.args.get("q", "")
 
-    def generate():
-        for item in research_tool_service.get_all_batch(lookup=query):
+    async def generate():
+        async for item in research_tool_service.get_all_batch_async(
+            lookup={"query": query}
+        ):
             yield f"data: {dumps({**item, 'search': query})}\n\n"
         yield "event: done\ndata: \n\n"
 
@@ -45,19 +50,30 @@ class ResearchToolResource(Resource):
     }
 
 
-class ResearchToolService(BaseService):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+class ResearchToolService(AsyncBaseService):
+    async def get_all_batch_async(
+        self, size=500, max_iterations=10000, lookup=None
+    ) -> AsyncIterator[dict]:
+        async with ClientSession() as session:
+            for i in range(1, 11):
+                logger.info(f"Streaming item {i}: {lookup}")
 
-    def get(self, request, _=None):
-        return ListCursor(list(self.get_all_batch(lookup=request.args.get("q", ""))))
+                try:
+                    async with session.get(
+                        "https://www.google.com", timeout=5
+                    ) as response:
+                        status_code = response.status
+                    await sleep(1)
+                except Exception as e:
+                    logger.error(f"Failed to fetch: {e}")
+                    status_code = "error"
 
-    def get_all_batch(self, _=None, __=None, lookup=None):
-        for i in range(1, 11):
-            logger.info(f"Streaming item {i} {lookup}")
-
-            yield {"iteration": i, "status": "processing"}
-            sleep(1)
+                yield {
+                    "iteration": i,
+                    "status": "processing",
+                    "http_code": status_code,
+                    "_id": i,
+                }
 
 
 def init_app(app):
