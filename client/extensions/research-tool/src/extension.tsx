@@ -1,4 +1,5 @@
 import * as React from "react";
+import ReactMarkdown from "react-markdown";
 import { IExtension, IExtensionActivationResult, IPage } from "superdesk-api";
 import { Input } from "superdesk-ui-framework/react";
 import { superdesk } from "./superdesk";
@@ -30,7 +31,7 @@ const extension: IExtension = {
 const ResearchTool: IPage["component"] = () => {
   const { url: serverUrl } = superdesk.instance.config.server;
 
-  const [items, setItems] = React.useState<any[]>([]);
+  const [markdownContent, setMarkdownContent] = React.useState("");
   const [status, setStatus] = React.useState("Awaiting input");
   const [query, setQuery] = React.useState("");
 
@@ -51,10 +52,11 @@ const ResearchTool: IPage["component"] = () => {
     esRef.current = es;
     setQuery("");
 
-    es.onmessage = (event) => {
+    es.addEventListener("response.output_text.delta", (event) => {
       const newNode = JSON.parse(event.data);
-      setItems((prev) => [...prev, newNode]);
-    };
+      const delta = newNode.response.delta;
+      setMarkdownContent((prev) => prev + delta);
+    });
 
     es.addEventListener("done", () => {
       es.close();
@@ -69,18 +71,15 @@ const ResearchTool: IPage["component"] = () => {
 
   return (
     <div>
-      <p>Status: {status}</p>
-      {items.map((item, i) => (
-        <div key={i}>Iteration: {item.iteration}</div>
-      ))}
+      <p>
+        <strong>Status:</strong> {status}
+      </p>
+      <div>
+        <ReactMarkdown>{markdownContent}</ReactMarkdown>
+      </div>
+
       <form onSubmit={handleOnSubmit}>
-        <Input
-          type="text"
-          value={query}
-          onChange={(v) => {
-            setQuery(v);
-          }}
-        />
+        <Input type="text" value={query} onChange={(v) => setQuery(v)} />
       </form>
     </div>
   );
