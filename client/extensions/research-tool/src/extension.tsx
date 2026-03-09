@@ -1,7 +1,7 @@
 import * as React from "react";
 import ReactMarkdown from "react-markdown";
 import { IExtension, IExtensionActivationResult, IPage } from "superdesk-api";
-import { Input } from "superdesk-ui-framework/react";
+import { Input, Popover } from "superdesk-ui-framework/react";
 import { superdesk } from "./superdesk";
 
 const extension: IExtension = {
@@ -75,13 +75,26 @@ const ResearchTool: IPage["component"] = () => {
         <strong>Status:</strong> {status}
       </p>
       <div>
-        <ReactMarkdown>{markdownContent}</ReactMarkdown>
+        <ReactMarkdown components={{ a: CitationPopover }}>
+          {markdownContent}
+        </ReactMarkdown>
       </div>
-
       <form onSubmit={handleOnSubmit}>
         <Input type="text" value={query} onChange={(v) => setQuery(v)} />
       </form>
     </div>
+  );
+};
+
+const CitationPopover = ({ href, children }: any) => {
+  const id = `citation-${children.join("")}`;
+  return (
+    <>
+      <span id={id}>{children.join("")}</span>
+      <Popover title={children.join("")} triggerSelector={`#${id}`}>
+        {href}
+      </Popover>
+    </>
   );
 };
 
