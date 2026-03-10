@@ -54,6 +54,7 @@ async def _research_tool_generator(service, query):
                 guid, uri = match.groups()
                 logger.info(f"CITATION FOUND: {guid} {uri}")
                 create_task(_fetch_article(guid, uri))
+                yield f"event: response.citation\ndata: {dumps({'guid': guid, 'uri': uri})}\n\n"
                 window = window[match.end() :]
             elif len(window) > WINDOW_SIZE:
                 window = window[-WINDOW_SIZE // 2 :]
