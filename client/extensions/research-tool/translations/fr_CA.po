@@ -4,3 +4,6 @@ msgstr ""
 
 msgid "Research Tool"
 msgstr "Research Tool"
+
+msgid "Ask a question"
+msgstr "Ask a question"
