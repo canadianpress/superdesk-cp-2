@@ -7,7 +7,7 @@ import {
   GridItemTitle,
 } from "superdesk-ui-framework/react";
 
-export const ListItem = ({ citation }: { citation: any }) => (
+export const CitationItem = ({ citation }: { citation: any }) => (
   <GridItem itemtype="photo">
     <GridItemMedia>
       <img src="https://placehold.co/400"></img>
