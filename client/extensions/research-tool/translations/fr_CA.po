@@ -7,3 +7,6 @@ msgstr "Research Tool"
 
 msgid "Ask a question"
 msgstr "Ask a question"
+
+msgid "Copy"
+msgstr "Copy"

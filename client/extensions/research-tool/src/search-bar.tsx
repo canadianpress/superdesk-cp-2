@@ -8,14 +8,12 @@ export const SearchBar = ({
 }: {
   value: any;
   onChange: any;
-}) => {
-  return (
-    <Input
-      boxedStyle
-      placeholder={superdesk.localization.gettext("Ask a question")}
-      type="text"
-      value={value}
-      onChange={onChange}
-    />
-  );
-};
+}) => (
+  <Input
+    boxedStyle
+    placeholder={superdesk.localization.gettext("Ask a question")}
+    type="text"
+    value={value}
+    onChange={onChange}
+  />
+);
