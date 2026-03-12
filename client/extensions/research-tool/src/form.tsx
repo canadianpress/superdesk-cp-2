@@ -24,7 +24,7 @@ export const Form = () => {
 
     setIsStreaming(true);
     setQuery("");
-    setMarkdown((prev) => [...prev, ""]);
+    setMarkdown((prev) => [...prev, { query, value: "" }]);
 
     const es = new EventSource(
       `${serverUrl}/research_tool/stream?q=${encodeURIComponent(query)}`,
@@ -38,7 +38,7 @@ export const Form = () => {
       setMarkdown((prev) => {
         const updated = [...prev];
         const last = prev.length - 1;
-        updated[last] = updated[last] + delta;
+        updated[last]["value"] = updated[last]["value"] + delta;
         return updated;
       });
     });
@@ -63,7 +63,10 @@ export const Form = () => {
   };
 
   return (
-    <form onSubmit={handleOnSubmit} style={{ flex: 1, width: "65%" }}>
+    <form
+      onSubmit={handleOnSubmit}
+      style={{ alignSelf: "center", width: "65%" }}
+    >
       <SearchBar value={query} onChange={(v: any) => setQuery(v)} />
     </form>
   );
