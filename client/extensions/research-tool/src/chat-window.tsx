@@ -32,6 +32,7 @@ export const ChatWindow = () => {
         display: "flex",
         flexDirection: "column",
         overflowY: "auto",
+        paddingRight: "0.5rem",
       }}
     >
       <MarkdownList />

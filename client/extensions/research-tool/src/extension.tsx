@@ -38,9 +38,9 @@ const ResearchTool: IPage["component"] = () => {
         <Spacer
           h
           noWrap
-          gap="16"
+          gap="8"
           alignItems="stretch"
-          style={{ padding: "1rem", overflowY: "auto" }}
+          style={{ padding: "1rem 0 1rem 1rem", overflowY: "auto" }}
         >
           <Spacer v noWrap gap="0" style={{ flex: 1 }}>
             <ChatWindow />
