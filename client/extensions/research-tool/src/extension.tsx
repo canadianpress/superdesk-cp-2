@@ -40,7 +40,7 @@ const ResearchTool: IPage["component"] = () => {
           noWrap
           gap="16"
           alignItems="stretch"
-          style={{ flex: 1, padding: "1rem", overflowY: "auto" }}
+          style={{ padding: "1rem", overflowY: "auto" }}
         >
           <Spacer v noWrap gap="0" style={{ flex: 1 }}>
             <ChatWindow />
