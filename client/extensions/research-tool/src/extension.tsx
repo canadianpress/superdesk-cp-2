@@ -1,11 +1,11 @@
 import * as React from "react";
 import { IExtension, IExtensionActivationResult, IPage } from "superdesk-api";
 import { Spacer } from "superdesk-ui-framework/react";
+import { ChatWindow } from "./chat-window";
 import { CitationList } from "./citation-list";
 import { CitationsProvider } from "./context/citations-context";
 import { MarkdownProvider } from "./context/markdown-context";
 import { Form } from "./form";
-import { MarkdownList } from "./markdown-list";
 
 const extension: IExtension = {
   activate: (superdesk) => {
@@ -40,17 +40,13 @@ const ResearchTool: IPage["component"] = () => {
           noWrap
           gap="16"
           alignItems="stretch"
-          style={{ flex: 1, padding: "1rem", overflowY: "scroll" }}
+          style={{ flex: 1, padding: "1rem", overflowY: "auto" }}
         >
           <Spacer v noWrap gap="0" style={{ flex: 1 }}>
-            <div style={{ flex: 1, width: "100%", overflowY: "scroll" }}>
-              <MarkdownList />
-            </div>
+            <ChatWindow />
             <Form />
           </Spacer>
-          <div style={{ overflowY: "scroll" }}>
-            <CitationList />
-          </div>
+          <CitationList />
         </Spacer>
       </CitationsProvider>
     </MarkdownProvider>

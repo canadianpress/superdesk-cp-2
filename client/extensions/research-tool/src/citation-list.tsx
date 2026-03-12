@@ -7,13 +7,15 @@ export const CitationList = () => {
   const { citations } = useCitations();
 
   return (
-    <GridList margin="0" gap="medium">
-      {Object.entries(citations).map(([citation_id, citation]) => (
-        <CitationItem
-          key={`citation-list-item-${citation_id}`}
-          citation={citation}
-        />
-      ))}
-    </GridList>
+    <div style={{ overflowY: "auto" }}>
+      <GridList margin="0" gap="medium">
+        {Object.entries(citations).map(([citation_id, citation]) => (
+          <CitationItem
+            key={`citation-list-item-${citation_id}`}
+            citation={citation}
+          />
+        ))}
+      </GridList>
+    </div>
   );
 };
