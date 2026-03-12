@@ -1,8 +1,10 @@
 import * as React from "react";
 
+export type Markdown = { query: string; value: string };
+
 const MarkdownContext = React.createContext<{
-  markdown: Array<string>;
-  setMarkdown: React.Dispatch<React.SetStateAction<Array<string>>>;
+  markdown: Array<Markdown>;
+  setMarkdown: React.Dispatch<React.SetStateAction<Array<Markdown>>>;
 } | null>(null);
 
 export const useMarkdown = () => {
@@ -14,7 +16,7 @@ export const useMarkdown = () => {
 };
 
 export const MarkdownProvider = ({ children }: { children: any }) => {
-  const [markdown, setMarkdown] = React.useState<Array<string>>([]);
+  const [markdown, setMarkdown] = React.useState<Array<Markdown>>([]);
 
   return (
     <MarkdownContext.Provider value={{ markdown, setMarkdown }}>

@@ -33,35 +33,27 @@ const extension: IExtension = {
 
 const ResearchTool: IPage["component"] = () => {
   return (
-    <Spacer
-      v
-      noWrap
-      gap="16"
-      alignItems="center"
-      style={{ width: "100%", height: "100%" }}
-    >
-      <MarkdownProvider>
-        <CitationsProvider>
-          <Spacer
-            h
-            noWrap
-            gap="8"
-            alignItems="stretch"
-            style={{ flex: 9, padding: "1rem", overflowY: "scroll" }}
-          >
-            <Spacer v noWrap gap="8" style={{ flex: 8, overflowY: "scroll" }}>
+    <MarkdownProvider>
+      <CitationsProvider>
+        <Spacer
+          h
+          noWrap
+          gap="16"
+          alignItems="stretch"
+          style={{ flex: 1, padding: "1rem", overflowY: "scroll" }}
+        >
+          <Spacer v noWrap gap="0" style={{ flex: 1 }}>
+            <div style={{ flex: 1, width: "100%", overflowY: "scroll" }}>
               <MarkdownList />
-              <></>
-            </Spacer>
-            <div style={{ overflowY: "scroll" }}>
-              <CitationList />
             </div>
+            <Form />
           </Spacer>
-          <Form />
-        </CitationsProvider>
-      </MarkdownProvider>
-      <></>
-    </Spacer>
+          <div style={{ overflowY: "scroll" }}>
+            <CitationList />
+          </div>
+        </Spacer>
+      </CitationsProvider>
+    </MarkdownProvider>
   );
 };
 
