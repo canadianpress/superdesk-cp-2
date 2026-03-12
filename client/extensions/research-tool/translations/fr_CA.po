@@ -10,3 +10,6 @@ msgstr "Ask a question"
 
 msgid "Copy"
 msgstr "Copy"
+
+msgid "Search bar"
+msgstr "Search bar"

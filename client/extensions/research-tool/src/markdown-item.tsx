@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import { ButtonGroup, IconButton } from "superdesk-ui-framework/react";
 import type { Markdown } from "./context/markdown-context";
 import { superdesk } from "./superdesk";
-import { CitationTooltip } from "./tooltip";
+import { CitationTooltip } from "./citation-tooltip";
 
 export const MarkdownItem = ({ markdown }: { markdown: Markdown }) => (
   <>

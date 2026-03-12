@@ -11,8 +11,11 @@ export const SearchBar = ({
 }) => (
   <Input
     boxedStyle
-    placeholder={superdesk.localization.gettext("Ask a question")}
+    labelHidden
     type="text"
+    size="large"
+    label={superdesk.localization.gettext("Search bar")}
+    placeholder={superdesk.localization.gettext("Ask a question")}
     value={value}
     onChange={onChange}
   />

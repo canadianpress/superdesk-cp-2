@@ -17,7 +17,7 @@ const SpacerBlock = () => {
 export const MarkdownList = () => {
   const { markdown } = useMarkdown();
 
-  const styles = {
+  const cardStyles = {
     width: "fit-content",
     marginLeft: "auto",
   };
@@ -27,8 +27,8 @@ export const MarkdownList = () => {
       {markdown.map((m, i) => (
         <React.Fragment key={`markdown-${i}`}>
           <Card
-            paddingBase="1"
-            style={i === 0 ? { ...styles, marginTop: "auto" } : styles}
+            paddingBase="2"
+            style={i === 0 ? { ...cardStyles, marginTop: "auto" } : cardStyles}
           >
             {m.query}
           </Card>
