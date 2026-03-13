@@ -6,7 +6,6 @@ import {
   GridItemFooter,
   GridItemFooterActions,
   GridItemFooterBlock,
-  GridItemMedia,
   GridItemText,
   GridItemTitle,
   IconButton,
@@ -36,10 +35,7 @@ const getMenuItems = (citation: any) => [
 ];
 
 export const CitationItem = ({ citation }: { citation: any }) => (
-  <GridItem itemtype="photo">
-    <GridItemMedia>
-      <img src="https://placehold.co/400"></img>
-    </GridItemMedia>
+  <GridItem>
     <GridItemContent>
       <GridItemTitle>{citation.title}</GridItemTitle>
       <GridItemText>{citation.description}</GridItemText>
