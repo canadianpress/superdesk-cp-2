@@ -1,5 +1,9 @@
 import * as React from "react";
-import { Label, Spacer, WithPopover } from "superdesk-ui-framework/react";
+import {
+  ContentListItem,
+  Label,
+  showPopup,
+} from "superdesk-ui-framework/react";
 import { useCitations } from "./context/citations-context";
 
 export const CitationTooltip = ({ href, children }: any) => {
@@ -7,66 +11,78 @@ export const CitationTooltip = ({ href, children }: any) => {
 
   const citationId = children.join("");
   const triggerRef = React.useRef<HTMLSpanElement>(null);
-  const popoverRef = React.useRef<HTMLDivElement>(null);
-  const closeTimeoutRef = React.useRef<NodeJS.Timeout>();
+  const closePopupRef = React.useRef<
+    ReturnType<typeof showPopup>["close"] | null
+  >(null);
 
-  const handleClose = (closePopup?: () => void) => {
-    closeTimeoutRef.current = setTimeout(() => {
-      if (popoverRef.current && triggerRef.current) {
-        const mouseOverTrigger = triggerRef.current.matches(":hover");
-        const mouseOverPopover = popoverRef.current.matches(":hover");
-        if (!mouseOverTrigger && !mouseOverPopover) {
-          closePopup?.();
-        }
-      }
-    }, 50);
+  const handleOnMouseEnter = () => {
+    if (closePopupRef.current) return;
+
+    const { close } = showPopup(
+      triggerRef.current!,
+      "auto",
+      () => (
+        <div
+          onMouseLeave={(event) => {
+            const dest = event.relatedTarget as HTMLElement;
+            if (!(dest instanceof HTMLElement)) {
+              closePopupRef?.current?.();
+              return;
+            }
+
+            if (
+              triggerRef.current!.contains(dest) ||
+              dest?.closest?.("[data-popper-placement]")
+            )
+              return;
+            closePopupRef?.current?.();
+          }}
+        >
+          <ContentListItem
+            itemColum={[
+              {
+                fullwidth: true,
+                itemRow: [
+                  {
+                    content: (
+                      <>
+                        <h4>{citations[citationId].title}</h4>
+                        <a href={href}>{href}</a>
+                      </>
+                    ),
+                  },
+                  {
+                    content: <div>{citations[citationId].description}</div>,
+                  },
+                ],
+              },
+            ]}
+          />
+        </div>
+      ),
+      true,
+      () => {
+        closePopupRef.current = null;
+      },
+      (event) => {
+        const dest = (event as MouseEvent).relatedTarget as HTMLElement;
+        if (!(dest instanceof HTMLElement)) return true;
+        if (
+          triggerRef.current!.contains(dest) ||
+          dest?.closest?.("[data-popper-placement]")
+        )
+          return false;
+        return true;
+      },
+    );
+    closePopupRef.current = close;
   };
 
+  React.useEffect(() => () => closePopupRef.current?.(), []);
+
   return (
-    <WithPopover
-      placement="auto"
-      component={({ closePopup }) => (
-        <div
-          ref={popoverRef}
-          className="sd-popover"
-          onMouseEnter={() => {
-            clearTimeout(closeTimeoutRef.current);
-          }}
-          onMouseLeave={() => {
-            handleClose(closePopup);
-          }}
-        >
-          <Spacer h gap="8" noWrap>
-            <img src="https://placehold.co/50"></img>
-            <Spacer v noWrap gap="4">
-              <Spacer h noWrap gap="8">
-                <h4 className="sd-popover__title">
-                  {citations[citationId].title}
-                </h4>
-                <a href={href}>{href}</a>
-              </Spacer>
-              <div className="sd-popover__content">
-                {citations[citationId].description}
-              </div>
-            </Spacer>
-          </Spacer>
-        </div>
-      )}
-    >
-      {(toggle) => (
-        <span
-          ref={triggerRef}
-          onMouseEnter={() => {
-            clearTimeout(closeTimeoutRef.current);
-            toggle(triggerRef.current!);
-          }}
-          onMouseLeave={() => {
-            handleClose(() => toggle(triggerRef.current!));
-          }}
-        >
-          <Label text={citationId} type="primary" style="hollow" />
-        </span>
-      )}
-    </WithPopover>
+    <span ref={triggerRef} onMouseEnter={handleOnMouseEnter}>
+      <Label text={citationId} type="primary" style="hollow" />
+    </span>
   );
 };

@@ -2,7 +2,7 @@ import * as React from "react";
 import { IExtension, IExtensionActivationResult, IPage } from "superdesk-api";
 import { Spacer } from "superdesk-ui-framework/react";
 import { ChatWindow } from "./chat-window";
-import { CitationList } from "./citation-list";
+import { CitationWindow } from "./citation-window";
 import { CitationsProvider } from "./context/citations-context";
 import { MarkdownProvider } from "./context/markdown-context";
 import { Form } from "./form";
@@ -37,16 +37,21 @@ const ResearchTool: IPage["component"] = () => {
       <CitationsProvider>
         <Spacer
           h
+          gap="0"
           noWrap
-          gap="8"
           alignItems="stretch"
-          style={{ padding: "1rem 0 1rem 1rem", overflowY: "auto" }}
+          style={{ overflowY: "auto" }}
         >
-          <Spacer v noWrap gap="0" style={{ flex: 1 }}>
+          <Spacer
+            v
+            noWrap
+            gap="0"
+            style={{ padding: "1rem 0 1rem 1rem", flex: 1 }}
+          >
             <ChatWindow />
             <Form />
           </Spacer>
-          <CitationList />
+          <CitationWindow />
         </Spacer>
       </CitationsProvider>
     </MarkdownProvider>

@@ -13,3 +13,9 @@ msgstr "Copy"
 
 msgid "Search bar"
 msgstr "Search bar"
+
+msgid "Show citations"
+msgstr "Show citations"
+
+msgid "Citations"
+msgstr "Citations"
