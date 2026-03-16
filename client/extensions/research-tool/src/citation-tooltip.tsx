@@ -4,6 +4,7 @@ import {
   Label,
   showPopup,
 } from "superdesk-ui-framework/react";
+import { CitationLinkPreview } from "./citation-link-preview";
 import { useCitations } from "./context/citations-context";
 
 export const CitationTooltip = ({ href, children }: any) => {
@@ -32,7 +33,8 @@ export const CitationTooltip = ({ href, children }: any) => {
 
             if (
               triggerRef.current!.contains(dest) ||
-              dest?.closest?.("[data-popper-placement]")
+              dest?.closest?.("[data-popper-placement]") ||
+              dest?.closest?.("[data-test-id='menu']")
             )
               return;
             closePopupRef?.current?.();
@@ -44,15 +46,21 @@ export const CitationTooltip = ({ href, children }: any) => {
                 fullwidth: true,
                 itemRow: [
                   {
+                    content: <h4>{citations[citationId].headline}</h4>,
+                  },
+                  {
                     content: (
                       <>
-                        <h4>{citations[citationId].title}</h4>
-                        <a href={href}>{href}</a>
+                        <span>{citations[citationId].slugline}</span>
+                        <span>{citations[citationId].date_published}</span>
+                        <span>{citations[citationId].language}</span>
+                        <span>{citations[citationId].source}</span>
+                        <span>{citations[citationId].type}</span>
                       </>
                     ),
                   },
                   {
-                    content: <div>{citations[citationId].description}</div>,
+                    content: <CitationLinkPreview href={href} />,
                   },
                 ],
               },
@@ -69,7 +77,8 @@ export const CitationTooltip = ({ href, children }: any) => {
         if (!(dest instanceof HTMLElement)) return true;
         if (
           triggerRef.current!.contains(dest) ||
-          dest?.closest?.("[data-popper-placement]")
+          dest?.closest?.("[data-popper-placement]") ||
+          dest?.closest?.("[data-test-id='menu']")
         )
           return false;
         return true;

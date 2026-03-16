@@ -5,6 +5,7 @@ import { ChatWindow } from "./chat-window";
 import { CitationWindow } from "./citation-window";
 import { CitationsProvider } from "./context/citations-context";
 import { MarkdownProvider } from "./context/markdown-context";
+import { SelectedCitationProvider } from "./context/selected-citation-context";
 import { Form } from "./form";
 
 const extension: IExtension = {
@@ -51,7 +52,9 @@ const ResearchTool: IPage["component"] = () => {
             <ChatWindow />
             <Form />
           </Spacer>
-          <CitationWindow />
+          <SelectedCitationProvider>
+            <CitationWindow />
+          </SelectedCitationProvider>
         </Spacer>
       </CitationsProvider>
     </MarkdownProvider>

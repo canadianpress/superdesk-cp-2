@@ -19,3 +19,6 @@ msgstr "Show citations"
 
 msgid "Citations"
 msgstr "Citations"
+
+msgid "View citation details"
+msgstr "View citation details"
