@@ -46,7 +46,7 @@ const ResearchTool: IPage["component"] = () => {
           <Spacer
             v
             noWrap
-            gap="0"
+            gap="16"
             style={{ padding: "1rem 0 1rem 1rem", flex: 1 }}
           >
             <ChatWindow />
