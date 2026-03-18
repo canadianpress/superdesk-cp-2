@@ -17,24 +17,27 @@ import {
 } from "superdesk-ui-framework/react";
 import { getMenuItems } from "./citation-details";
 import { CitationLinkPreview } from "./citation-link-preview";
+import type { Citation } from "./context/citations-context";
 import { useSelectedCitation } from "./context/selected-citation-context";
 import { useSelectedCitations } from "./context/selected-citations-context";
 import { superdesk } from "./superdesk";
 
-export const CitationItem = ({ citation }: { citation: any }) => {
+export const CitationItem = ({ citation }: { citation: Citation }) => {
   const { setCitation } = useSelectedCitation();
   const { addCitation, removeCitation } = useSelectedCitations();
 
   const [selected, setSelected] = React.useState(false);
 
-  const menuItems = getMenuItems([citation]);
-  menuItems.unshift({
-    label: superdesk.localization.gettext("View citation details"),
-    icon: "icon-preview-mode",
-    onClick: () => {
-      setCitation(citation);
+  const menuItems = [
+    {
+      label: superdesk.localization.gettext("View citation details"),
+      icon: "icon-preview-mode",
+      onClick: () => {
+        setCitation(citation);
+      },
     },
-  } as any);
+    ...getMenuItems([citation]),
+  ];
 
   return (
     <GridItem>

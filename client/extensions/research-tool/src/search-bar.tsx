@@ -6,8 +6,8 @@ export const SearchBar = ({
   value,
   onChange,
 }: {
-  value: any;
-  onChange: any;
+  value: string;
+  onChange: (v: string) => void;
 }) => (
   <Input
     boxedStyle
