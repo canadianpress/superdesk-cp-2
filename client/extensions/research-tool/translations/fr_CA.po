@@ -22,3 +22,5 @@ msgstr "Citations"
 
 msgid "View citation details"
 msgstr "View citation details"
+
+msgid "Show citation #{{n}}"
