@@ -15,7 +15,11 @@ export const useMarkdown = () => {
   return context;
 };
 
-export const MarkdownProvider = ({ children }: { children: any }) => {
+export const MarkdownProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
   const [markdown, setMarkdown] = React.useState<Array<Markdown>>([]);
 
   return (

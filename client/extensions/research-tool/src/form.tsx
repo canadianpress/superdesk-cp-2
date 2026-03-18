@@ -67,7 +67,7 @@ export const Form = () => {
       onSubmit={handleOnSubmit}
       style={{ alignSelf: "center", width: "65%" }}
     >
-      <SearchBar value={query} onChange={(v: any) => setQuery(v)} />
+      <SearchBar value={query} onChange={(v: string) => setQuery(v)} />
     </form>
   );
 };

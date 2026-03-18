@@ -42,7 +42,7 @@ export const CitationWindow = () => {
               setCitation(null);
               setIsOpen((prev) => !prev);
             }}
-            iconButtons={[<Menu />]}
+            iconButtons={[<Menu key="citation-list-header-menu" />]}
           />
           <PanelContent>
             <PanelContentBlock padding="1-5">

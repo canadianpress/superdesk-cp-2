@@ -7,7 +7,13 @@ import {
 import { CitationLinkPreview } from "./citation-link-preview";
 import { useCitations } from "./context/citations-context";
 
-export const CitationTooltip = ({ href, children }: any) => {
+export const CitationTooltip = ({
+  href,
+  children,
+}: {
+  href: string;
+  children: Array<string>;
+}) => {
   const { citations } = useCitations();
 
   const citationId = children.join("");

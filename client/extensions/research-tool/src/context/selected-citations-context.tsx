@@ -1,9 +1,10 @@
 import * as React from "react";
+import type { Citation, Citations } from "./citations-context";
 
 const SelectedCitationsContext = React.createContext<{
-  citations: Record<string, any>;
-  addCitation: (citation: any) => void;
-  removeCitation: (id: any) => void;
+  citations: Citations;
+  addCitation: (citation: Citation) => void;
+  removeCitation: (id: Citation["citation_id"]) => void;
 } | null>(null);
 
 export const useSelectedCitations = () => {
@@ -16,10 +17,14 @@ export const useSelectedCitations = () => {
   return context;
 };
 
-export const SelectedCitationsProvider = ({ children }: { children: any }) => {
-  const [citations, setCitations] = React.useState<Record<string, any>>({});
+export const SelectedCitationsProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
+  const [citations, setCitations] = React.useState<Citations>({});
 
-  const addCitation = (citation: any) => {
+  const addCitation = (citation: Citation) => {
     setCitations((prev) => ({
       ...prev,
       [citation.citation_id]: citation,
