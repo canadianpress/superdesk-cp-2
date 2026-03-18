@@ -42,9 +42,9 @@ export const CitationItem = ({ citation }: { citation: any }) => {
         <Checkbox
           checked={selected}
           label={{
-            text:
-              superdesk.localization.gettext("Select citation #") +
-              citation.citation_id,
+            text: superdesk.localization.gettext("Select citation #{{n}}", {
+              n: citation.citation_id,
+            }),
             hidden: true,
           }}
           onChange={(value) => {
