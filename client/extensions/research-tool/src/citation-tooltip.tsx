@@ -18,7 +18,7 @@ export const CitationTooltip = ({
 
   const { citations } = useCitations();
 
-  const citationId = children.join("");
+  const citationId = children?.join("");
   const triggerRef = React.useRef<HTMLSpanElement>(null);
   const closePopupRef = React.useRef<
     ReturnType<typeof showPopup>["close"] | null

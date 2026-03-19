@@ -1,8 +1,10 @@
 import * as React from "react";
 import { IExtension, IExtensionActivationResult, IPage } from "superdesk-api";
 import { Spacer } from "superdesk-ui-framework/react";
+import { ChatList } from "./chat-list";
 import { ChatWindow } from "./chat-window";
 import { CitationWindow } from "./citation-window";
+import { ChatsProvider } from "./context/chats-context";
 import { CitationsProvider } from "./context/citations-context";
 import { MarkdownProvider } from "./context/markdown-context";
 import { SelectedCitationProvider } from "./context/selected-citation-context";
@@ -32,8 +34,8 @@ const extension: IExtension = {
   },
 };
 
-const ResearchTool: IPage["component"] = () => {
-  return (
+const ResearchTool: IPage["component"] = () => (
+  <ChatsProvider>
     <MarkdownProvider>
       <CitationsProvider>
         <Spacer
@@ -43,12 +45,8 @@ const ResearchTool: IPage["component"] = () => {
           alignItems="stretch"
           style={{ overflowY: "auto" }}
         >
-          <Spacer
-            v
-            noWrap
-            gap="16"
-            style={{ padding: "1rem 0 1rem 1rem", flex: 1 }}
-          >
+          <ChatList />
+          <Spacer v noWrap gap="0" style={{ padding: "1rem 0", flex: 1 }}>
             <ChatWindow />
             <Form />
           </Spacer>
@@ -58,7 +56,7 @@ const ResearchTool: IPage["component"] = () => {
         </Spacer>
       </CitationsProvider>
     </MarkdownProvider>
-  );
-};
+  </ChatsProvider>
+);
 
 export default extension;

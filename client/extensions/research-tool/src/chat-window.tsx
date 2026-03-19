@@ -24,18 +24,32 @@ export const ChatWindow = () => {
   }, [markdown]);
 
   return (
-    <div
-      ref={chatWindowRef}
-      style={{
-        flex: 1,
-        width: "100%",
-        display: "flex",
-        flexDirection: "column",
-        overflowY: "auto",
-        paddingRight: "1rem",
-      }}
-    >
-      <MarkdownList />
-    </div>
+    <>
+      <style>
+        {`
+          .research-tool__chat-window {
+              -ms-overflow-style: none;
+              scrollbar-width: none;
+          }
+          .research-tool__chat-window::-webkit-scrollbar {
+            display: none;
+          }
+        `}
+      </style>
+      <div
+        ref={chatWindowRef}
+        className="research-tool__chat-window"
+        style={{
+          flex: 1,
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          overflowY: "auto",
+          padding: "0 2rem",
+        }}
+      >
+        <MarkdownList />
+      </div>
+    </>
   );
 };
