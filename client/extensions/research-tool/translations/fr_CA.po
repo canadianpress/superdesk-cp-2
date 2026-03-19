@@ -1,0 +1,26 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Research Tool"
+msgstr "Research Tool"
+
+msgid "Ask a question"
+msgstr "Ask a question"
+
+msgid "Copy"
+msgstr "Copy"
+
+msgid "Search bar"
+msgstr "Search bar"
+
+msgid "Show citations"
+msgstr "Show citations"
+
+msgid "Citations"
+msgstr "Citations"
+
+msgid "View citation details"
+msgstr "View citation details"
+
+msgid "Show citation #{{n}}"
