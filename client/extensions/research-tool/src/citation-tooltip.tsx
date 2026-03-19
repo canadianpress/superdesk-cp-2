@@ -11,9 +11,11 @@ export const CitationTooltip = ({
   href,
   children,
 }: {
-  href: string;
-  children: Array<string>;
+  href?: string;
+  children?: Array<React.ReactNode>;
 }) => {
+  if (!href || !children) return null;
+
   const { citations } = useCitations();
 
   const citationId = children.join("");
