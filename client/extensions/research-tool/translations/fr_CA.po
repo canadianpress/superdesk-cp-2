@@ -24,3 +24,10 @@ msgid "View citation details"
 msgstr "View citation details"
 
 msgid "Show citation #{{n}}"
+msgstr "Show citation ${{n}}"
+
+msgid "Show chats"
+msgstr "Show chats"
+
+msgid "Chats"
+msgstr "Chats"
