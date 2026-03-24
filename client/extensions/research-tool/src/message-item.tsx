@@ -2,11 +2,10 @@ import * as React from "react";
 import ReactMarkdown from "react-markdown";
 import { ButtonGroup, IconButton, Loader } from "superdesk-ui-framework/react";
 import { CitationTooltip } from "./citation-tooltip";
-import type { Markdown } from "./context/markdown-context";
 import { superdesk } from "./superdesk";
 
-export const MarkdownItem = ({ markdown }: { markdown: Markdown }) =>
-  !markdown.value ? (
+export const MessageItem = ({ markdown }: { markdown: string }) =>
+  !markdown ? (
     <Loader
       overlay={false}
       width="fit-content"
@@ -16,14 +15,14 @@ export const MarkdownItem = ({ markdown }: { markdown: Markdown }) =>
   ) : (
     <>
       <ReactMarkdown components={{ a: CitationTooltip }}>
-        {markdown.value}
+        {markdown}
       </ReactMarkdown>
       <ButtonGroup>
         <IconButton
           icon="copy"
           ariaValue={superdesk.localization.gettext("Copy")}
           onClick={() => {
-            navigator.clipboard.writeText(markdown.value);
+            navigator.clipboard.writeText(markdown);
           }}
         />
       </ButtonGroup>

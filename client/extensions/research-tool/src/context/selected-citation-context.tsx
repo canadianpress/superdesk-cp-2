@@ -1,5 +1,5 @@
 import * as React from "react";
-import type { Citation } from "./citations-context";
+import type { Citation } from "../typings/chat";
 
 const SelectedCitationContext = React.createContext<{
   citation: Citation | null;
