@@ -1,8 +1,8 @@
 import * as React from "react";
-import type { Citation, Citations } from "./citations-context";
+import type { Chat, Citation } from "../typings/chat";
 
 const SelectedCitationsContext = React.createContext<{
-  citations: Citations;
+  citations: Chat["citations"];
   addCitation: (citation: Citation) => void;
   removeCitation: (id: Citation["citation_id"]) => void;
 } | null>(null);
@@ -22,7 +22,7 @@ export const SelectedCitationsProvider = ({
 }: {
   children: React.ReactNode;
 }) => {
-  const [citations, setCitations] = React.useState<Citations>({});
+  const [citations, setCitations] = React.useState<Chat["citations"]>({});
 
   const addCitation = (citation: Citation) => {
     setCitations((prev) => ({
@@ -38,6 +38,7 @@ export const SelectedCitationsProvider = ({
       return next;
     });
   };
+
   return (
     <SelectedCitationsContext.Provider
       value={{ citations, addCitation, removeCitation }}

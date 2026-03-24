@@ -17,10 +17,10 @@ import {
 } from "superdesk-ui-framework/react";
 import { getMenuItems } from "./citation-details";
 import { CitationLinkPreview } from "./citation-link-preview";
-import type { Citation } from "./context/citations-context";
 import { useSelectedCitation } from "./context/selected-citation-context";
 import { useSelectedCitations } from "./context/selected-citations-context";
 import { superdesk } from "./superdesk";
+import { Citation } from "./typings/chat";
 
 export const CitationItem = ({ citation }: { citation: Citation }) => {
   const { setCitation } = useSelectedCitation();

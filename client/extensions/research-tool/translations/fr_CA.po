@@ -31,3 +31,6 @@ msgstr "Show chats"
 
 msgid "Chats"
 msgstr "Chats"
+
+msgid "Start new chat"
+msgstr "Start new chat"
