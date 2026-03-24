@@ -7,9 +7,9 @@ import {
   PanelContentBlock,
   PanelHeader,
 } from "superdesk-ui-framework/react";
-import type { Citation } from "./context/citations-context";
 import { useSelectedCitation } from "./context/selected-citation-context";
 import { superdesk } from "./superdesk";
+import { Citation } from "./typings/chat";
 
 type BaseFields = {
   [K in keyof Omit<Citation, "citation_id" | "uri" | "description">]: {
