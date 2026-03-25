@@ -1,10 +1,15 @@
 import * as React from "react";
 import {
+  Badge,
+  GridItemText,
+  GridItemTime,
+  GridItemTitle,
   IconButton,
   Menu,
   Panel,
   PanelContent,
   PanelContentBlock,
+  PanelFooter,
   PanelHeader,
 } from "superdesk-ui-framework/react";
 import { useSelectedCitation } from "./context/selected-citation-context";
@@ -74,7 +79,7 @@ export const getMenuItems = (
 };
 
 export const CitationDetails = () => {
-  const { citation, setCitation } = useSelectedCitation();
+  const { citation, setSelectedCitation } = useSelectedCitation();
 
   const [isOpen, setIsOpen] = React.useState(false);
 
@@ -88,12 +93,13 @@ export const CitationDetails = () => {
     setIsOpen(Boolean(citation));
   }, [citation]);
 
+  if (!citation) return null;
   return (
     <Panel open={isOpen} side="right" background="transparent">
       <PanelHeader
-        title={citation?.slugline}
+        title={citation.slugline}
         onClose={() => {
-          setCitation(null);
+          setSelectedCitation(null);
         }}
         iconButtons={
           menuItems
@@ -113,9 +119,16 @@ export const CitationDetails = () => {
       />
       <PanelContent>
         <PanelContentBlock padding="1-5">
-          {citation?.description}
+          <GridItemTime time={citation.date_published} />
+          <GridItemTitle>{citation.headline}</GridItemTitle>
+          <GridItemText>{citation.description}</GridItemText>
         </PanelContentBlock>
       </PanelContent>
+      <PanelFooter>
+        <Badge text={citation.citation_id} />
+        <Badge text={citation.language} />
+        <Badge text={citation.type} />
+      </PanelFooter>
     </Panel>
   );
 };

@@ -5,7 +5,7 @@ import { ChatList } from "./chat-list";
 import { ChatWindow } from "./chat-window";
 import { CitationWindow } from "./citation-window";
 import { ChatsProvider } from "./context/chats-context";
-import { SelectedCitationProvider } from "./context/selected-citation-context";
+import { CitationsProvider } from "./context/citations-context";
 import { Form } from "./form";
 
 const extension: IExtension = {
@@ -34,17 +34,23 @@ const extension: IExtension = {
 
 const ResearchTool: IPage["component"] = () => (
   <ChatsProvider>
-    <Spacer h gap="0" noWrap alignItems="stretch" style={{ overflowY: "auto" }}>
-      <ChatList />
-      <Spacer v noWrap gap="0" alignItems="center" style={{ flex: 1 }}>
-        <ChatWindow />
-        <Form />
-        <SpacerBlock v gap="32" />
-      </Spacer>
-      <SelectedCitationProvider>
+    <CitationsProvider>
+      <Spacer
+        h
+        gap="0"
+        noWrap
+        alignItems="stretch"
+        style={{ overflowY: "auto" }}
+      >
+        <ChatList />
+        <Spacer v noWrap gap="0" alignItems="center" style={{ flex: 1 }}>
+          <ChatWindow />
+          <Form />
+          <SpacerBlock v gap="32" />
+        </Spacer>
         <CitationWindow />
-      </SelectedCitationProvider>
-    </Spacer>
+      </Spacer>
+    </CitationsProvider>
   </ChatsProvider>
 );
 
