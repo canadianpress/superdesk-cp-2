@@ -5,7 +5,7 @@ import {
   showPopup,
 } from "superdesk-ui-framework/react";
 import { CitationLinkPreview } from "./citation-link-preview";
-import { useSelectedChat } from "./context/selected-chat-context";
+import { useCitations } from "./context/citations-context";
 
 export const CitationTooltip = ({
   href,
@@ -16,9 +16,7 @@ export const CitationTooltip = ({
 }) => {
   if (!href || !children) return null;
 
-  const { chat } = useSelectedChat();
-
-  const citations = chat?.citations ?? {};
+  const citations = useCitations();
 
   const citationId = children.join("");
   const triggerRef = React.useRef<HTMLSpanElement>(null);

@@ -10,14 +10,11 @@ import {
 import { CitationDetails, getMenuItems } from "./citation-details";
 import { CitationList } from "./citation-list";
 import { useSelectedCitation } from "./context/selected-citation-context";
-import {
-  SelectedCitationsProvider,
-  useSelectedCitations,
-} from "./context/selected-citations-context";
+import { useSelectedCitations } from "./context/selected-citations-context";
 import { superdesk } from "./superdesk";
 
 export const CitationWindow = () => {
-  const { setCitation } = useSelectedCitation();
+  const { setSelectedCitation } = useSelectedCitation();
 
   const [isOpen, setIsOpen] = React.useState(false);
 
@@ -35,21 +32,19 @@ export const CitationWindow = () => {
         </div>
       )}
       <Panel open={isOpen} side="right" background="transparent">
-        <SelectedCitationsProvider>
-          <PanelHeader
-            title={superdesk.localization.gettext("Citations")}
-            onClose={() => {
-              setCitation(null);
-              setIsOpen((prev) => !prev);
-            }}
-            iconButtons={[<Menu key="citation-list-header-menu" />]}
-          />
-          <PanelContent>
-            <PanelContentBlock padding="1-5">
-              <CitationList />
-            </PanelContentBlock>
-          </PanelContent>
-        </SelectedCitationsProvider>
+        <PanelHeader
+          title={superdesk.localization.gettext("Citations")}
+          onClose={() => {
+            setSelectedCitation(null);
+            setIsOpen((prev) => !prev);
+          }}
+          iconButtons={[<Menu key="citation-list-header-menu" />]}
+        />
+        <PanelContent>
+          <PanelContentBlock padding="1-5">
+            <CitationList />
+          </PanelContentBlock>
+        </PanelContent>
       </Panel>
       <CitationDetails />
     </>
