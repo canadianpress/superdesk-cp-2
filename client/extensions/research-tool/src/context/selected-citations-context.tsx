@@ -25,28 +25,33 @@ export const SelectedCitationsProvider = ({
 }) => {
   const citations = useCitations();
 
-  const [selectedCitations, setSelectedCitations] = React.useState<
-    Chat["citations"]
-  >({});
+  const [selectedCitations, setSelectedCitations] = React.useState<Set<string>>(
+    new Set(),
+  );
+
+  const filteredCitations = React.useMemo(() => {
+    const result: Chat["citations"] = {};
+    selectedCitations.forEach((id) => {
+      if (citations[id]) result[id] = citations[id];
+    });
+    return result;
+  }, [citations, selectedCitations]);
 
   const addCitation = (id: string) => {
-    setSelectedCitations((prev) => ({
-      ...prev,
-      [id]: citations[id],
-    }));
+    setSelectedCitations((prev) => new Set(prev).add(id));
   };
 
   const removeCitation = (id: string) => {
     setSelectedCitations((prev) => {
-      const next = { ...prev };
-      delete next[id];
+      const next = new Set(prev);
+      next.delete(id);
       return next;
     });
   };
 
   return (
     <SelectedCitationsContext.Provider
-      value={{ citations: selectedCitations, addCitation, removeCitation }}
+      value={{ citations: filteredCitations, addCitation, removeCitation }}
     >
       {children}
     </SelectedCitationsContext.Provider>

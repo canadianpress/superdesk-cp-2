@@ -19,4 +19,4 @@ export type Chat = {
   citations: Record<string, Citation>;
 };
 
-export type Chats = Record<string, Chat>;
+export type FormChat = Chat & { isStreaming: boolean };

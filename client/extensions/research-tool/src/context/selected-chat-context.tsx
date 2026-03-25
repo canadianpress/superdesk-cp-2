@@ -1,9 +1,9 @@
 import * as React from "react";
-import type { Chat } from "../typings/chat";
+import type { FormChat } from "../typings/chat";
 import { useChats } from "./chats-context";
 
 const SelectedChatContext = React.createContext<{
-  chat: Chat | null;
+  chat: FormChat | null;
   setSelectedChat: (id: string) => void;
 } | null>(null);
 
