@@ -1,5 +1,5 @@
 import * as React from "react";
-import type { Chat, Chats } from "../typings/chat";
+import type { Chat, FormChat } from "../typings/chat";
 import { SelectedChatProvider } from "./selected-chat-context";
 
 type ChatsAction =
@@ -12,9 +12,12 @@ type ChatsAction =
       type: "ADD_CITATIONS";
       payload: { chatId: string; citations: Chat["citations"] };
     }
-  | { type: "UPDATE_CHAT"; payload: { id: string } & Partial<Chat> };
+  | {
+      type: "UPDATE_CHAT";
+      payload: { id: string } & Partial<FormChat>;
+    };
 
-const ChatsContext = React.createContext<Chats | null>(null);
+const ChatsContext = React.createContext<Record<string, FormChat> | null>(null);
 
 const ChatsDispatchContext =
   React.createContext<React.Dispatch<ChatsAction> | null>(null);
@@ -58,7 +61,7 @@ export const useChatsActions = () => {
   );
 
   const updateChat = React.useCallback(
-    (id: string, chat: Partial<Chat>) => {
+    (id: string, chat: Partial<FormChat>) => {
       dispatch({ type: "UPDATE_CHAT", payload: { ...chat, id } });
     },
     [dispatch],
@@ -70,7 +73,7 @@ export const useChatsActions = () => {
   );
 };
 
-const chatsReducer = (state: Chats, action: ChatsAction) => {
+const chatsReducer = (state: Record<string, FormChat>, action: ChatsAction) => {
   switch (action.type) {
     case "ADD_CHAT": {
       return {
@@ -79,6 +82,7 @@ const chatsReducer = (state: Chats, action: ChatsAction) => {
           ...action.payload,
           messages: [],
           citations: {},
+          isStreaming: false,
         },
       };
     }

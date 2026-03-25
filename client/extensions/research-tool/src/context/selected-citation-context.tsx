@@ -30,7 +30,7 @@ export const SelectedCitationProvider = ({
 
   const citation = React.useMemo(() => {
     if (!selectedCitation) return null;
-    return citations[selectedCitation];
+    return citations[selectedCitation] ?? null;
   }, [citations, selectedCitation]);
 
   return (

@@ -12,23 +12,26 @@ export const Form = () => {
   const { addChat, addMessages, addCitations, updateChat } = useChatsActions();
 
   const [query, setQuery] = React.useState("");
-  const [isStreaming, setIsStreaming] = React.useState(false);
 
-  const esRef = React.useRef<EventSource | null>(null);
+  const chatStreamsRef = React.useRef<Map<string, EventSource>>(new Map());
 
-  React.useEffect(() => () => esRef.current?.close(), []);
+  React.useEffect(
+    () => () => {
+      chatStreamsRef.current.forEach((es) => es.close());
+      chatStreamsRef.current.clear();
+    },
+    [],
+  );
 
   const handleOnSubmit = (newQuery: string) => {
-    if (isStreaming || !newQuery) return;
-    if (esRef.current) esRef.current.close();
+    const chatId = chat?.id ?? crypto.randomUUID();
+    if (chatStreamsRef.current.has(chatId) || !newQuery) return;
 
     setQuery(newQuery);
     setTimeout(() => {
       setQuery("");
     });
-    setIsStreaming(true);
 
-    const chatId = chat?.id ?? crypto.randomUUID();
     if (!chat?.id) {
       addChat(chatId, newQuery);
       setSelectedChat(chatId);
@@ -45,7 +48,8 @@ export const Form = () => {
       `${serverUrl}/research_tool/stream?q=${encodeURIComponent(query)}`,
       { withCredentials: true },
     );
-    esRef.current = es;
+    chatStreamsRef.current.set(chatId, es);
+    updateChat(chatId, { isStreaming: true });
 
     es.addEventListener("response.output_text.delta", (event) => {
       const newNode = JSON.parse(event.data);
@@ -60,12 +64,14 @@ export const Form = () => {
 
     es.addEventListener("done", () => {
       es.close();
-      setIsStreaming(false);
+      chatStreamsRef.current.delete(chatId);
+      updateChat(chatId, { isStreaming: false });
     });
 
     es.onerror = () => {
       es.close();
-      setIsStreaming(false);
+      chatStreamsRef.current.delete(chatId);
+      updateChat(chatId, { isStreaming: false });
     };
   };
 
