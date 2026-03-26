@@ -45,8 +45,8 @@ export const CitationWindow = () => {
             <CitationList />
           </PanelContentBlock>
         </PanelContent>
+        <CitationDetails />
       </Panel>
-      <CitationDetails />
     </>
   );
 };
