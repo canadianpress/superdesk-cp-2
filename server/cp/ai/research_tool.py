@@ -1,4 +1,5 @@
 from asyncio import create_task, get_event_loop, sleep
+from inspect import isawaitable
 from logging import getLogger
 from re import compile
 from typing import AsyncIterator
@@ -11,6 +12,7 @@ from superdesk.eve_async.service import AsyncBaseService
 from superdesk.flask import Blueprint
 from superdesk.resource import Resource
 from superdesk.utils import get_cors_headers
+from apps.auth import get_user_id
 
 logger = getLogger(__name__)
 
@@ -19,7 +21,8 @@ bp = Blueprint("research_tool", __name__, url_prefix="/api")
 
 @bp.route("/research_tool/stream", methods=["GET", "OPTIONS"])
 @blueprint_auth()
-async def research_tool_stream():
+async def get_stream():
+    user_id = get_user_id()
     response = Response(
         _research_tool_generator(
             get_resource_service("research_tool"), request.args.get("q", "")
@@ -30,6 +33,70 @@ async def research_tool_stream():
 
     return response
 
+
+async def _find_items_by_user(service_name: str, user_id: str) -> list[dict]:
+    service = get_resource_service(service_name)
+
+    try:
+        result = service.find_async({"where": {"user_id": user_id}})
+        if isawaitable(result):
+            result = await result
+        items = list(result)
+        if items:
+            return items
+    except Exception:
+        logger.exception("Failed loading user-scoped items from %s", service_name)
+        return []
+
+    return []
+
+
+@bp.route("/chats", methods=["GET"])
+@blueprint_auth()
+async def get_chats():
+    user_id = get_user_id()
+    if not user_id:
+        payload = {"error": "Could not determine authenticated user"}
+        return Response(dumps(payload), status=401, mimetype="application/json")
+
+    sessions = await _find_items_by_user("research_chat_sessions", user_id)
+
+    # Return newest sessions first for a "saved chats" sidebar UX.
+    sessions.sort(
+        key=lambda s: s.get("updated_at") or s.get("created_at") or "",
+        reverse=True,
+    )
+
+    return Response(
+        dumps({"_items": sessions, "_meta": {"total": len(sessions)}}),
+        mimetype="application/json",
+    )
+
+
+@bp.route("/chats/<chat_session_id>", methods=["GET"])
+@blueprint_auth()
+async def get_messages(chat_session_id: str):
+    user_id = get_user_id()
+    if not user_id:
+        payload = {"error": "Could not determine authenticated user"}
+        return Response(dumps(payload), status=401, mimetype="application/json")
+
+    messages = await _find_items_by_user("research_chat_messages", user_id)
+    messages = [m for m in messages if m.get("chat_session_id") == chat_session_id]
+
+    # Keep chronological order for transcript rendering.
+    messages.sort(key=lambda m: (m.get("seq", 0), m.get("created_at", "")))
+
+    return Response(
+        dumps(
+            {
+                "chat_session_id": chat_session_id,
+                "_items": messages,
+                "_meta": {"total": len(messages)},
+            }
+        ),
+        mimetype="application/json",
+    )
 
 CITATION_REGEX = compile(r"\[\[(\d+)\]\((https?://[^\s)]+)\)\]")
 WINDOW_SIZE = 500
@@ -77,25 +144,33 @@ async def _research_tool_generator(service, query):
     yield "event: done\ndata: \n\n"
 
 
-async def _fetch_article(guid, uri):
-    pass
+async def _fetch_article(guid: str) -> dict | None:
+    archive_service = get_resource_service("archive")
+    article = await archive_service.find_one_async(req=None, _id=guid)  
+    if article:
+        return article
+    return None
 
 
 class ResearchToolResource(Resource):
     endpoint_name = "research_tool"
-    resource_methods = ["GET"]
+    resource_methods = ["GET","POST","DELETE"]
     schema = {
         "iteration": {"type": "integer"},
-        "status": {
-            "type": "string",
-        },
+        "thread_id": {"type": "string", "required": True},
+        "session_id": {"type": "string", "required": True},
+        "user_id": {"type": "string", "required": True}
     }
     privileges = {
         "GET": "archive",
+        "POST": "archive",
     }
 
 
 class ResearchToolService(AsyncBaseService):
+    def __init__(self, endpoint_name, config, service):
+        super().__init__(endpoint_name, config, service)
+
     async def get_all_batch_async(
         self, size=500, max_iterations=10000, lookup=None
     ) -> AsyncIterator[dict]:
@@ -306,6 +381,7 @@ class ResearchToolService(AsyncBaseService):
         for i, word in enumerate(deltas, start=2):
             payload = {
                 "seq_id": i,
+                "thread_id": "123",
                 "type": "response.output_text.delta",
                 "response": {
                     "output_index": 0,
@@ -313,8 +389,64 @@ class ResearchToolService(AsyncBaseService):
                     "delta": word,
                 },
             }
+
             yield f"id: {i}\nevent: response.output_text.delta\ndata: {dumps(payload)}\n\n"
             await sleep(0.2)
+
+
+class ResearchChatSessionResource(Resource):
+    endpoint_name = "research_chat_sessions"
+    resource_methods = ["GET", "POST"]
+    item_methods = ["GET", "PATCH", "DELETE"]
+    schema = {
+        # Client-side stable identifier for a chat session.
+        "chat_session_id": {"type": "string", "required": True},
+        # Logged-in user that owns the session (enforced server-side in BE logic later).
+        "user_id": {"type": "string", "required": True},
+        "title": {"type": "string"},
+        # Identifiers required by YDC (one thread per chat session).
+        "ydc_session_id": {"type": "string", "required": True},
+        "ydc_thread_id": {"type": "string", "required": True},
+        "status": {"type": "string"},
+        "created_at": {"type": "string"},
+        "updated_at": {"type": "string"},
+    }
+    privileges = {
+        "GET": "archive",
+        "POST": "archive",
+        "PATCH": "archive",
+        "DELETE": "archive",
+    }
+
+
+class ResearchChatSessionService(AsyncBaseService):
+    """Async service for chat session persistence."""
+
+
+class ResearchChatMessageResource(Resource):
+    endpoint_name = "research_chat_messages"
+    resource_methods = ["GET", "POST"]
+    item_methods = ["GET", "PATCH", "DELETE"]
+    schema = {
+        "chat_session_id": {"type": "string", "required": True},
+        "user_id": {"type": "string", "required": True},
+        "role": {"type": "string", "required": True},  # user|assistant|system
+        "content_markdown": {"type": "string"},
+        # Store citations metadata emitted by the stream for re-rendering.
+        "citations": {"type": "list"},
+        "seq": {"type": "integer", "required": True},
+        "created_at": {"type": "string"},
+    }
+    privileges = {
+        "GET": "archive",
+        "POST": "archive",
+        "PATCH": "archive",
+        "DELETE": "archive",
+    }
+
+
+class ResearchChatMessageService(AsyncBaseService):
+    """Async service for chat message persistence."""
 
 
 def init_app(app):
@@ -322,5 +454,17 @@ def init_app(app):
 
     register_resource(
         "research_tool", ResearchToolResource, ResearchToolService, _app=app
+    )
+    register_resource(
+        "research_chat_sessions",
+        ResearchChatSessionResource,
+        ResearchChatSessionService,
+        _app=app,
+    )
+    register_resource(
+        "research_chat_messages",
+        ResearchChatMessageResource,
+        ResearchChatMessageService,
+        _app=app,
     )
     blueprint(bp, app)
