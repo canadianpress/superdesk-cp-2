@@ -26,7 +26,8 @@ jobs:
           instance-ids: ${{ secrets.INSTANCE_ID }}
 
           working-directory: ~
-          command: git clone https://github.com/canadianpress/superdesk-cp-2.git
-          command: cd superdesk-cp-2
-          command: git fetch origin test-ci-cd
-          command: git switch test-ci-cd
+          command: |
+            git clone https://github.com/canadianpress/superdesk-cp-2.git
+            cd superdesk-cp-2
+            git fetch origin test-ci-cd
+            git switch test-ci-cd
