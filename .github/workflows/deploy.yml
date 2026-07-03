@@ -16,16 +16,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Execute remote SSH commands
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Deploy with SSM 
+        uses: peterkimzz/aws-ssm-send-command@master
+        id: ssm
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
-          script: |
-            cd ~
-            git clone git@github.com:canadianpress/superdesk-cp-2.git
-            cd superdesk-cp-2
-            git fetch origin test-ci-cd
-            git switch test-ci-cd
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          instance-ids: ${{ secrets.INSTANCE_ID }}
+
+          working-directory: ~
+          command: git clone https://github.com/canadianpress/superdesk-cp-2.git
+          command: cd superdesk-cp-2
+          command: git fetch origin test-ci-cd
+          command: git switch test-ci-cd
