@@ -24,10 +24,30 @@ jobs:
 
       - name: Execute SSM Command
         run: |
+          TARGET_DIR="${{ vars.TARGET_DIR }}"
+          REPO_URL="${{ vars.REPO_URL }}"
+          REPO_REF="${{ vars.REPO_REF }}"
+
+          # Script executed remotely on the EC2 instance
+          SSM_COMMANDS=$(cat <<EOF
+            set -e
+            if [ -d "$TARGET_DIR/.git" ]; then
+              cd $TARGET_DIR
+              git fetch origin
+              git checkout $REPO_REF
+              git reset --hard origin/$REPO_REF
+            else
+              git clone -b $REPO_REF $REPO_URL $TARGET_DIR
+            fi
+          EOF
+          )
+
+          PAYLOAD=$(echo "$SSM_COMMANDS" | jq -R -s -c 'split("\n")')
+
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "${{ secrets.INSTANCE_ID }}" \
             --document-name "AWS-RunShellScript" \
-            --parameters 'commands=["echo Hello World", "uptime"]' \
+            --parameters "{\"commands\": $PAYLOAD}" \
             --query "Command.CommandId" \
             --output text)
 
