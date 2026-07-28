@@ -1,0 +1,18 @@
+services:
+  redis:
+    image: redis:${REDIS_VERSION:-5.0}
+    ports:
+      - "6379:6379"
+
+  mongo:
+    image: mongo:${MONGO_VERSION:-4.4}
+    platform: linux/arm64
+    ports:
+      - "27017:27017"
+
+  elastic:
+    image: elasticsearch:${ELASTICSEARCH_VERSION:-7.17.10}
+    environment:
+      - discovery.type=single-node
+    ports:
+      - "9200:9200"
