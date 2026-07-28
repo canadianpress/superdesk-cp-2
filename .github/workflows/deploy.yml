@@ -72,6 +72,8 @@ jobs:
 
             cd deploy/hosts
             sudo ./setup-cms-system.sh
+            cd ../services
+            ./cms.sh
 
           EOF
           )
@@ -116,7 +118,7 @@ jobs:
             --query "StandardErrorContent" \
             --output text
 
+          echo "Deployment: $STATUS"
           if [ "$STATUS" != "Success" ]; then
-            echo "Deployment failed: $STATUS"
             exit 1
           fi
