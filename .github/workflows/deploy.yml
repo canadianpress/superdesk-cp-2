@@ -71,9 +71,6 @@ jobs:
               --output text > .env
             chmod 600 .env
 
-            echo $USER
-            whoami
-
             cd deploy/hosts
             sudo ./setup-cms-system.sh
             cd ../services
