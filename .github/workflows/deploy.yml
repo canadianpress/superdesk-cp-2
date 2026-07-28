@@ -65,7 +65,7 @@ jobs:
               --output text > .env
             chmod 600 .env
 
-            cd hosts
+            cd deploy/hosts
             sudo ./setup-cms-system.sh
 
           EOF
