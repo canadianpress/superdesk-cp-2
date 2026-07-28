@@ -5,8 +5,8 @@ services:
       - "6379:6379"
 
   mongo:
-    image: mongo:${MONGO_VERSION:-4.4}
-    platform: linux/arm64
+    image: mongo:${MONGO_VERSION:-6.0}
+    platform: linux/amd64
     ports:
       - "27017:27017"
 
