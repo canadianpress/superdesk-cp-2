@@ -30,6 +30,7 @@ jobs:
           TARGET_DIR="${{ vars.TARGET_DIR }}"
           REPO_URL="${{ vars.REPO_URL }}"
           REPO_REF="${{ vars.REPO_REF }}"
+          AWS_REGION="${{ secrets.AWS_REGION }}"
           SSM_ENV_PARAM_NAME="${{ vars.SSM_ENV_PARAM_NAME }}"
           MAX_POLL_TIME="${{ vars.MAX_POLL_TIME || '900' }}"
           POLL_INTERVAL="${{ vars.POLL_INTERVAL || '10' }}"
@@ -37,6 +38,8 @@ jobs:
 
           SSM_COMMANDS=$(cat <<EOF
             set -e
+
+            export AWS_DEFAULT_REGION="$AWS_REGION"
 
             if ! command -v aws &> /dev/null; then
               echo "Installing AWS CLI..."
