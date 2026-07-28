@@ -34,9 +34,9 @@ jobs:
             set -e
 
             if ! command -v aws &> /dev/null; then
-              echo "AWS CLI missing. Installing non-interactively via apt..."
-              DEBIAN_FRONTEND=noninteractive sudo apt-get update -qq
-              DEBIAN_FRONTEND=noninteractive sudo apt-get install -y -qq awscli
+              echo "Installing AWS CLI..."
+              NEEDRESTART_MODE=a DEBIAN_FRONTEND=noninteractive sudo apt-get update -qq
+              NEEDRESTART_MODE=a DEBIAN_FRONTEND=noninteractive sudo apt-get install -y -qq awscli
             fi
 
             if [ -d "$TARGET_DIR/.git" ]; then
@@ -61,7 +61,10 @@ jobs:
               --query "Parameter.Value" \
               --output text > .env
             chmod 600 .env
-            
+
+            cd hosts
+            sudo ./setup-cms-system.sh
+
           EOF
           )
 
