@@ -210,15 +210,15 @@ setup_python() {
             uv venv --seed --python "${PYTHON_VERSION}" env
         fi
         log_info "Installing Python dependencies..."
-        uv pip install --python env/bin/python -r "$req"
+        uv pip install --quiet --python env/bin/python -r "$req"
     else
         if [[ ! -d "env" ]]; then
             python -m venv env
         fi
         log_info "Installing Python dependencies..."
         source env/bin/activate
-        pip install --upgrade pip wheel setuptools
-        pip install -r "$req"
+        pip install --quiet --progress-bar off --upgrade pip wheel setuptools
+        pip install --quiet --progress-bar off -r "$req"
         deactivate
     fi
 
@@ -256,10 +256,10 @@ setup_frontend() {
     export SUPERDESK_URL SUPERDESK_WS_URL
 
     if [[ "$USE_PNPM" == "true" ]]; then
-        pnpm i -ci
+        pnpm i -ci --quiet
         pnpm run build
     else
-        npm i -ci
+        npm i -ci --quiet
         npm run build
     fi
 
