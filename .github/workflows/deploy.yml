@@ -32,13 +32,13 @@ jobs:
           REPO_REF="${{ vars.REPO_REF }}"
           AWS_REGION="${{ secrets.AWS_REGION }}"
           SSM_ENV_PARAM_NAME="${{ vars.SSM_ENV_PARAM_NAME }}"
+          TARGET_USER="${{ vars.TARGET_USER || 'runner' }}"
           MAX_POLL_TIME="${{ vars.MAX_POLL_TIME || '900' }}"
           POLL_INTERVAL="${{ vars.POLL_INTERVAL || '10' }}"
           MAX_ATTEMPTS=$((MAX_POLL_TIME / POLL_INTERVAL))
 
           SSM_COMMANDS=$(cat <<EOF
             set -e
-            exec 2>&1
 
             export AWS_DEFAULT_REGION="$AWS_REGION"
 
@@ -48,34 +48,47 @@ jobs:
               NEEDRESTART_MODE=a DEBIAN_FRONTEND=noninteractive sudo apt-get install -y -qq awscli
             fi
 
-            if [ -d "$TARGET_DIR/.git" ]; then
-              echo "Updating existing repository at $TARGET_DIR..."
-              cd $TARGET_DIR
-              git fetch origin
-              git checkout $REPO_REF
-              git reset --hard origin/$REPO_REF
-            else
-              echo "Cloning new repository into $TARGET_DIR..."
-              git clone -b $REPO_REF $REPO_URL $TARGET_DIR
-              cd $TARGET_DIR
-            fi
+            sudo -i -u "$TARGET_USER" bash <<'USER_EOF'
+              set -e
+              exec 2>&1
 
-            echo "Current HEAD"
-            git -C $TARGET_DIR rev-parse HEAD
+              TARGET_DIR="$TARGET_DIR"
+              REPO_URL="$REPO_URL"
+              REPO_REF="$REPO_REF"
+              AWS_REGION="$AWS_REGION"
+              SSM_ENV_PARAM_NAME="$SSM_ENV_PARAM_NAME"
 
-            echo "Writing .env file from SSM Parameter Store..."
-            aws ssm get-parameter \
-              --name "$SSM_ENV_PARAM_NAME" \
-              --with-decryption \
-              --query "Parameter.Value" \
-              --output text > .env
-            chmod 600 .env
+              export AWS_DEFAULT_REGION="\$AWS_REGION"
 
-            cd deploy/hosts
-            sudo ./setup-cms-system.sh
-            cd ../services
-            ./cms.sh
+              if [ -d "\$TARGET_DIR/.git" ]; then
+                echo "Updating existing repository at \$TARGET_DIR..."
+                cd "\$TARGET_DIR"
+                git fetch origin
+                git checkout "\$REPO_REF"
+                git reset --hard "origin/\$REPO_REF"
+              else
+                echo "Cloning new repository into \$TARGET_DIR..."
+                git clone -b "\$REPO_REF" "\$REPO_URL" "\$TARGET_DIR"
+                cd "\$TARGET_DIR"
+              fi
 
+              echo "Current HEAD"
+              git -C "\$TARGET_DIR" rev-parse HEAD
+
+              echo "Writing .env file from SSM Parameter Store..."
+              aws ssm get-parameter \
+                --name "\$SSM_ENV_PARAM_NAME" \
+                --with-decryption \
+                --query "Parameter.Value" \
+                --output text > "\$TARGET_DIR/.env"
+              chmod 600 "\$TARGET_DIR/.env"
+
+              cd "\$TARGET_DIR/deploy/hosts"
+              sudo ./setup-cms-system.sh
+              cd "\$TARGET_DIR/deploy/services"
+              ./cms.sh
+
+            USER_EOF
           EOF
           )
 

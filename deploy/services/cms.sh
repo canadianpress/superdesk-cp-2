@@ -10,7 +10,7 @@ TEMPLATE_DIR="${SCRIPT_DIR}/../templates"
 
 # Application configuration
 APP_NAME="${APP_NAME:-cms}"
-APP_USER="${APP_USER:-root}"
+APP_USER="${APP_USER:-runner}"
 DEPLOY_DIR="${DEPLOY_DIR:-/opt/${APP_NAME}}"
 SERVER_DIR="${DEPLOY_DIR}/server"
 CLIENT_DIR="${DEPLOY_DIR}/client"
