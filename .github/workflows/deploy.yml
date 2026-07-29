@@ -42,6 +42,13 @@ jobs:
 
             export AWS_DEFAULT_REGION="$AWS_REGION"
 
+            apt-get clean
+            rm -rf /var/cache/apt/archives/*
+            
+            if command -v docker &> /dev/null; then
+              docker system prune -f --volumes || true
+            fi
+
             NEEDRESTART_MODE=a DEBIAN_FRONTEND=noninteractive sudo apt-get update -qq
             NEEDRESTART_MODE=a DEBIAN_FRONTEND=noninteractive sudo apt-get --fix-broken install -y -qq
 
