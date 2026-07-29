@@ -43,6 +43,9 @@ jobs:
 
             export AWS_DEFAULT_REGION="$AWS_REGION"
 
+            mkdir -p "$TARGET_DIR"
+            chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_DIR"
+
             if ! command -v aws &> /dev/null; then
               echo "Installing AWS CLI..."
               curl -fsSL https://awscli.amazonaws.com/v2/install.sh | sudo bash -s -- --system
