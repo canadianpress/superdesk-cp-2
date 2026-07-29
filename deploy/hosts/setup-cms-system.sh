@@ -153,20 +153,18 @@ install_nginx() {
 install_docker() {
     if command -v docker &>/dev/null && docker compose version &>/dev/null; then
         log_info "Docker Engine and Compose plugin already installed."
-        return
-    fi
+    else
+        log_info "Installing Docker Engine and Docker Compose plugin..."
 
-    log_info "Installing Docker Engine and Docker Compose plugin..."
+        apt_update
+        apt_install ca-certificates curl
+        install -m 0755 -d /etc/apt/keyrings
+        if [[ ! -f /etc/apt/keyrings/docker.gpg ]]; then
+            curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+            chmod a+r /etc/apt/keyrings/docker.asc
+        fi
 
-    apt_update
-    apt_install ca-certificates curl
-    install -m 0755 -d /etc/apt/keyrings
-    if [[ ! -f /etc/apt/keyrings/docker.gpg ]]; then
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-        chmod a+r /etc/apt/keyrings/docker.asc
-    fi
-
-    tee /etc/apt/sources.list.d/docker.sources <<EOF
+        tee /etc/apt/sources.list.d/docker.sources <<EOF
 Types: deb
 URIs: https://download.docker.com/linux/ubuntu
 Suites: $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")
@@ -175,12 +173,15 @@ Architectures: $(dpkg --print-architecture)
 Signed-By: /etc/apt/keyrings/docker.asc
 EOF
 
-    apt_update
-    apt_install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+        apt_update
+        apt_install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-    usermod -aG docker ubuntu
+        usermod -aG docker ubuntu
+        log_success "Docker Engine and Docker Compose plugin installed."
+    fi
 
-    log_success "Docker Engine and Docker Compose plugin installed."
+    systemctl enable docker.service
+    systemctl enable containerd.service
 }
 
 setup_swap() {
