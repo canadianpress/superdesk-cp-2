@@ -450,12 +450,16 @@ create_procfile() {
 create_systemd_service() {
     log_info "Creating user systemd service..."
 
+    export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+    export DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus"
+
     local user_service_dir="${HOME}/.config/systemd/user"
     mkdir -p "${user_service_dir}"
     install_template "app.service.template" "${user_service_dir}/${APP_NAME}.service"
+
+    sudo loginctl enable-linger "${USER}"
     systemctl --user daemon-reload
     systemctl --user enable --now "${APP_NAME}.service"
-    sudo loginctl enable-linger "${USER}"
 
     log_success "Systemd service created"
 }
