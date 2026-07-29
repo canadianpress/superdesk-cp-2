@@ -124,7 +124,13 @@ install_python() {
         libfontconfig1-dev \
         libssl-dev \
         libexempi8 \
-        libimage-exiftool-perl
+        libimage-exiftool-perl \
+        libbz2-dev \
+        libreadline-dev \
+        libsqlite3-dev \
+        liblzma-dev \
+        libncurses5-dev \
+        libncursesw5-dev \
 
     log_info "Installing Python ${PYTHON_VERSION}..."
     add-apt-repository -y ppa:deadsnakes/ppa > /dev/null 2>&1
