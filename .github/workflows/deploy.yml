@@ -42,9 +42,11 @@ jobs:
 
             export AWS_DEFAULT_REGION="$AWS_REGION"
 
+            NEEDRESTART_MODE=a DEBIAN_FRONTEND=noninteractive sudo apt-get update -qq
+            NEEDRESTART_MODE=a DEBIAN_FRONTEND=noninteractive sudo apt-get --fix-broken install -y -qq
+
             if ! command -v aws &> /dev/null; then
               echo "Installing AWS CLI..."
-              NEEDRESTART_MODE=a DEBIAN_FRONTEND=noninteractive sudo apt-get update -qq
               NEEDRESTART_MODE=a DEBIAN_FRONTEND=noninteractive sudo apt-get install -y -qq awscli
             fi
 
