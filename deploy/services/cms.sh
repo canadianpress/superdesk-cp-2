@@ -257,10 +257,10 @@ setup_frontend() {
 
     if [[ "$USE_PNPM" == "true" ]]; then
         pnpm i -ci --quiet
-        pnpm --loglevel error run build
+       pnpm --silent run build > /dev/null
     else
         npm i -ci --quiet
-        npm --loglevel error run build 
+        npm run build --silent > /dev/null
     fi
 
     log_success "Frontend built"
