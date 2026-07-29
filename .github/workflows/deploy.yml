@@ -32,7 +32,7 @@ jobs:
           REPO_REF="${{ vars.REPO_REF }}"
           AWS_REGION="${{ secrets.AWS_REGION }}"
           SSM_ENV_PARAM_NAME="${{ vars.SSM_ENV_PARAM_NAME }}"
-          TARGET_USER="${{ vars.TARGET_USER || 'runner' }}"
+          TARGET_USER="${{ vars.TARGET_USER || 'ubuntu' }}"
           MAX_POLL_TIME="${{ vars.MAX_POLL_TIME || '900' }}"
           POLL_INTERVAL="${{ vars.POLL_INTERVAL || '10' }}"
           MAX_ATTEMPTS=$((MAX_POLL_TIME / POLL_INTERVAL))
