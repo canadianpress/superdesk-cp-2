@@ -101,6 +101,7 @@ jobs:
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "${{ secrets.INSTANCE_ID }}" \
             --document-name "AWS-RunShellScript" \
+            --timeout-seconds 1800 \
             --parameters "{\"commands\": $PAYLOAD}" \
             --query "Command.CommandId" \
             --output text)
