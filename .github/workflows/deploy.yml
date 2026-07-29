@@ -48,44 +48,37 @@ jobs:
               NEEDRESTART_MODE=a DEBIAN_FRONTEND=noninteractive sudo apt-get install -y -qq awscli
             fi
 
-            sudo -i -u "$TARGET_USER" bash <<'USER_EOF'
+            sudo -i -u "$TARGET_USER" AWS_DEFAULT_REGION="$AWS_REGION" bash <<USER_EOF
               set -e
               exec 2>&1
 
-              TARGET_DIR="$TARGET_DIR"
-              REPO_URL="$REPO_URL"
-              REPO_REF="$REPO_REF"
-              AWS_REGION="$AWS_REGION"
-              SSM_ENV_PARAM_NAME="$SSM_ENV_PARAM_NAME"
-
-              export AWS_DEFAULT_REGION="\$AWS_REGION"
-
-              if [ -d "\$TARGET_DIR/.git" ]; then
-                echo "Updating existing repository at \$TARGET_DIR..."
-                cd "\$TARGET_DIR"
+              if [ -d "$TARGET_DIR/.git" ]; then
+                echo "Updating existing repository at $TARGET_DIR..."
+                cd "$TARGET_DIR"
                 git fetch origin
-                git checkout "\$REPO_REF"
-                git reset --hard "origin/\$REPO_REF"
+                git checkout "$REPO_REF"
+                git reset --hard "origin/$REPO_REF"
               else
-                echo "Cloning new repository into \$TARGET_DIR..."
-                git clone -b "\$REPO_REF" "\$REPO_URL" "\$TARGET_DIR"
-                cd "\$TARGET_DIR"
+                echo "Cloning new repository into $TARGET_DIR..."
+                git clone -b "$REPO_REF" "$REPO_URL" "$TARGET_DIR"
+                cd "$TARGET_DIR"
               fi
 
               echo "Current HEAD"
-              git -C "\$TARGET_DIR" rev-parse HEAD
+              git -C "$TARGET_DIR" rev-parse HEAD
 
               echo "Writing .env file from SSM Parameter Store..."
               aws ssm get-parameter \
-                --name "\$SSM_ENV_PARAM_NAME" \
+                --name "$SSM_ENV_PARAM_NAME" \
                 --with-decryption \
                 --query "Parameter.Value" \
-                --output text > "\$TARGET_DIR/.env"
-              chmod 600 "\$TARGET_DIR/.env"
+                --output text > "$TARGET_DIR/.env"
+              chmod 600 "$TARGET_DIR/.env"
 
-              cd "\$TARGET_DIR/deploy/hosts"
+              cd "$TARGET_DIR/deploy/hosts"
               sudo ./setup-cms-system.sh
-              cd "\$TARGET_DIR/deploy/services"
+
+              cd "$TARGET_DIR/deploy/services"
               ./cms.sh
 
             USER_EOF
