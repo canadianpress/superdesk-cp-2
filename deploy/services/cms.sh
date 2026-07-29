@@ -395,7 +395,7 @@ setup_env_file() {
         "ELASTICSEARCH_URL=$es_url" \
         "REDIS_URL=$redis_url" \
         "CONTENTAPI_ES_INDEX=$contentapi_es_index" \
-        "OPTIONAL_VARS=$optional_vars" > sudo tee "$ENV_FILE" > /dev/null
+        "OPTIONAL_VARS=$optional_vars" | sudo tee "$ENV_FILE" > /dev/null
 
     sudo chown "$APP_USER:$APP_USER" "$ENV_FILE"
     sudo chmod 600 "$ENV_FILE"

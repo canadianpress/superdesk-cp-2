@@ -83,8 +83,8 @@ jobs:
                   --name "$SSM_ENV_PARAM_NAME" \
                   --with-decryption \
                   --query "Parameter.Value" \
-                  --output text > "$TARGET_DIR/.env"
-                chmod 600 "$TARGET_DIR/.env"
+                  --output text > "$TARGET_DIR/deploy/deploy.env"
+                chmod 600 "$TARGET_DIR/deploy/deploy.env"
 
                 cd "$TARGET_DIR/deploy/hosts"
                 sudo ./setup-cms-system.sh
