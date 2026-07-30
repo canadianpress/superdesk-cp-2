@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+export SHELL=/bin/bash
+
 # Script directory (templates are one level up)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_DIR="${SCRIPT_DIR}/../templates"
@@ -11,21 +13,27 @@ TEMPLATE_DIR="${SCRIPT_DIR}/../templates"
 # Application configuration
 APP_NAME="${APP_NAME:-cms}"
 APP_USER="${APP_USER:-ubuntu}"
-DEPLOY_DIR="${DEPLOY_DIR:-/opt/${APP_NAME}}"
+DEPLOY_DIR="${DEPLOY_DIR:-/var/www/app/${APP_NAME}}"
 SERVER_DIR="${DEPLOY_DIR}/server"
 CLIENT_DIR="${DEPLOY_DIR}/client"
 ENV_FILE="${ENV_FILE:-/etc/${APP_NAME}/env}"
 LOG_DIR="/var/log/${APP_NAME}"
-PYTHON_VERSION="${PYTHON_VERSION:-3.10}"
-NODE_VERSION="${NODE_VERSION:-22}"
+
 USE_PNPM="${USE_PNPM:-false}"
 USE_UV="${USE_UV:-false}"
+
+PYTHON_VERSION="${PYTHON_VERSION:-3.10}"
+NODE_VERSION="${NODE_VERSION:-22}"
+NPM_VERSION="${NPM_VERSION:-10}"
+REDIS_VERSION="${REDIS_VERSION:-5.0}"
+MONGO_VERSION="${MONGO_VERSION:-6.0}"
+ELASTICSEARCH_VERSION="${ELASTICSEARCH_VERSION:-7.17.10}"
 
 # Repository
 # REPO_REF accepts a branch or a release tag (e.g. cp30.1). REPO_BRANCH is
 # kept as a back-compat alias for env files that still set it.
-REPO_URL="${REPO_URL:-https://github.com/superdesk/superdesk-cp.git}"
-REPO_REF="${REPO_REF:-${REPO_BRANCH:-cp30.1}}"
+REPO_URL="${REPO_URL:-https://github.com/canadianpress/superdesk-cp-2.git}"
+REPO_REF="${REPO_REF:-develop}"
 
 # Which requirements file to install (cp30 ships a pip-compiled requirements.txt;
 # dev-requirements.txt also exists but pulls in pytest/mypy/black — not for prod)
@@ -36,14 +44,14 @@ REQUIREMENTS_FILE="${REQUIREMENTS_FILE:-requirements.txt}"
 # (rest=5000, wamp=5100, …, capi=5400, papi=5500) and are used for nginx routing.
 WEB_PORT="${WEB_PORT:-5000}"
 WS_PORT="${WS_PORT:-5100}"
+WEB_TIMEOUT="${WEB_TIMEOUT:-30}"
+DOMAIN="${DOMAIN:-localhost}"
 CAPI_PORT="${CAPI_PORT:-5400}"
 PAPI_PORT="${PAPI_PORT:-5500}"
 # hypercorn_config.py reads WEB_CONCURRENCY; CAPI/PAPI workers are read by the Procfile
 WEB_CONCURRENCY="${WEB_CONCURRENCY:-${WEB_WORKERS:-2}}"
 CAPI_WORKERS="${CAPI_WORKERS:-2}"
 PAPI_WORKERS="${PAPI_WORKERS:-2}"
-WEB_TIMEOUT="${WEB_TIMEOUT:-30}"
-DOMAIN="${DOMAIN:-localhost}"
 
 # Computed URLs (derived from DOMAIN)
 # PRODAPI_URL is the host only (no path, no trailing slash) — prod_api appends
@@ -63,10 +71,6 @@ else
 fi
 
 # Database
-# Local MongoDB is used by default. To point at an external cluster (e.g. Atlas),
-# set the 5 *_URI vars below in the env file — each one, when set, overrides the
-# locally-derived mongodb://host:port/db value. Use mongodb+srv://… for Atlas.
-#   MONGO_URI LEGAL_ARCHIVE_URI ARCHIVED_URI PUBLICAPI_MONGO_URI CONTENTAPI_MONGO_URI
 MONGODB_HOST="${MONGODB_HOST:-localhost}"
 MONGODB_PORT="${MONGODB_PORT:-27017}"
 MONGODB_DB="${MONGODB_DB:-cms}"
@@ -76,6 +80,7 @@ ELASTICSEARCH_INDEX="${ELASTICSEARCH_INDEX:-cms}"
 REDIS_HOST="${REDIS_HOST:-localhost}"
 REDIS_PORT="${REDIS_PORT:-6379}"
 REDIS_DB="${REDIS_DB:-1}"
+DEFAULT_TIMEZONE="${DEFAULT_TIMEZONE:-America/Toronto}"
 
 # Semaphore (Progress/Smartlogic) — set via env or ENV_FILE
 SEMAPHORE_BASE_URL="${SEMAPHORE_BASE_URL:-https://cp.data.progress.cloud}"
@@ -191,14 +196,6 @@ clone_or_update_repo() {
     log_info "Repository ready at $(git -C "$DEPLOY_DIR" rev-parse --short HEAD) (${REPO_REF})"
 }
 
-install_uv() {
-    if ! command -v uv &>/dev/null; then
-        log_info "Installing uv..."
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        export PATH="$HOME/.local/bin:$PATH"
-    fi
-}
-
 setup_python() {
     log_info "Setting up Python virtual environment..."
 
@@ -207,58 +204,94 @@ setup_python() {
     local req="$REQUIREMENTS_FILE"
     [[ -f "$req" ]] || { log_error "Requirements file not found: $SERVER_DIR/$req"; exit 1; }
 
+    install_pyenv
+
     if [[ "$USE_UV" == "true" ]]; then
         install_uv
         if [[ ! -d "env" ]]; then
-            uv venv --python "${PYTHON_VERSION}" env
+            uv venv --seed --python "${PYTHON_VERSION}" env
         fi
         log_info "Installing Python dependencies..."
-        uv pip install --python env/bin/python -r "$req" honcho
+        uv pip install --quiet --python env/bin/python -r "$req"
     else
         if [[ ! -d "env" ]]; then
-            "python${PYTHON_VERSION}" -m venv env
+            python -m venv env
         fi
         log_info "Installing Python dependencies..."
         source env/bin/activate
-        pip install --quiet --upgrade pip wheel setuptools
-        pip install --quiet -r "$req"
-        pip install --quiet --upgrade honcho
+        pip install --quiet --progress-bar off --upgrade pip wheel setuptools
+        pip install --quiet --progress-bar off -r "$req"
         deactivate
     fi
 
     log_success "Python environment ready"
 }
 
-install_pnpm() {
-    if ! command -v pnpm &>/dev/null; then
-        log_info "Installing pnpm + Node.js ${NODE_VERSION}..."
-        export PNPM_HOME="$HOME/.local/share/pnpm"
-        curl -fsSL https://get.pnpm.io/install.sh | ENV="/dev/null" SHELL="$(which bash)" sh -
-        export PATH="$PNPM_HOME:$PATH"
-        pnpm env use --global "${NODE_VERSION}"
+install_pyenv() {
+    export PYENV_ROOT="$HOME/.pyenv"
+    [[ ":$PATH:" != *":$PYENV_ROOT/bin:"* ]] && export PATH="$PYENV_ROOT/bin:$PATH"
+    if ! command -v pyenv >/dev/null 2>&1; then
+        log_info "Installing pyenv..."
+        curl -fsSL https://pyenv.run | bash
+        "$PYENV_ROOT/bin/pyenv" init --install
     fi
+    eval "$("$PYENV_ROOT/bin/pyenv" init -)"
+    pyenv install -s "${PYTHON_VERSION}"
+    pyenv shell "${PYTHON_VERSION}"
+}
+
+install_uv() {
+    if ! command -v uv &>/dev/null; then
+        log_info "Installing uv..."
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        export PATH="$HOME/.local/bin:$PATH"
+    fi
+    
 }
 
 setup_frontend() {
     log_info "Building frontend..."
 
     cd "$CLIENT_DIR"
-
-    log_info "Running build (NODE_MAX_MEM=${NODE_MAX_MEM}MB)..."
+    install_pnpm
     export NODE_OPTIONS="--max-old-space-size=${NODE_MAX_MEM}"
     export SUPERDESK_URL SUPERDESK_WS_URL
 
     if [[ "$USE_PNPM" == "true" ]]; then
-        install_pnpm
-        pnpm import 2>/dev/null || true
-        pnpm install --frozen-lockfile --shamefully-hoist
-        pnpm run build
+        pnpm i -ci --quiet
+        pnpm run build > /dev/null 2>&1
     else
-        npm i -ci
-        npm run build
+        npm i -ci --quiet
+        npm run build > /dev/null 2>&1
     fi
 
     log_success "Frontend built"
+}
+
+install_pnpm() {
+    export PNPM_HOME="$HOME/.local/share/pnpm"
+    [[ ":$PATH:" != *":$PNPM_HOME/bin:"* ]] && export PATH="$PNPM_HOME/bin:$PATH"
+    if ! command -v pnpm &>/dev/null; then
+        log_info "Installing pnpm + Node.js ${NODE_VERSION}..."
+        curl -fsSL https://get.pnpm.io/install.sh | sh
+    fi
+    pnpm runtime set node "${NODE_VERSION}" -g
+    pnpm add -g npm@${NPM_VERSION}
+}
+
+run_docker_compose() {
+    log_info "Running docker compose up..."
+
+    local compose_dir="${SCRIPT_DIR}/.."
+    
+    if [[ ! -f "${compose_dir}/docker-compose.yml" ]] && [[ ! -f "${compose_dir}/docker-compose.yaml" ]]; then
+        log_error "No docker-compose.yml found in ${compose_dir}"
+        exit 1
+    fi
+
+    export REDIS_VERSION MONGO_VERSION ELASTICSEARCH_VERSION
+    sg docker -c "docker compose -f '${compose_dir}/docker-compose.yml' up -d"
+    log_success "Docker containers started successfully."
 }
 
 render_template() {
@@ -364,9 +397,10 @@ setup_env_file() {
         "ELASTICSEARCH_URL=$es_url" \
         "REDIS_URL=$redis_url" \
         "CONTENTAPI_ES_INDEX=$contentapi_es_index" \
-        "OPTIONAL_VARS=$optional_vars" > "$ENV_FILE"
+        "OPTIONAL_VARS=$optional_vars" | sudo tee "$ENV_FILE" > /dev/null
 
-    chmod 600 "$ENV_FILE"
+    sudo chown "$APP_USER:$APP_USER" "$ENV_FILE"
+    sudo chmod 600 "$ENV_FILE"
     log_success "Environment file created at $ENV_FILE"
 }
 
@@ -396,21 +430,14 @@ initialize_database() {
     set -a
     source "$ENV_FILE"
     set +a
+    python3 manage.py app:initialize_data || log_warn "initialize_data may have partial failures (this is often OK)"
 
-    # Check if ES index exists (missing = first run)
-    local es_index_url="${ELASTICSEARCH_URL}/${ELASTICSEARCH_INDEX}"
-    if curl -sI "$es_index_url" | grep -q 404; then
-        log_info "First run — initializing data..."
-        python3 manage.py app:initialize_data || log_warn "initialize_data had partial failures"
-        python3 manage.py users:create \
-            -u "${ADMIN_EMAIL:-admin}" \
-            -p "${ADMIN_PASSWORD:-admin}" \
-            -e "${ADMIN_EMAIL:-admin@example.com}" \
-            --admin || log_warn "Admin user may already exist"
-    else
-        log_info "ES index exists — running initialize_data (update mode)..."
-        python3 manage.py app:initialize_data || log_warn "initialize_data had partial failures"
-    fi
+    log_info "Creating admin user..."
+    python3 manage.py users:create \
+        -u "${ADMIN_EMAIL:-admin}" \
+        -p "${ADMIN_PASSWORD:-admin}" \
+        -e "${ADMIN_EMAIL:-admin@localhost.com}" \
+        --admin || log_warn "Admin user may already exist"
 
     deactivate
     log_success "Database initialized"
@@ -423,11 +450,18 @@ create_procfile() {
 }
 
 create_systemd_service() {
-    log_info "Creating systemd service..."
+    log_info "Creating user systemd service..."
 
-    install_template "app.service.template" "/etc/systemd/system/${APP_NAME}.service"
-    sudo systemctl daemon-reload
-    sudo systemctl enable "${APP_NAME}.service"
+    export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+    export DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus"
+
+    local user_service_dir="${HOME}/.config/systemd/user"
+    mkdir -p "${user_service_dir}"
+    install_template "app.service.template" "${user_service_dir}/${APP_NAME}.service"
+
+    sudo loginctl enable-linger "${USER}"
+    systemctl --user daemon-reload
+    systemctl --user enable --now "${APP_NAME}.service"
 
     log_success "Systemd service created"
 }
@@ -474,7 +508,7 @@ copy_translations() {
 restart_services() {
     log_info "Restarting services..."
 
-    sudo systemctl restart "${APP_NAME}.service"
+    systemctl --user restart "${APP_NAME}.service"
     sudo systemctl restart nginx
 
     sleep 3
@@ -488,7 +522,7 @@ show_status() {
     echo ""
     log_info "Ports: API=$WEB_PORT WS=$WS_PORT CAPI=$CAPI_PORT PAPI=$PAPI_PORT | Ref: ${REPO_REF} @ $(git -C "$DEPLOY_DIR" rev-parse --short HEAD)"
     echo ""
-    sudo systemctl status "${APP_NAME}.service" --no-pager --lines=0 || true
+    systemctl --user status "${APP_NAME}.service" --no-pager --lines=0 || true
     echo ""
     sudo systemctl status nginx --no-pager --lines=0 || true
     echo ""
@@ -502,12 +536,13 @@ show_status() {
 main() {
     log_info "Starting deployment of $APP_NAME"
 
-    time_step "Preflight checks"      preflight_checks
+    time_step "Preflight checks"       preflight_checks
     time_step "Setup directories"      setup_directories
     time_step "Clone/update repo"      clone_or_update_repo
     time_step "Setup Python"           setup_python
     time_step "Build frontend"         setup_frontend
     time_step "Setup env file"         setup_env_file
+    time_step "Run Docker Compose"     run_docker_compose
     time_step "Wait for services"      wait_for_services
     time_step "Initialize database"    initialize_database
     # No Procfile generation — the repo ships its own Procfile for the async stack

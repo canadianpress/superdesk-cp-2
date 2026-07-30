@@ -16,14 +16,14 @@ This is a step-by-step guide to deploy CP Superdesk. Use this to provision envir
 * [ ] **Server:** A server instance running **Ubuntu 22**.
 * [ ] **Access Credentials:** **SSH Terminal access** to the server with administrative privileges (`sudo`).
 * [ ] **Scripts:** The two automation files uploaded to the server: `setup-cms-system.sh` and `cms.sh`.
-* [ ] **Env files:** Variables can be added to `setup.env` and `deploy.env` to adjust the `setup-cms-system.sh` and `cms.sh` respectively.
+* [ ] **Env files:** Variables can be added to `deploy.env` to adjust the `setup-cms-system.sh` and `cms.sh`.
 ---
 
 ## 3. Step-by-Step Run Steps
 The deployment is split into two phases: **System Provisioning** (done once per server) and **Application Deployment** (done every time code changes).
 
 ### Phase 1: One-Time Server Preparation
-This phase installs the underlying software infrastructure (Python, Node, MongoDB, Redis, Elasticsearch).
+This phase installs the underlying software infrastructure (Python, Nginx).
 
 1. Log into your server terminal via SSH.
 2. Execute the environment preparation script using administrative access:
