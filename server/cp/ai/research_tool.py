@@ -1,7 +1,8 @@
 from asyncio import create_task, get_event_loop
+from collections.abc import AsyncIterator
 from logging import getLogger
 from re import compile
-from typing import AsyncIterator, Optional
+from typing import Optional
 from urllib.parse import urljoin
 from uuid import uuid4
 
@@ -20,6 +21,8 @@ logger = getLogger(__name__)
 bp = Blueprint("research_tool", __name__, url_prefix="/api")
 
 RUNS_PATH = "/v1/agents/runs"
+CITATION_REGEX = compile(r"\[(\d+)\]\((https?://[^\s)]+)\)")
+WINDOW_SIZE = 500
 
 
 @bp.route("/research_tool/stream", methods=["GET", "OPTIONS"])
@@ -38,11 +41,15 @@ async def research_tool_stream():
     return response
 
 
-CITATION_REGEX = compile(r"\[\[(\d+)\]\((https?://[^\s)]+)\)\]")
-WINDOW_SIZE = 500
-
-
 async def _research_tool_generator(service, query, thread_id=None):
+    """
+    Proxy SSE passthrough for Agents/Runs events:
+    response.created, response.starting, response.output_text.delta,
+    response.output_item.added, response.output_content.full,
+    response.output_item.done, response.done
+
+    Plus CP middleware events: thread (early), response.citation (from inline links).
+    """
     window = ""
     async for item in service.get_all_batch_async(
         lookup={"query": query, "thread_id": thread_id}
@@ -55,50 +62,96 @@ async def _research_tool_generator(service, query, thread_id=None):
             data = await get_event_loop().run_in_executor(
                 None, loads, item.split("data: ")[1].strip()
             )
-            window += data.get("response", {}).get("delta", "")
-            match = await get_event_loop().run_in_executor(
-                None, CITATION_REGEX.search, window
-            )
-            if match:
-                citation_id, uri = match.groups()
-                logger.info(f"CITATION FOUND: {citation_id} {uri}")
-                create_task(_fetch_article(citation_id, uri))
-                data = {
-                    "citation_id": citation_id,
-                    "uri": uri,
-                    "slugline": f"slugline-{citation_id}",
-                    "headline": f"headline-{citation_id}",
-                    "description": f"description-{citation_id}",
-                    "date_published": f"date_published-{citation_id}",
-                    "language": f"language-{citation_id}",
-                    "source": f"source-{citation_id}",
-                    "type": f"type-{citation_id}",
-                }
-                yield f"event: response.citation\ndata: {dumps(data)}\n\n"
-                window = window[match.end() :]
-            elif len(window) > WINDOW_SIZE:
-                window = window[-WINDOW_SIZE // 2 :]
-        except (IndexError, ValueError):
+            # Only scan text deltas for inline [n](url) citations
+            if data.get("type") == "response.output_text.delta":
+                window += data.get("response", {}).get("delta", "") or ""
+                match = await get_event_loop().run_in_executor(
+                    None, CITATION_REGEX.search, window
+                )
+                if match:
+                    citation_id, uri = match.groups()
+                    logger.info(f"CITATION FOUND: {citation_id} {uri}")
+                    create_task(_fetch_article(citation_id, uri))
+                    citation = {
+                        "citation_id": citation_id,
+                        "uri": uri,
+                        "slugline": f"slugline-{citation_id}",
+                        "headline": f"headline-{citation_id}",
+                        "description": f"description-{citation_id}",
+                        "date_published": f"date_published-{citation_id}",
+                        "language": f"language-{citation_id}",
+                        "source": f"source-{citation_id}",
+                        "type": f"type-{citation_id}",
+                    }
+                    yield f"event: response.citation\ndata: {dumps(citation)}\n\n"
+                    window = window[match.end() :]
+                elif len(window) > WINDOW_SIZE:
+                    window = window[-WINDOW_SIZE // 2 :]
+        except (IndexError, ValueError, TypeError):
             pass
 
         yield item
-
-    yield "event: done\ndata: \n\n"
 
 
 async def _fetch_article(guid, uri):
     pass
 
 
-def _sse_error(message: str, code: Optional[str] = None) -> str:
-    payload = {"message": message}
-    if code:
-        payload["code"] = code
-    return f"event: error\ndata: {dumps(payload)}\n\n"
+def _sse_event(event: str, data: dict) -> str:
+    return f"event: {event}\ndata: {dumps(data)}\n\n"
+
+
+def _sse_error(
+    detail: str,
+    code: str = "proxy_error",
+    status: str = "500",
+    title: str = "Research tool error",
+    errors: Optional[list] = None,
+) -> str:
+    """Shape errors similarly to Agents/Runs API error responses."""
+    payload = {
+        "errors": errors
+        or [
+            {
+                "status": status,
+                "code": code,
+                "title": title,
+                "detail": detail,
+            }
+        ]
+    }
+    return _sse_event("error", payload)
 
 
 def _sse_thread(thread_id: str) -> str:
-    return f"event: thread\ndata: {dumps({'thread_id': thread_id})}\n\n"
+    return _sse_event("thread", {"thread_id": thread_id})
+
+
+async def _proxy_error_event(resp: aiohttp.ClientResponse) -> str:
+    body_text = await resp.text()
+    logger.error(
+        "Research tool proxy error status=%s body=%s",
+        resp.status,
+        body_text[:500],
+    )
+    try:
+        body = loads(body_text)
+        if isinstance(body, dict) and body.get("errors"):
+            return _sse_error(
+                detail=body_text,
+                code="proxy_error",
+                status=str(resp.status),
+                errors=body["errors"],
+            )
+    except (ValueError, TypeError):
+        pass
+
+    return _sse_error(
+        detail=body_text or f"Proxy request failed with status {resp.status}",
+        code="proxy_error",
+        status=str(resp.status),
+        title="Proxy request failed",
+    )
 
 
 class ResearchToolResource(Resource):
@@ -129,7 +182,12 @@ class ResearchToolService(AsyncBaseService):
         lookup = lookup or {}
         query = (lookup.get("query") or "").strip()
         if not query:
-            yield _sse_error("Missing query parameter 'q'", "bad_request")
+            yield _sse_error(
+                detail="Missing query parameter 'q'",
+                code="bad_request",
+                status="400",
+                title="Invalid request",
+            )
             return
 
         # Reuse client thread_id or create one; always return it early on the stream.
@@ -139,9 +197,14 @@ class ResearchToolService(AsyncBaseService):
         base_url, api_key, agent_id, timeout_seconds = self._proxy_config()
         if not base_url or not api_key or not agent_id:
             yield _sse_error(
-                "Research tool proxy is not configured "
-                "(RESEARCH_TOOL_PROXY_URL, RESEARCH_TOOL_API_KEY, RESEARCH_TOOL_AGENT_ID)",
-                "misconfigured",
+                detail=(
+                    "Research tool proxy is not configured "
+                    "(RESEARCH_TOOL_PROXY_URL, RESEARCH_TOOL_API_KEY, "
+                    "RESEARCH_TOOL_AGENT_ID)"
+                ),
+                code="misconfigured",
+                status="500",
+                title="Research tool misconfigured",
             )
             return
 
@@ -165,16 +228,7 @@ class ResearchToolService(AsyncBaseService):
                 session.post(url, json=body, headers=headers) as resp,
             ):
                 if resp.status >= 400:
-                    detail = await resp.text()
-                    logger.error(
-                        "Research tool proxy error status=%s body=%s",
-                        resp.status,
-                        detail[:500],
-                    )
-                    yield _sse_error(
-                        f"Proxy request failed with status {resp.status}",
-                        "proxy_error",
-                    )
+                    yield await _proxy_error_event(resp)
                     return
 
                 buffer = ""
@@ -191,10 +245,20 @@ class ResearchToolService(AsyncBaseService):
                     yield buffer.strip("\n") + "\n\n"
         except aiohttp.ClientError as exc:
             logger.exception("Research tool proxy request failed")
-            yield _sse_error(f"Proxy request failed: {exc}", "proxy_error")
+            yield _sse_error(
+                detail=str(exc),
+                code="proxy_error",
+                status="502",
+                title="Proxy request failed",
+            )
         except Exception:
             logger.exception("Unexpected research tool proxy error")
-            yield _sse_error("Unexpected proxy error", "proxy_error")
+            yield _sse_error(
+                detail="Unexpected proxy error",
+                code="proxy_error",
+                status="500",
+                title="Unexpected proxy error",
+            )
 
 
 def init_app(app):
