@@ -7,7 +7,7 @@ from urllib.parse import urljoin
 from uuid import uuid4
 
 import aiohttp
-from quart import Response, current_app as app, request
+from quart import Response, current_app, request
 from quart.json import dumps, loads
 from superdesk import get_resource_service
 from superdesk.auth.decorator import blueprint_auth
@@ -31,8 +31,11 @@ async def research_tool_stream():
     response = Response(
         _research_tool_generator(
             get_resource_service("research_tool"),
-            request.args.get("q", ""),
-            request.args.get("thread_id") or None,
+            {
+                "query": request.args.get("q", ""),
+                "thread_id": request.args.get("thread_id") or None,
+                "config": current_app.config,
+            },
         ),
         mimetype="text/event-stream",
     )
@@ -41,7 +44,7 @@ async def research_tool_stream():
     return response
 
 
-async def _research_tool_generator(service, query, thread_id=None):
+async def _research_tool_generator(service, lookup):
     """
     Proxy SSE passthrough for Agents/Runs events:
     response.created, response.starting, response.output_text.delta,
@@ -51,9 +54,7 @@ async def _research_tool_generator(service, query, thread_id=None):
     Plus CP middleware events: thread (early), response.citation (from inline links).
     """
     window = ""
-    async for item in service.get_all_batch_async(
-        lookup={"query": query, "thread_id": thread_id}
-    ):
+    async for item in service.get_all_batch_async(lookup=lookup):
         if "data: " not in item:
             yield item
             continue
@@ -169,17 +170,11 @@ class ResearchToolResource(Resource):
 
 
 class ResearchToolService(AsyncBaseService):
-    def _proxy_config(self):
-        base_url = (app.config.get("RESEARCH_TOOL_PROXY_URL") or "").rstrip("/")
-        api_key = app.config.get("RESEARCH_TOOL_API_KEY") or ""
-        agent_id = app.config.get("RESEARCH_TOOL_AGENT_ID") or ""
-        timeout_seconds = int(app.config.get("RESEARCH_TOOL_TIMEOUT_SECONDS") or 120)
-        return base_url, api_key, agent_id, timeout_seconds
-
     async def get_all_batch_async(
         self, size=500, max_iterations=10000, lookup=None
     ) -> AsyncIterator[str]:
         lookup = lookup or {}
+        config = lookup.get("config") or {}
         query = (lookup.get("query") or "").strip()
         if not query:
             yield _sse_error(
@@ -194,7 +189,10 @@ class ResearchToolService(AsyncBaseService):
         thread_id = (lookup.get("thread_id") or "").strip() or str(uuid4())
         yield _sse_thread(thread_id)
 
-        base_url, api_key, agent_id, timeout_seconds = self._proxy_config()
+        base_url = (config.get("RESEARCH_TOOL_PROXY_URL") or "").rstrip("/")
+        api_key = config.get("RESEARCH_TOOL_API_KEY") or ""
+        agent_id = config.get("RESEARCH_TOOL_AGENT_ID") or ""
+        timeout_seconds = int(config.get("RESEARCH_TOOL_TIMEOUT_SECONDS") or 120)
         if not base_url or not api_key or not agent_id:
             yield _sse_error(
                 detail=(
