@@ -3,6 +3,7 @@ from logging import getLogger
 from re import compile
 from typing import AsyncIterator, Optional
 from urllib.parse import urljoin
+from uuid import uuid4
 
 import aiohttp
 from quart import Response, current_app as app, request
@@ -26,7 +27,9 @@ RUNS_PATH = "/v1/agents/runs"
 async def research_tool_stream():
     response = Response(
         _research_tool_generator(
-            get_resource_service("research_tool"), request.args.get("q", "")
+            get_resource_service("research_tool"),
+            request.args.get("q", ""),
+            request.args.get("thread_id") or None,
         ),
         mimetype="text/event-stream",
     )
@@ -39,9 +42,11 @@ CITATION_REGEX = compile(r"\[\[(\d+)\]\((https?://[^\s)]+)\)\]")
 WINDOW_SIZE = 500
 
 
-async def _research_tool_generator(service, query):
+async def _research_tool_generator(service, query, thread_id=None):
     window = ""
-    async for item in service.get_all_batch_async(lookup={"query": query}):
+    async for item in service.get_all_batch_async(
+        lookup={"query": query, "thread_id": thread_id}
+    ):
         if "data: " not in item:
             yield item
             continue
@@ -92,6 +97,10 @@ def _sse_error(message: str, code: Optional[str] = None) -> str:
     return f"event: error\ndata: {dumps(payload)}\n\n"
 
 
+def _sse_thread(thread_id: str) -> str:
+    return f"event: thread\ndata: {dumps({'thread_id': thread_id})}\n\n"
+
+
 class ResearchToolResource(Resource):
     endpoint_name = "research_tool"
     resource_methods = ["GET"]
@@ -123,6 +132,10 @@ class ResearchToolService(AsyncBaseService):
             yield _sse_error("Missing query parameter 'q'", "bad_request")
             return
 
+        # Reuse client thread_id or create one; always return it early on the stream.
+        thread_id = (lookup.get("thread_id") or "").strip() or str(uuid4())
+        yield _sse_thread(thread_id)
+
         base_url, api_key, agent_id, timeout_seconds = self._proxy_config()
         if not base_url or not api_key or not agent_id:
             yield _sse_error(
@@ -142,6 +155,7 @@ class ResearchToolService(AsyncBaseService):
             "agent": agent_id,
             "input": query,
             "stream": True,
+            "thread_id": thread_id,
         }
         timeout = aiohttp.ClientTimeout(total=timeout_seconds, connect=10)
 
