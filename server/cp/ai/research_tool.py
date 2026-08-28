@@ -229,18 +229,9 @@ class ResearchToolService(AsyncBaseService):
                     yield await _proxy_error_event(resp)
                     return
 
-                buffer = ""
                 async for chunk in resp.content.iter_any():
-                    if not chunk:
-                        continue
-                    buffer += chunk.decode("utf-8", errors="replace")
-                    while "\n\n" in buffer:
-                        event, buffer = buffer.split("\n\n", 1)
-                        event = event.strip("\n")
-                        if event:
-                            yield event + "\n\n"
-                if buffer.strip():
-                    yield buffer.strip("\n") + "\n\n"
+                    text = chunk.decode("utf-8", errors="replace")
+                    yield text
         except aiohttp.ClientError as exc:
             logger.exception("Research tool proxy request failed")
             yield _sse_error(
