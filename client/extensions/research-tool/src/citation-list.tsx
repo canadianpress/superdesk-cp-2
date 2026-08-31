@@ -4,13 +4,13 @@ import { CitationItem } from "./citation-item";
 import { useCitations } from "./context/citations-context";
 
 export const CitationList = () => {
-  const { citations } = useCitations();
+  const citations = useCitations();
 
   return (
     <GridList margin="0" gap="medium">
-      {Object.entries(citations).map(([citation_id, citation]) => (
+      {Object.entries(citations).map(([citationId, citation]) => (
         <CitationItem
-          key={`citation-list-item-${citation_id}`}
+          key={`citation-list-item-${citationId}`}
           citation={citation}
         />
       ))}
