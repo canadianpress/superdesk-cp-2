@@ -1,28 +1,77 @@
-from asyncio import create_task, get_event_loop
+from asyncio import create_task
 from collections.abc import AsyncIterator
 from logging import getLogger
 from re import compile
 from typing import Optional
-from urllib.parse import urljoin
 from uuid import uuid4
 
 import aiohttp
+from apps.auth import get_user
 from quart import Response, current_app, request
 from quart.json import dumps, loads
 from superdesk import get_resource_service
 from superdesk.auth.decorator import blueprint_auth
+from superdesk.errors import SuperdeskApiError
 from superdesk.eve_async.service import AsyncBaseService
 from superdesk.flask import Blueprint
 from superdesk.resource import Resource
 from superdesk.utils import get_cors_headers
+from superdesk.utc import utcnow
+from quart_babel import gettext as _
 
 logger = getLogger(__name__)
 
 bp = Blueprint("research_tool", __name__, url_prefix="/api")
 
-RUNS_PATH = "/v1/agents/runs"
 CITATION_REGEX = compile(r"\[(\d+)\]\((https?://[^\s)]+)\)")
 WINDOW_SIZE = 500
+THREAD_TITLE_MAX_LENGTH = 80
+
+MESSAGE_SCHEMA = {
+    "role": {"type": "string", "allowed": ["user", "assistant"], "required": True},
+    "query": {"type": "string"},
+    "answer": {"type": "string"},
+    "citations": {"type": "list"},
+    "created": {"type": "datetime", "required": True},
+}
+
+THREAD_SCHEMA = {
+    "thread_id": {"type": "string", "required": True, "unique": True},
+    "thread_title": {"type": "string", "required": True},
+    "user_email": {"type": "string", "readonly": True},
+    "messages": {
+        "type": "list",
+        "schema": {"type": "dict", "schema": MESSAGE_SCHEMA},
+    },
+}
+
+
+def _user_email() -> Optional[str]:
+    user = get_user() or {}
+    email = (user.get("email") or "").strip()
+    return email or None
+
+
+def _thread_title_from_query(query: str) -> str:
+    title = " ".join(query.split())
+    if not title:
+        return _("Untitled")
+    if len(title) <= THREAD_TITLE_MAX_LENGTH:
+        return title
+    return title[: THREAD_TITLE_MAX_LENGTH - 1].rstrip() + "…"
+
+
+def _normalize_thread_title(title: str) -> str:
+    normalized = " ".join(title.split())
+    if not normalized:
+        return _("Untitled")
+    return normalized
+
+
+def _assert_thread_owner(doc: dict) -> None:
+    user_email = _user_email()
+    if user_email and doc.get("user_email") != user_email:
+        raise SuperdeskApiError.forbiddenError(_("Not allowed to access this thread."))
 
 
 @bp.route("/research_tool/stream", methods=["GET", "OPTIONS"])
@@ -34,7 +83,9 @@ async def research_tool_stream():
             {
                 "query": request.args.get("q", ""),
                 "thread_id": request.args.get("thread_id") or None,
+                "user_email": _user_email(),
                 "config": current_app.config,
+                "app": current_app._get_current_object(),
             },
         ),
         mimetype="text/event-stream",
@@ -42,6 +93,24 @@ async def research_tool_stream():
     response.headers.update([*get_cors_headers(["GET"]), ("Cache-Control", "no-cache")])
 
     return response
+
+
+def _parse_sse_block(block: str) -> Optional[dict]:
+    """Parse one complete SSE event block into its JSON data payload."""
+    data_parts: list[str] = []
+    for line in block.split("\n"):
+        if not line or line.startswith(":"):
+            continue
+        if line.startswith("data:"):
+            data_parts.append(line[5:].lstrip())
+
+    if not data_parts:
+        return None
+
+    try:
+        return loads("\n".join(data_parts))
+    except (ValueError, TypeError):
+        return None
 
 
 async def _research_tool_generator(service, lookup):
@@ -53,45 +122,120 @@ async def _research_tool_generator(service, lookup):
 
     Plus CP middleware events: thread (early), response.citation (from inline links).
     """
-    window = ""
-    async for item in service.get_all_batch_async(lookup=lookup):
-        if "data: " not in item:
-            yield item
-            continue
+    state = {
+        "window": "",
+        "answer_parts": [],
+        "citations": [],
+        "thread_id": (lookup.get("thread_id") or "").strip(),
+        "query": (lookup.get("query") or "").strip(),
+        "user_email": lookup.get("user_email"),
+        "app": lookup.get("app"),
+        "sse_buffer": "",
+    }
 
-        try:
-            data = await get_event_loop().run_in_executor(
-                None, loads, item.split("data: ")[1].strip()
-            )
-            # Only scan text deltas for inline [n](url) citations
-            if data.get("type") == "response.output_text.delta":
-                window += data.get("response", {}).get("delta", "") or ""
-                match = await get_event_loop().run_in_executor(
-                    None, CITATION_REGEX.search, window
-                )
-                if match:
-                    citation_id, uri = match.groups()
-                    logger.info(f"CITATION FOUND: {citation_id} {uri}")
-                    create_task(_fetch_article(citation_id, uri))
-                    citation = {
-                        "citation_id": citation_id,
-                        "uri": uri,
-                        "slugline": f"slugline-{citation_id}",
-                        "headline": f"headline-{citation_id}",
-                        "description": f"description-{citation_id}",
-                        "date_published": f"date_published-{citation_id}",
-                        "language": f"language-{citation_id}",
-                        "source": f"source-{citation_id}",
-                        "type": f"type-{citation_id}",
-                    }
-                    yield f"event: response.citation\ndata: {dumps(citation)}\n\n"
-                    window = window[match.end() :]
-                elif len(window) > WINDOW_SIZE:
-                    window = window[-WINDOW_SIZE // 2 :]
-        except (IndexError, ValueError, TypeError):
-            pass
-
+    async for item in service.stream_proxy_async(lookup=lookup):
+        # Upstream SSE uses CRLF; normalize so event boundaries are "\n\n".
+        state["sse_buffer"] += item.replace("\r\n", "\n")
+        while "\n\n" in state["sse_buffer"]:
+            block, state["sse_buffer"] = state["sse_buffer"].split("\n\n", 1)
+            block = block.strip()
+            if not block:
+                continue
+            citation_events = await _process_sse_block(service, state, block)
+            for citation_event in citation_events:
+                yield citation_event
         yield item
+
+    remainder = state["sse_buffer"].strip()
+    if remainder:
+        citation_events = await _process_sse_block(service, state, remainder)
+        for citation_event in citation_events:
+            yield citation_event
+
+
+async def _save_exchange(
+    service,
+    app,
+    *,
+    thread_id: str,
+    user_email: Optional[str],
+    query: str,
+    answer: str,
+    citations: list,
+) -> None:
+    try:
+        async with app.app_context():
+            await service.append_exchange(
+                thread_id=thread_id,
+                user_email=user_email,
+                query=query,
+                answer=answer,
+                citations=citations,
+            )
+    except Exception:
+        logger.exception(
+            "Failed to save research tool exchange thread_id=%s",
+            thread_id,
+        )
+
+
+async def _process_sse_block(service, state: dict, block: str) -> list[str]:
+    """Update stream state from one SSE block; return citation events to emit."""
+    events: list[str] = []
+    data = _parse_sse_block(block)
+    if not data:
+        return events
+
+    if data.get("thread_id") and not data.get("type"):
+        state["thread_id"] = data["thread_id"]
+
+    event_type = data.get("type")
+
+    if event_type == "response.output_content.full":
+        full = data.get("response", {}).get("full", {})
+        if full.get("type") == "cited_documents":
+            citations = full.get("documents", [])
+            state["citations"] = citations
+            for citation in citations:
+                citation_data = {
+                    "citation_id": citation["search_result_number"],
+                    "uri": citation["uri"],
+                    "slugline": citation["slugline"],
+                    "headline": citation["headline"],
+                    "description": "",
+                    "date_published": citation["created"],
+                    "language": citation["language"],
+                    "source": citation["infosource"],
+                    "type": citation["content_types"][0]
+                    if citation["content_types"]
+                    else "",
+                }
+                events.append(
+                    f"event: response.citation\ndata: {dumps(citation_data)}\n\n"
+                )
+
+    elif event_type == "response.done":
+        thread_id = state["thread_id"]
+        query = state["query"]
+        answer_parts = state["answer_parts"]
+        app = state["app"]
+        if thread_id and query and answer_parts and app:
+            create_task(
+                _save_exchange(
+                    service,
+                    app,
+                    thread_id=thread_id,
+                    user_email=state["user_email"],
+                    query=query,
+                    answer="".join(answer_parts),
+                    citations=list(state["citations"]),
+                )
+            )
+        state["answer_parts"] = []
+        state["citations"] = []
+        state["window"] = ""
+
+    return events
 
 
 async def _fetch_article(guid, uri):
@@ -157,22 +301,91 @@ async def _proxy_error_event(resp: aiohttp.ClientResponse) -> str:
 
 class ResearchToolResource(Resource):
     endpoint_name = "research_tool"
-    resource_methods = ["GET"]
-    schema = {
-        "iteration": {"type": "integer"},
-        "status": {
-            "type": "string",
-        },
-    }
+    resource_methods = ["GET", "POST"]
+    item_methods = ["GET", "PATCH"]
+    schema = THREAD_SCHEMA
+    query_objectid_as_string = True
     privileges = {
         "GET": "archive",
+        "POST": "archive",
+        "PATCH": "archive",
+    }
+    mongo_indexes = {
+        "thread_id": ([("thread_id", 1)], {"unique": True, "background": True}),
+        "user_email": ([("user_email", 1)], {"background": True}),
     }
 
 
 class ResearchToolService(AsyncBaseService):
-    async def get_all_batch_async(
-        self, size=500, max_iterations=10000, lookup=None
+    async def get_async(self, req, lookup):
+        user_email = _user_email()
+        if user_email:
+            lookup = lookup or {}
+            lookup["user_email"] = user_email
+        return await super().get_async(req, lookup)
+
+    async def on_create_async(self, docs: list[dict]) -> None:
+        user_email = _user_email()
+        for doc in docs:
+            if user_email and not doc.get("user_email"):
+                doc["user_email"] = user_email
+            if not doc.get("thread_title"):
+                for msg in doc.get("messages", []):
+                    if msg.get("role") == "user" and msg.get("query"):
+                        doc["thread_title"] = _thread_title_from_query(msg["query"])
+                        break
+                if not doc.get("thread_title"):
+                    doc["thread_title"] = _("Untitled")
+
+    async def on_update_async(self, updates: dict, original: dict) -> None:
+        _assert_thread_owner(original)
+        if "thread_title" in updates:
+            updates["thread_title"] = _normalize_thread_title(updates["thread_title"])
+
+    async def on_fetched_item_async(self, doc: dict) -> None:
+        _assert_thread_owner(doc)
+
+    async def append_exchange(
+        self,
+        *,
+        thread_id: str,
+        user_email: Optional[str],
+        query: str,
+        answer: str,
+        citations: Optional[list] = None,
+    ) -> None:
+        now = utcnow()
+        user_msg = {"role": "user", "query": query, "created": now}
+        assistant_msg = {
+            "role": "assistant",
+            "answer": answer,
+            "citations": citations or [],
+            "created": now,
+        }
+
+        doc = await self.find_one_async(req=None, thread_id=thread_id)
+        if doc:
+            if user_email and doc.get("user_email") != user_email:
+                raise SuperdeskApiError.forbiddenError(
+                    _("Not allowed to access this thread.")
+                )
+            messages = doc.get("messages", []) + [user_msg, assistant_msg]
+            await self.patch_async(doc["_id"], {"messages": messages})
+            return
+
+        new_doc = {
+            "thread_id": thread_id,
+            "thread_title": _thread_title_from_query(query),
+            "messages": [user_msg, assistant_msg],
+        }
+        if user_email:
+            new_doc["user_email"] = user_email
+        await self.post_async([new_doc])
+
+    async def stream_proxy_async(
+        self, lookup=None
     ) -> AsyncIterator[str]:
+        """Proxy SSE chunks from the research tool agent API."""
         lookup = lookup or {}
         config = lookup.get("config") or {}
         query = (lookup.get("query") or "").strip()
@@ -189,11 +402,11 @@ class ResearchToolService(AsyncBaseService):
         thread_id = (lookup.get("thread_id") or "").strip() or str(uuid4())
         yield _sse_thread(thread_id)
 
-        base_url = (config.get("RESEARCH_TOOL_PROXY_URL") or "").rstrip("/")
+        url = (config.get("RESEARCH_TOOL_PROXY_URL") or "").rstrip("/")
         api_key = config.get("RESEARCH_TOOL_API_KEY") or ""
         agent_id = config.get("RESEARCH_TOOL_AGENT_ID") or ""
         timeout_seconds = int(config.get("RESEARCH_TOOL_TIMEOUT_SECONDS") or 120)
-        if not base_url or not api_key or not agent_id:
+        if not url or not api_key or not agent_id:
             yield _sse_error(
                 detail=(
                     "Research tool proxy is not configured "
@@ -206,7 +419,6 @@ class ResearchToolService(AsyncBaseService):
             )
             return
 
-        url = urljoin(base_url + "/", RUNS_PATH.lstrip("/"))
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
