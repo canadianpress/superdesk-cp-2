@@ -1,7 +1,6 @@
 from asyncio import create_task
 from collections.abc import AsyncIterator
 from logging import getLogger
-from re import compile
 from typing import Optional
 from uuid import uuid4
 
@@ -23,15 +22,26 @@ logger = getLogger(__name__)
 
 bp = Blueprint("research_tool", __name__, url_prefix="/api")
 
-CITATION_REGEX = compile(r"\[(\d+)\]\((https?://[^\s)]+)\)")
-WINDOW_SIZE = 500
 THREAD_TITLE_MAX_LENGTH = 80
 
+CITATION_SCHEMA = {
+    "citation_id": {"type": "string"},
+    "uri": {"type": "string"},
+    "slugline": {"type": "string"},
+    "headline": {"type": "string"},
+    "date_published": {"type": "string"},
+    "language": {"type": "string"},
+    "source": {"type": "string"},
+    "type": {"type": "list", "schema": {"type": "string"}},
+}
+
 MESSAGE_SCHEMA = {
-    "role": {"type": "string", "allowed": ["user", "assistant"], "required": True},
-    "query": {"type": "string"},
-    "answer": {"type": "string"},
-    "citations": {"type": "list"},
+    "type": {"type": "string", "allowed": ["QUERY", "RESPONSE"], "required": True},
+    "value": {"type": "string", "required": True},
+    "citations": {
+        "type": "list",
+        "schema": {"type": "dict", "schema": CITATION_SCHEMA},
+    },
     "created": {"type": "datetime", "required": True},
 }
 
@@ -44,6 +54,24 @@ THREAD_SCHEMA = {
         "schema": {"type": "dict", "schema": MESSAGE_SCHEMA},
     },
 }
+
+def _normalize_citation(citation: dict) -> dict:
+    """Normalize citation payloads."""
+    if not citation:
+        return {}
+
+    return {
+        "citation_id": citation.get("search_result_number"),
+        "uri": citation.get("uri", ""),
+        "slugline": citation.get("slugline", ""),
+        "headline": citation.get("headline", ""),
+        "description": citation.get("description", ""),
+        "date_published":citation.get("created", ""),
+        "language": citation.get("language", ""),
+        "source": citation.get("infosource", ""),
+        "type":  citation.get("content_types") or [],
+    }
+
 
 
 def _user_email() -> Optional[str]:
@@ -120,10 +148,9 @@ async def _research_tool_generator(service, lookup):
     response.output_item.added, response.output_content.full,
     response.output_item.done, response.done
 
-    Plus CP middleware events: thread (early), response.citation (from inline links).
+    Plus CP middleware events: thread (early), response.citation (from cited_documents).
     """
     state = {
-        "window": "",
         "answer_parts": [],
         "citations": [],
         "thread_id": (lookup.get("thread_id") or "").strip(),
@@ -191,25 +218,18 @@ async def _process_sse_block(service, state: dict, block: str) -> list[str]:
 
     event_type = data.get("type")
 
-    if event_type == "response.output_content.full":
+    if event_type == "response.output_text.delta":
+        delta = data.get("response", {}).get("delta", "") or ""
+        state["answer_parts"].append(delta)
+
+    elif event_type == "response.output_content.full":
         full = data.get("response", {}).get("full", {})
         if full.get("type") == "cited_documents":
-            citations = full.get("documents", [])
+            citations = [
+                _normalize_citation(c) for c in full.get("documents", [])
+            ]
             state["citations"] = citations
-            for citation in citations:
-                citation_data = {
-                    "citation_id": citation["search_result_number"],
-                    "uri": citation["uri"],
-                    "slugline": citation["slugline"],
-                    "headline": citation["headline"],
-                    "description": "",
-                    "date_published": citation["created"],
-                    "language": citation["language"],
-                    "source": citation["infosource"],
-                    "type": citation["content_types"][0]
-                    if citation["content_types"]
-                    else "",
-                }
+            for citation_data in citations:
                 events.append(
                     f"event: response.citation\ndata: {dumps(citation_data)}\n\n"
                 )
@@ -220,6 +240,9 @@ async def _process_sse_block(service, state: dict, block: str) -> list[str]:
         answer_parts = state["answer_parts"]
         app = state["app"]
         if thread_id and query and answer_parts and app:
+            normalized_citations = [
+                _normalize_citation(c) for c in state["citations"]
+            ]
             create_task(
                 _save_exchange(
                     service,
@@ -228,12 +251,11 @@ async def _process_sse_block(service, state: dict, block: str) -> list[str]:
                     user_email=state["user_email"],
                     query=query,
                     answer="".join(answer_parts),
-                    citations=list(state["citations"]),
+                    citations=normalized_citations,
                 )
             )
         state["answer_parts"] = []
         state["citations"] = []
-        state["window"] = ""
 
     return events
 
@@ -301,14 +323,15 @@ async def _proxy_error_event(resp: aiohttp.ClientResponse) -> str:
 
 class ResearchToolResource(Resource):
     endpoint_name = "research_tool"
-    resource_methods = ["GET", "POST"]
-    item_methods = ["GET", "PATCH"]
+    resource_methods = ["GET", "POST", "DELETE"]
+    item_methods = ["GET", "PATCH", "DELETE"]
     schema = THREAD_SCHEMA
     query_objectid_as_string = True
     privileges = {
         "GET": "archive",
         "POST": "archive",
         "PATCH": "archive",
+        "DELETE": "archive",
     }
     mongo_indexes = {
         "thread_id": ([("thread_id", 1)], {"unique": True, "background": True}),
@@ -331,8 +354,8 @@ class ResearchToolService(AsyncBaseService):
                 doc["user_email"] = user_email
             if not doc.get("thread_title"):
                 for msg in doc.get("messages", []):
-                    if msg.get("role") == "user" and msg.get("query"):
-                        doc["thread_title"] = _thread_title_from_query(msg["query"])
+                    if msg.get("type") == "QUERY" and msg.get("value"):
+                        doc["thread_title"] = _thread_title_from_query(msg["value"])
                         break
                 if not doc.get("thread_title"):
                     doc["thread_title"] = _("Untitled")
@@ -355,11 +378,12 @@ class ResearchToolService(AsyncBaseService):
         citations: Optional[list] = None,
     ) -> None:
         now = utcnow()
-        user_msg = {"role": "user", "query": query, "created": now}
-        assistant_msg = {
-            "role": "assistant",
-            "answer": answer,
-            "citations": citations or [],
+        normalized_citations = [_normalize_citation(c) for c in (citations or [])]
+        query = {"type": "QUERY", "value": query, "created": now}
+        response = {
+            "type": "RESPONSE",
+            "value": answer,
+            "citations": normalized_citations,
             "created": now,
         }
 
@@ -369,14 +393,14 @@ class ResearchToolService(AsyncBaseService):
                 raise SuperdeskApiError.forbiddenError(
                     _("Not allowed to access this thread.")
                 )
-            messages = doc.get("messages", []) + [user_msg, assistant_msg]
+            messages = doc.get("messages", []) + [query, response]
             await self.patch_async(doc["_id"], {"messages": messages})
             return
 
         new_doc = {
             "thread_id": thread_id,
             "thread_title": _thread_title_from_query(query),
-            "messages": [user_msg, assistant_msg],
+            "messages": [query, response],
         }
         if user_email:
             new_doc["user_email"] = user_email
