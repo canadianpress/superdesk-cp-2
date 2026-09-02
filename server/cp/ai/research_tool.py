@@ -6,6 +6,7 @@ from uuid import uuid4
 
 import aiohttp
 from apps.auth import get_user
+from eve.render import send_response
 from quart import Response, current_app, request
 from quart.json import dumps, loads
 from superdesk import get_resource_service
@@ -55,52 +56,6 @@ THREAD_SCHEMA = {
     },
 }
 
-def _normalize_citation(citation: dict) -> dict:
-    """Normalize citation payloads."""
-    if not citation:
-        return {}
-
-    return {
-        "citation_id": citation.get("search_result_number"),
-        "uri": citation.get("uri", ""),
-        "slugline": citation.get("slugline", ""),
-        "headline": citation.get("headline", ""),
-        "description": citation.get("description", ""),
-        "date_published":citation.get("created", ""),
-        "language": citation.get("language", ""),
-        "source": citation.get("infosource", ""),
-        "type":  citation.get("content_types") or [],
-    }
-
-
-
-def _user_email() -> Optional[str]:
-    user = get_user() or {}
-    email = (user.get("email") or "").strip()
-    return email or None
-
-
-def _thread_title_from_query(query: str) -> str:
-    title = " ".join(query.split())
-    if not title:
-        return _("Untitled")
-    if len(title) <= THREAD_TITLE_MAX_LENGTH:
-        return title
-    return title[: THREAD_TITLE_MAX_LENGTH - 1].rstrip() + "…"
-
-
-def _normalize_thread_title(title: str) -> str:
-    normalized = " ".join(title.split())
-    if not normalized:
-        return _("Untitled")
-    return normalized
-
-
-def _assert_thread_owner(doc: dict) -> None:
-    user_email = _user_email()
-    if user_email and doc.get("user_email") != user_email:
-        raise SuperdeskApiError.forbiddenError(_("Not allowed to access this thread."))
-
 
 @bp.route("/research_tool/stream", methods=["GET", "OPTIONS"])
 @blueprint_auth()
@@ -121,6 +76,25 @@ async def research_tool_stream():
     response.headers.update([*get_cors_headers(["GET"]), ("Cache-Control", "no-cache")])
 
     return response
+
+@bp.route("/research_tool/history", methods=["GET", "OPTIONS"])
+@blueprint_auth()
+async def research_tool_history():
+    user_email = _require_user_email()
+    service = get_resource_service("research_tool")
+    items = await service.list_user_thread_summaries(user_email)
+    response_data = {"_items": items, "_meta": {"total": len(items)}}
+    return await send_response(None, (response_data, utcnow(), None, 200))
+
+
+@bp.route("/research_tool/history/<thread_id>", methods=["GET", "OPTIONS"])
+@blueprint_auth()
+async def research_tool_history_detail(thread_id: str):
+    service = get_resource_service("research_tool")
+    thread = await service.get_user_thread_detail(thread_id)
+    if not thread:
+        raise SuperdeskApiError.notFoundError(_("Thread not found."))
+    return await send_response(None, (thread, utcnow(), None, 200))
 
 
 def _parse_sse_block(block: str) -> Optional[dict]:
@@ -361,12 +335,26 @@ class ResearchToolService(AsyncBaseService):
                     doc["thread_title"] = _("Untitled")
 
     async def on_update_async(self, updates: dict, original: dict) -> None:
-        _assert_thread_owner(original)
+        _require_thread_owner(original)
         if "thread_title" in updates:
-            updates["thread_title"] = _normalize_thread_title(updates["thread_title"])
+            updates["thread_title"] = updates["thread_title"]
 
     async def on_fetched_item_async(self, doc: dict) -> None:
-        _assert_thread_owner(doc)
+        _require_thread_owner(doc)
+
+    async def list_user_thread_summaries(self, user_email: str) -> list[dict]:
+        cursor = await self.find_async(where={"user_email": user_email})
+        return (
+            await cursor.sort("_updated", -1)
+            .project({"thread_id": 1, "thread_title": 1, "_updated": 1})
+            .to_list(length=None)
+        )
+
+    async def get_user_thread_detail(self, thread_id: str) -> Optional[dict]:
+        lookup = {"thread_id": thread_id}
+        if user_email := _user_email():
+            lookup["user_email"] = user_email
+        return await self.find_one_async(req=None, **lookup)
 
     async def append_exchange(
         self,
@@ -389,10 +377,7 @@ class ResearchToolService(AsyncBaseService):
 
         doc = await self.find_one_async(req=None, thread_id=thread_id)
         if doc:
-            if user_email and doc.get("user_email") != user_email:
-                raise SuperdeskApiError.forbiddenError(
-                    _("Not allowed to access this thread.")
-                )
+            _require_thread_owner(doc)
             messages = doc.get("messages", []) + [query, response]
             await self.patch_async(doc["_id"], {"messages": messages})
             return
@@ -484,6 +469,46 @@ class ResearchToolService(AsyncBaseService):
                 status="500",
                 title="Unexpected proxy error",
             )
+
+def _normalize_citation(citation: dict) -> dict:
+    """Normalize citation payloads."""
+    if not citation:
+        return {}
+
+    return {
+        "citation_id": citation.get("search_result_number"),
+        "uri": citation.get("uri", ""),
+        "slugline": citation.get("slugline", ""),
+        "headline": citation.get("headline", ""),
+        "description": citation.get("description", ""),
+        "date_published":citation.get("created", ""),
+        "language": citation.get("language", ""),
+        "source": citation.get("infosource", ""),
+        "type":  citation.get("content_types") or [],
+    }
+
+def _user_email() -> Optional[str]:
+    return ((get_user() or {}).get("email") or "").strip() or None
+
+
+def _require_user_email() -> str:
+    if not (email := _user_email()):
+        raise SuperdeskApiError.badRequestError(_("Missing user email."))
+    return email
+
+
+def _require_thread_owner(doc: dict) -> None:
+    if (email := _user_email()) and doc.get("user_email") != email:
+        raise SuperdeskApiError.forbiddenError(_("Not allowed to access this thread."))
+
+
+def _thread_title_from_query(query: str) -> str:
+    title = " ".join(query.split())
+    if not title:
+        return _("Untitled")
+    if len(title) <= THREAD_TITLE_MAX_LENGTH:
+        return title
+    return title[: THREAD_TITLE_MAX_LENGTH - 1].rstrip() + "…"
 
 
 def init_app(app):
