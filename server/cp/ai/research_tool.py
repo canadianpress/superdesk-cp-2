@@ -23,7 +23,7 @@ logger = getLogger(__name__)
 
 bp = Blueprint("research_tool", __name__, url_prefix="/api")
 
-THREAD_TITLE_MAX_LENGTH = 80
+CHAT_TITLE_MAX_LENGTH = 80
 
 CITATION_SCHEMA = {
     "citation_id": {"type": "string"},
@@ -46,9 +46,9 @@ MESSAGE_SCHEMA = {
     "created": {"type": "datetime", "required": True},
 }
 
-THREAD_SCHEMA = {
-    "thread_id": {"type": "string", "required": True, "unique": True},
-    "thread_title": {"type": "string", "required": True},
+CHAT_SCHEMA = {
+    "chat_id": {"type": "string", "required": True, "unique": True},
+    "chat_title": {"type": "string", "required": True},
     "user_email": {"type": "string", "readonly": True},
     "messages": {
         "type": "list",
@@ -65,7 +65,7 @@ async def research_tool_stream():
             get_resource_service("research_tool"),
             {
                 "query": request.args.get("q", ""),
-                "thread_id": request.args.get("thread_id") or None,
+                "chat_id": request.args.get("chat_id") or None,
                 "user_email": _user_email(),
                 "config": current_app.config,
                 "app": current_app._get_current_object(),
@@ -77,24 +77,25 @@ async def research_tool_stream():
 
     return response
 
+
 @bp.route("/research_tool/history", methods=["GET", "OPTIONS"])
 @blueprint_auth()
 async def research_tool_history():
     user_email = _require_user_email()
     service = get_resource_service("research_tool")
-    items = await service.list_user_thread_summaries(user_email)
+    items = await service.list_user_chat_summaries(user_email)
     response_data = {"_items": items, "_meta": {"total": len(items)}}
     return await send_response(None, (response_data, utcnow(), None, 200))
 
 
-@bp.route("/research_tool/history/<thread_id>", methods=["GET", "OPTIONS"])
+@bp.route("/research_tool/history/<chat_id>", methods=["GET", "OPTIONS"])
 @blueprint_auth()
-async def research_tool_history_detail(thread_id: str):
+async def research_tool_history_detail(chat_id: str):
     service = get_resource_service("research_tool")
-    thread = await service.get_user_thread_detail(thread_id)
-    if not thread:
-        raise SuperdeskApiError.notFoundError(_("Thread not found."))
-    return await send_response(None, (thread, utcnow(), None, 200))
+    chat = await service.get_user_chat_detail(chat_id)
+    if not chat:
+        raise SuperdeskApiError.notFoundError(_("Chat not found."))
+    return await send_response(None, (chat, utcnow(), None, 200))
 
 
 def _parse_sse_block(block: str) -> Optional[dict]:
@@ -122,12 +123,12 @@ async def _research_tool_generator(service, lookup):
     response.output_item.added, response.output_content.full,
     response.output_item.done, response.done
 
-    Plus CP middleware events: thread (early), response.citation (from cited_documents).
+    Plus CP middleware events: chat (early), response.citation (from cited_documents).
     """
     state = {
         "answer_parts": [],
         "citations": [],
-        "thread_id": (lookup.get("thread_id") or "").strip(),
+        "chat_id": (lookup.get("chat_id") or "").strip(),
         "query": (lookup.get("query") or "").strip(),
         "user_email": lookup.get("user_email"),
         "app": lookup.get("app"),
@@ -158,7 +159,7 @@ async def _save_exchange(
     service,
     app,
     *,
-    thread_id: str,
+    chat_id: str,
     user_email: Optional[str],
     query: str,
     answer: str,
@@ -167,7 +168,7 @@ async def _save_exchange(
     try:
         async with app.app_context():
             await service.append_exchange(
-                thread_id=thread_id,
+                chat_id=chat_id,
                 user_email=user_email,
                 query=query,
                 answer=answer,
@@ -175,8 +176,8 @@ async def _save_exchange(
             )
     except Exception:
         logger.exception(
-            "Failed to save research tool exchange thread_id=%s",
-            thread_id,
+            "Failed to save research tool exchange chat_id=%s",
+            chat_id,
         )
 
 
@@ -187,8 +188,8 @@ async def _process_sse_block(service, state: dict, block: str) -> list[str]:
     if not data:
         return events
 
-    if data.get("thread_id") and not data.get("type"):
-        state["thread_id"] = data["thread_id"]
+    if data.get("chat_id") and not data.get("type"):
+        state["chat_id"] = data["chat_id"]
 
     event_type = data.get("type")
 
@@ -209,11 +210,11 @@ async def _process_sse_block(service, state: dict, block: str) -> list[str]:
                 )
 
     elif event_type == "response.done":
-        thread_id = state["thread_id"]
+        chat_id = state["chat_id"]
         query = state["query"]
         answer_parts = state["answer_parts"]
         app = state["app"]
-        if thread_id and query and answer_parts and app:
+        if chat_id and query and answer_parts and app:
             normalized_citations = [
                 _normalize_citation(c) for c in state["citations"]
             ]
@@ -221,7 +222,7 @@ async def _process_sse_block(service, state: dict, block: str) -> list[str]:
                 _save_exchange(
                     service,
                     app,
-                    thread_id=thread_id,
+                    chat_id=chat_id,
                     user_email=state["user_email"],
                     query=query,
                     answer="".join(answer_parts),
@@ -264,8 +265,8 @@ def _sse_error(
     return _sse_event("error", payload)
 
 
-def _sse_thread(thread_id: str) -> str:
-    return _sse_event("thread", {"thread_id": thread_id})
+def _sse_chat(chat_id: str) -> str:
+    return _sse_event("chat", {"chat_id": chat_id})
 
 
 async def _proxy_error_event(resp: aiohttp.ClientResponse) -> str:
@@ -299,7 +300,7 @@ class ResearchToolResource(Resource):
     endpoint_name = "research_tool"
     resource_methods = ["GET", "POST", "DELETE"]
     item_methods = ["GET", "PATCH", "DELETE"]
-    schema = THREAD_SCHEMA
+    schema = CHAT_SCHEMA
     query_objectid_as_string = True
     privileges = {
         "GET": "archive",
@@ -308,7 +309,7 @@ class ResearchToolResource(Resource):
         "DELETE": "archive",
     }
     mongo_indexes = {
-        "thread_id": ([("thread_id", 1)], {"unique": True, "background": True}),
+        "chat_id": ([("chat_id", 1)], {"unique": True, "background": True}),
         "user_email": ([("user_email", 1)], {"background": True}),
     }
 
@@ -326,32 +327,32 @@ class ResearchToolService(AsyncBaseService):
         for doc in docs:
             if user_email and not doc.get("user_email"):
                 doc["user_email"] = user_email
-            if not doc.get("thread_title"):
+            if not doc.get("chat_title"):
                 for msg in doc.get("messages", []):
                     if msg.get("type") == "QUERY" and msg.get("value"):
-                        doc["thread_title"] = _thread_title_from_query(msg["value"])
+                        doc["chat_title"] = _chat_title_from_query(msg["value"])
                         break
-                if not doc.get("thread_title"):
-                    doc["thread_title"] = _("Untitled")
+                if not doc.get("chat_title"):
+                    doc["chat_title"] = _("Untitled")
 
     async def on_update_async(self, updates: dict, original: dict) -> None:
-        _require_thread_owner(original)
-        if "thread_title" in updates:
-            updates["thread_title"] = updates["thread_title"]
+        _require_chat_owner(original)
+        if "chat_title" in updates:
+            updates["chat_title"] = updates["chat_title"]
 
     async def on_fetched_item_async(self, doc: dict) -> None:
-        _require_thread_owner(doc)
+        _require_chat_owner(doc)
 
-    async def list_user_thread_summaries(self, user_email: str) -> list[dict]:
+    async def list_user_chat_summaries(self, user_email: str) -> list[dict]:
         cursor = await self.find_async(where={"user_email": user_email})
         return (
             await cursor.sort("_updated", -1)
-            .project({"thread_id": 1, "thread_title": 1, "_updated": 1})
+            .project({"chat_id": 1, "chat_title": 1, "_updated": 1})
             .to_list(length=None)
         )
 
-    async def get_user_thread_detail(self, thread_id: str) -> Optional[dict]:
-        lookup = {"thread_id": thread_id}
+    async def get_user_chat_detail(self, chat_id: str) -> Optional[dict]:
+        lookup = {"chat_id": chat_id}
         if user_email := _user_email():
             lookup["user_email"] = user_email
         return await self.find_one_async(req=None, **lookup)
@@ -359,7 +360,7 @@ class ResearchToolService(AsyncBaseService):
     async def append_exchange(
         self,
         *,
-        thread_id: str,
+        chat_id: str,
         user_email: Optional[str],
         query: str,
         answer: str,
@@ -367,7 +368,7 @@ class ResearchToolService(AsyncBaseService):
     ) -> None:
         now = utcnow()
         normalized_citations = [_normalize_citation(c) for c in (citations or [])]
-        query = {"type": "QUERY", "value": query, "created": now}
+        query_message = {"type": "QUERY", "value": query, "created": now}
         response = {
             "type": "RESPONSE",
             "value": answer,
@@ -375,17 +376,17 @@ class ResearchToolService(AsyncBaseService):
             "created": now,
         }
 
-        doc = await self.find_one_async(req=None, thread_id=thread_id)
+        doc = await self.find_one_async(req=None, chat_id=chat_id)
         if doc:
-            _require_thread_owner(doc)
-            messages = doc.get("messages", []) + [query, response]
+            _require_chat_owner(doc)
+            messages = doc.get("messages", []) + [query_message, response]
             await self.patch_async(doc["_id"], {"messages": messages})
             return
 
         new_doc = {
-            "thread_id": thread_id,
-            "thread_title": _thread_title_from_query(query),
-            "messages": [query, response],
+            "chat_id": chat_id,
+            "chat_title": _chat_title_from_query(query),
+            "messages": [query_message, response],
         }
         if user_email:
             new_doc["user_email"] = user_email
@@ -407,9 +408,9 @@ class ResearchToolService(AsyncBaseService):
             )
             return
 
-        # Reuse client thread_id or create one; always return it early on the stream.
-        thread_id = (lookup.get("thread_id") or "").strip() or str(uuid4())
-        yield _sse_thread(thread_id)
+        # Reuse client chat_id or create one; always return it early on the stream.
+        chat_id = (lookup.get("chat_id") or "").strip() or str(uuid4())
+        yield _sse_chat(chat_id)
 
         url = (config.get("RESEARCH_TOOL_PROXY_URL") or "").rstrip("/")
         api_key = config.get("RESEARCH_TOOL_API_KEY") or ""
@@ -437,7 +438,7 @@ class ResearchToolService(AsyncBaseService):
             "agent": agent_id,
             "input": query,
             "stream": True,
-            "thread_id": thread_id,
+            "thread_id": chat_id,
         }
         timeout = aiohttp.ClientTimeout(total=timeout_seconds, connect=10)
 
@@ -470,6 +471,7 @@ class ResearchToolService(AsyncBaseService):
                 title="Unexpected proxy error",
             )
 
+
 def _normalize_citation(citation: dict) -> dict:
     """Normalize citation payloads."""
     if not citation:
@@ -481,11 +483,12 @@ def _normalize_citation(citation: dict) -> dict:
         "slugline": citation.get("slugline", ""),
         "headline": citation.get("headline", ""),
         "description": citation.get("description", ""),
-        "date_published":citation.get("created", ""),
+        "date_published": citation.get("created", ""),
         "language": citation.get("language", ""),
         "source": citation.get("infosource", ""),
-        "type":  citation.get("content_types") or [],
+        "type": citation.get("content_types") or [],
     }
+
 
 def _user_email() -> Optional[str]:
     return ((get_user() or {}).get("email") or "").strip() or None
@@ -497,18 +500,18 @@ def _require_user_email() -> str:
     return email
 
 
-def _require_thread_owner(doc: dict) -> None:
+def _require_chat_owner(doc: dict) -> None:
     if (email := _user_email()) and doc.get("user_email") != email:
-        raise SuperdeskApiError.forbiddenError(_("Not allowed to access this thread."))
+        raise SuperdeskApiError.forbiddenError(_("Not allowed to access this chat."))
 
 
-def _thread_title_from_query(query: str) -> str:
+def _chat_title_from_query(query: str) -> str:
     title = " ".join(query.split())
     if not title:
         return _("Untitled")
-    if len(title) <= THREAD_TITLE_MAX_LENGTH:
+    if len(title) <= CHAT_TITLE_MAX_LENGTH:
         return title
-    return title[: THREAD_TITLE_MAX_LENGTH - 1].rstrip() + "…"
+    return title[: CHAT_TITLE_MAX_LENGTH - 1].rstrip() + "…"
 
 
 def init_app(app):
