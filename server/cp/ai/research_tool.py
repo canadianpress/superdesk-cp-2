@@ -78,9 +78,9 @@ async def research_tool_stream():
     return response
 
 
-@bp.route("/research_tool/history", methods=["GET", "OPTIONS"])
+@bp.route("/research_tool/chat", methods=["GET", "OPTIONS"])
 @blueprint_auth()
-async def research_tool_history():
+async def research_tool_chat():
     user_email = _require_user_email()
     service = get_resource_service("research_tool")
     items = await service.list_user_chat_summaries(user_email)
@@ -88,9 +88,9 @@ async def research_tool_history():
     return await send_response(None, (response_data, utcnow(), None, 200))
 
 
-@bp.route("/research_tool/history/<chat_id>", methods=["GET", "OPTIONS"])
+@bp.route("/research_tool/chat/<chat_id>", methods=["GET", "OPTIONS"])
 @blueprint_auth()
-async def research_tool_history_detail(chat_id: str):
+async def research_tool_chat_detail(chat_id: str):
     service = get_resource_service("research_tool")
     chat = await service.get_user_chat_detail(chat_id)
     if not chat:
