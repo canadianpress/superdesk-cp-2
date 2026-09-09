@@ -345,11 +345,15 @@ class ResearchToolService(AsyncBaseService):
 
     async def list_user_chat_summaries(self, user_email: str) -> list[dict]:
         cursor = await self.find_async(where={"user_email": user_email})
-        return (
-            await cursor.sort("_updated", -1)
-            .project({"chat_id": 1, "chat_title": 1, "_updated": 1})
-            .to_list(length=None)
-        )
+        docs = await cursor.sort("_updated", -1).to_list(length=None)
+        return [
+            {
+                key: doc[key]
+                for key in ("_id", "chat_id", "chat_title", "_updated")
+                if key in doc
+            }
+            for doc in docs
+        ]
 
     async def get_user_chat_detail(self, chat_id: str) -> Optional[dict]:
         lookup = {"chat_id": chat_id}
