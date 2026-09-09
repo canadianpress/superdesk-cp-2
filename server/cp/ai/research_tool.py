@@ -1,4 +1,3 @@
-from asyncio import create_task
 from collections.abc import AsyncIterator
 from logging import getLogger
 from typing import Optional
@@ -164,7 +163,8 @@ async def _save_exchange(
     query: str,
     answer: str,
     citations: list,
-) -> None:
+) -> bool:
+    """Persist a query/response exchange. Returns False on failure (already logged)."""
     try:
         async with app.app_context():
             await service.append_exchange(
@@ -174,11 +174,13 @@ async def _save_exchange(
                 answer=answer,
                 citations=citations,
             )
+        return True
     except Exception:
         logger.exception(
             "Failed to save research tool exchange chat_id=%s",
             chat_id,
         )
+        return False
 
 
 async def _process_sse_block(service, state: dict, block: str) -> list[str]:
@@ -218,17 +220,24 @@ async def _process_sse_block(service, state: dict, block: str) -> list[str]:
             normalized_citations = [
                 _normalize_citation(c) for c in state["citations"]
             ]
-            create_task(
-                _save_exchange(
-                    service,
-                    app,
-                    chat_id=chat_id,
-                    user_email=state["user_email"],
-                    query=query,
-                    answer="".join(answer_parts),
-                    citations=normalized_citations,
-                )
+            saved = await _save_exchange(
+                service,
+                app,
+                chat_id=chat_id,
+                user_email=state["user_email"],
+                query=query,
+                answer="".join(answer_parts),
+                citations=normalized_citations,
             )
+            if not saved:
+                events.append(
+                    _sse_error(
+                        detail=f"Failed to save chat exchange for chat_id={chat_id}",
+                        code="persist_error",
+                        status="500",
+                        title="Failed to save chat",
+                    )
+                )
         state["answer_parts"] = []
         state["citations"] = []
 
