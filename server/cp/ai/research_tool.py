@@ -59,13 +59,21 @@ CHAT_SCHEMA = {
 @bp.route("/research_tool/stream", methods=["GET", "OPTIONS"])
 @blueprint_auth()
 async def research_tool_stream():
+    user_email = _current_user_email()
+    service = get_resource_service("research_tool")
+    chat_id = (request.args.get("chat_id") or "").strip() or None
+    if chat_id:
+        existing = await service.find_one_async(req=None, chat_id=chat_id)
+        if existing:
+            _assert_chat_owner(existing, user_email)
+
     response = Response(
         _research_tool_generator(
-            get_resource_service("research_tool"),
+            service,
             {
                 "query": request.args.get("q", ""),
-                "chat_id": request.args.get("chat_id") or None,
-                "user_email": _user_email(),
+                "chat_id": chat_id,
+                "user_email": user_email,
                 "config": current_app.config,
                 "app": current_app._get_current_object(),
             },
@@ -80,7 +88,7 @@ async def research_tool_stream():
 @bp.route("/research_tool/chat", methods=["GET", "OPTIONS"])
 @blueprint_auth()
 async def research_tool_chat():
-    user_email = _require_user_email()
+    user_email = _current_user_email()
     service = get_resource_service("research_tool")
     items = await service.list_user_chat_summaries(user_email)
     response_data = {"_items": items, "_meta": {"total": len(items)}}
@@ -159,7 +167,7 @@ async def _save_exchange(
     app,
     *,
     chat_id: str,
-    user_email: Optional[str],
+    user_email: str,
     query: str,
     answer: str,
     citations: list,
@@ -216,7 +224,8 @@ async def _process_sse_block(service, state: dict, block: str) -> list[str]:
         query = state["query"]
         answer_parts = state["answer_parts"]
         app = state["app"]
-        if chat_id and query and answer_parts and app:
+        user_email = state["user_email"]
+        if chat_id and query and answer_parts and app and user_email:
             normalized_citations = [
                 _normalize_citation(c) for c in state["citations"]
             ]
@@ -224,7 +233,7 @@ async def _process_sse_block(service, state: dict, block: str) -> list[str]:
                 service,
                 app,
                 chat_id=chat_id,
-                user_email=state["user_email"],
+                user_email=user_email,
                 query=query,
                 answer="".join(answer_parts),
                 citations=normalized_citations,
@@ -325,17 +334,14 @@ class ResearchToolResource(Resource):
 
 class ResearchToolService(AsyncBaseService):
     async def get_async(self, req, lookup):
-        user_email = _user_email()
-        if user_email:
-            lookup = lookup or {}
-            lookup["user_email"] = user_email
+        lookup = lookup or {}
+        lookup["user_email"] = _current_user_email()
         return await super().get_async(req, lookup)
 
     async def on_create_async(self, docs: list[dict]) -> None:
-        user_email = _user_email()
+        user_email = _current_user_email()
         for doc in docs:
-            if user_email and not doc.get("user_email"):
-                doc["user_email"] = user_email
+            doc["user_email"] = user_email
             if not doc.get("chat_title"):
                 for msg in doc.get("messages", []):
                     if msg.get("type") == "QUERY" and msg.get("value"):
@@ -345,12 +351,12 @@ class ResearchToolService(AsyncBaseService):
                     doc["chat_title"] = _("Untitled")
 
     async def on_update_async(self, updates: dict, original: dict) -> None:
-        _require_chat_owner(original)
+        _assert_chat_owner(original, _current_user_email())
         if "chat_title" in updates:
             updates["chat_title"] = updates["chat_title"]
 
     async def on_fetched_item_async(self, doc: dict) -> None:
-        _require_chat_owner(doc)
+        _assert_chat_owner(doc, _current_user_email())
 
     async def list_user_chat_summaries(self, user_email: str) -> list[dict]:
         cursor = await self.find_async(where={"user_email": user_email})
@@ -365,16 +371,17 @@ class ResearchToolService(AsyncBaseService):
         ]
 
     async def get_user_chat_detail(self, chat_id: str) -> Optional[dict]:
-        lookup = {"chat_id": chat_id}
-        if user_email := _user_email():
-            lookup["user_email"] = user_email
-        return await self.find_one_async(req=None, **lookup)
+        return await self.find_one_async(
+            req=None,
+            chat_id=chat_id,
+            user_email=_current_user_email(),
+        )
 
     async def append_exchange(
         self,
         *,
         chat_id: str,
-        user_email: Optional[str],
+        user_email: str,
         query: str,
         answer: str,
         citations: Optional[list] = None,
@@ -391,19 +398,21 @@ class ResearchToolService(AsyncBaseService):
 
         doc = await self.find_one_async(req=None, chat_id=chat_id)
         if doc:
-            _require_chat_owner(doc)
+            _assert_chat_owner(doc, user_email)
             messages = doc.get("messages", []) + [query_message, response]
             await self.patch_async(doc["_id"], {"messages": messages})
             return
 
-        new_doc = {
-            "chat_id": chat_id,
-            "chat_title": _chat_title_from_query(query),
-            "messages": [query_message, response],
-        }
-        if user_email:
-            new_doc["user_email"] = user_email
-        await self.post_async([new_doc])
+        await self.post_async(
+            [
+                {
+                    "chat_id": chat_id,
+                    "chat_title": _chat_title_from_query(query),
+                    "messages": [query_message, response],
+                    "user_email": user_email,
+                }
+            ]
+        )
 
     async def stream_proxy_async(
         self, lookup=None
@@ -503,18 +512,15 @@ def _normalize_citation(citation: dict) -> dict:
     }
 
 
-def _user_email() -> Optional[str]:
-    return ((get_user() or {}).get("email") or "").strip() or None
-
-
-def _require_user_email() -> str:
-    if not (email := _user_email()):
+def _current_user_email() -> str:
+    email = ((get_user() or {}).get("email") or "").strip()
+    if not email:
         raise SuperdeskApiError.badRequestError(_("Missing user email."))
     return email
 
 
-def _require_chat_owner(doc: dict) -> None:
-    if (email := _user_email()) and doc.get("user_email") != email:
+def _assert_chat_owner(doc: dict, email: str) -> None:
+    if doc.get("user_email") != email:
         raise SuperdeskApiError.forbiddenError(_("Not allowed to access this chat."))
 
 
