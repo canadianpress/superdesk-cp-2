@@ -29,10 +29,11 @@ CITATION_SCHEMA = {
     "uri": {"type": "string"},
     "slugline": {"type": "string"},
     "headline": {"type": "string"},
+    "description": {"type": "string"},
     "date_published": {"type": "string"},
     "language": {"type": "string"},
     "source": {"type": "string"},
-    "type": {"type": "list", "schema": {"type": "string"}},
+    "type": {"type": "string"},
 }
 
 MESSAGE_SCHEMA = {
@@ -226,9 +227,6 @@ async def _process_sse_block(service, state: dict, block: str) -> list[str]:
         app = state["app"]
         user_email = state["user_email"]
         if chat_id and query and answer_parts and app and user_email:
-            normalized_citations = [
-                _normalize_citation(c) for c in state["citations"]
-            ]
             saved = await _save_exchange(
                 service,
                 app,
@@ -236,7 +234,7 @@ async def _process_sse_block(service, state: dict, block: str) -> list[str]:
                 user_email=user_email,
                 query=query,
                 answer="".join(answer_parts),
-                citations=normalized_citations,
+                citations=state["citations"],
             )
             if not saved:
                 events.append(
@@ -339,9 +337,10 @@ class ResearchToolService(AsyncBaseService):
         return await super().get_async(req, lookup)
 
     async def on_create_async(self, docs: list[dict]) -> None:
-        user_email = _current_user_email()
         for doc in docs:
-            doc["user_email"] = user_email
+            # Stream saves pass user_email explicitly (no request auth context).
+            if not (doc.get("user_email") or "").strip():
+                doc["user_email"] = _current_user_email()
             if not doc.get("chat_title"):
                 for msg in doc.get("messages", []):
                     if msg.get("type") == "QUERY" and msg.get("value"):
@@ -351,7 +350,11 @@ class ResearchToolService(AsyncBaseService):
                     doc["chat_title"] = _("Untitled")
 
     async def on_update_async(self, updates: dict, original: dict) -> None:
-        _assert_chat_owner(original, _current_user_email())
+        # Skip when called from stream persistence (no request user); callers
+        # like append_exchange already enforce ownership with the captured email.
+        email = ((get_user() or {}).get("email") or "").strip()
+        if email:
+            _assert_chat_owner(original, email)
         if "chat_title" in updates:
             updates["chat_title"] = updates["chat_title"]
 
@@ -387,12 +390,11 @@ class ResearchToolService(AsyncBaseService):
         citations: Optional[list] = None,
     ) -> None:
         now = utcnow()
-        normalized_citations = [_normalize_citation(c) for c in (citations or [])]
         query_message = {"type": "QUERY", "value": query, "created": now}
         response = {
             "type": "RESPONSE",
             "value": answer,
-            "citations": normalized_citations,
+            "citations": citations or [],
             "created": now,
         }
 
@@ -494,21 +496,30 @@ class ResearchToolService(AsyncBaseService):
             )
 
 
+def _join_str_list(value) -> str:
+    """Join a list of strings; pass through strings; empty for other values."""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        return " ".join(str(part).strip() for part in value if part not in (None, ""))
+    return ""
+
+
 def _normalize_citation(citation: dict) -> dict:
     """Normalize citation payloads."""
     if not citation:
         return {}
 
     return {
-        "citation_id": citation.get("search_result_number"),
-        "uri": citation.get("uri", ""),
-        "slugline": citation.get("slugline", ""),
-        "headline": citation.get("headline", ""),
-        "description": citation.get("description", ""),
-        "date_published": citation.get("created", ""),
-        "language": citation.get("language", ""),
-        "source": citation.get("infosource", ""),
-        "type": citation.get("content_types") or [],
+        "citation_id": citation.get("search_result_number", ""),
+        "uri": citation.get("uri"),
+        "slugline": citation.get("slugline"),
+        "headline": citation.get("headline"),
+        "description": _join_str_list(citation.get("snippets")),
+        "date_published": citation.get("created"),
+        "language": citation.get("language"),
+        "source": citation.get("infosource"),
+        "type": _join_str_list(citation.get("content_types")),
     }
 
 
