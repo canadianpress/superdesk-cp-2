@@ -106,6 +106,19 @@ async def research_tool_chat_detail(chat_id: str):
     return await send_response(None, (chat, utcnow(), None, 200))
 
 
+@bp.route("/research_tool/article_lookup", methods=["GET", "OPTIONS"])
+@blueprint_auth()
+async def research_tool_article_lookup():
+    guid = (request.args.get("guid") or "").strip()
+    if not guid:
+        raise SuperdeskApiError.badRequestError(_("Missing guid."))
+
+    article = await _fetch_article(guid)
+    if not article:
+        raise SuperdeskApiError.notFoundError(_("Article not found."))
+    return await send_response(None, (article, utcnow(), None, 200))
+
+
 def _parse_sse_block(block: str) -> Optional[dict]:
     """Parse one complete SSE event block into its JSON data payload."""
     data_parts: list[str] = []
@@ -251,8 +264,9 @@ async def _process_sse_block(service, state: dict, block: str) -> list[str]:
     return events
 
 
-async def _fetch_article(guid, uri):
-    pass
+async def _fetch_article(guid: str) -> Optional[dict]:
+    archive = get_resource_service("archive")
+    return await archive.find_one_async(req=None, _id=guid)
 
 
 def _sse_event(event: str, data: dict) -> str:
