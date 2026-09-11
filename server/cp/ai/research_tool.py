@@ -18,6 +18,8 @@ from superdesk.utils import get_cors_headers
 from superdesk.utc import utcnow
 from quart_babel import gettext as _
 
+from cp.archive_search import ArchiveSearchProvider
+
 logger = getLogger(__name__)
 
 bp = Blueprint("research_tool", __name__, url_prefix="/api")
@@ -113,7 +115,12 @@ async def research_tool_article_lookup():
     if not guid:
         raise SuperdeskApiError.badRequestError(_("Missing guid."))
 
-    article = await _fetch_article(guid)
+    try:
+        article = await ArchiveSearchProvider({}).fetch_async(guid)
+    except Exception:
+        logger.exception("Article lookup failed guid=%s", guid)
+        raise SuperdeskApiError.internalError(_("Archive search is unavailable."))
+
     if not article:
         raise SuperdeskApiError.notFoundError(_("Article not found."))
     return await send_response(None, (article, utcnow(), None, 200))
@@ -262,11 +269,6 @@ async def _process_sse_block(service, state: dict, block: str) -> list[str]:
         state["citations"] = []
 
     return events
-
-
-async def _fetch_article(guid: str) -> Optional[dict]:
-    archive = get_resource_service("archive")
-    return await archive.find_one_async(req=None, _id=guid)
 
 
 def _sse_event(event: str, data: dict) -> str:
