@@ -1,9 +1,10 @@
 import logging
 from datetime import datetime, timedelta, timezone, date
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import requests
 from flask import current_app as app
+from pymongo import MongoClient
 from urllib3 import Retry
 import superdesk
 from superdesk.utils import ListCursor
@@ -12,6 +13,8 @@ from superdesk.utc import utc_to_local
 from requests.adapters import HTTPAdapter
 
 logger = logging.getLogger(__name__)
+
+_mongo_client: Optional[MongoClient] = None
 
 
 class ArchiveListCursor(ListCursor):
@@ -87,6 +90,10 @@ class ArchiveSearchProvider(SearchProvider):
         )
 
     def _parse_datetime(self, value):
+        if isinstance(value, datetime):
+            dt = value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+            return utc_to_local(self.TZ, dt)
+
         for fmt in self.DATETIME_FORMATS:
             try:
                 dt = datetime.strptime(str(value).strip(), fmt)
@@ -413,6 +420,35 @@ class ArchiveSearchProvider(SearchProvider):
                 }
             )
         return transformed
+
+    def _mongo_collection(self):
+        mongo_uri = app.config.get("ARCHIVE_SEARCH_MONGO_URI")
+        cluster = app.config.get("ARCHIVE_SEARCH_MONGO_CLUSTER")
+        collection = app.config.get("ARCHIVE_SEARCH_MONGO_COLLECTION")
+        if not mongo_uri or not cluster or not collection:
+            raise RuntimeError(
+                "ARCHIVE_SEARCH_MONGO_URI/CLUSTER/COLLECTION are not configured"
+            )
+
+        global _mongo_client
+        if _mongo_client is None:
+            _mongo_client = MongoClient(mongo_uri, serverSelectionTimeoutMS=8000)
+
+        return _mongo_client[cluster][collection]
+
+    async def fetch_async(self, guid: str):
+        """Fetch one article by guid/uri via indexed Mongo ``item.uri``."""
+        guid = (guid or "").strip()
+        if not guid:
+            return None
+
+        bare = guid.rstrip("/").rsplit("/", 1)[-1]
+        doc = self._mongo_collection().find_one({"item.uri": f"http://cp.org/{bare}"})
+        if not doc:
+            return None
+
+        transformed = self._transform_items([doc])
+        return transformed[0] if transformed else None
 
 
 def init_app(app):
