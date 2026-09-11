@@ -31,11 +31,17 @@ CITATION_SCHEMA = {
     "uri": {"type": "string"},
     "slugline": {"type": "string"},
     "headline": {"type": "string"},
-    "description": {"type": "string"},
+    "snippets": {
+        "type": "list",
+        "schema": {"type": "string"},
+    },
     "date_published": {"type": "string"},
     "language": {"type": "string"},
     "source": {"type": "string"},
-    "type": {"type": "string"},
+    "content_types": {
+        "type": "list",
+        "schema": {"type": "string"},
+    },
 }
 
 MESSAGE_SCHEMA = {
@@ -512,15 +518,6 @@ class ResearchToolService(AsyncBaseService):
             )
 
 
-def _join_str_list(value) -> str:
-    """Join a list of strings; pass through strings; empty for other values."""
-    if isinstance(value, str):
-        return value
-    if isinstance(value, list):
-        return " ".join(str(part).strip() for part in value if part not in (None, ""))
-    return ""
-
-
 def _normalize_citation(citation: dict) -> dict:
     """Normalize citation payloads."""
     if not citation:
@@ -531,11 +528,11 @@ def _normalize_citation(citation: dict) -> dict:
         "uri": citation.get("uri"),
         "slugline": citation.get("slugline"),
         "headline": citation.get("headline"),
-        "description": _join_str_list(citation.get("snippets")),
+        "snippets": citation.get("snippets"),
         "date_published": citation.get("created"),
         "language": citation.get("language"),
         "source": citation.get("infosource"),
-        "type": _join_str_list(citation.get("content_types")),
+        "content_types": citation.get("content_types"),
     }
 
 
