@@ -177,16 +177,15 @@ async def _research_tool_generator(service, lookup):
             block = block.strip()
             if not block:
                 continue
-            citation_events = await _process_sse_block(service, state, block)
-            for citation_event in citation_events:
-                yield citation_event
-        yield item
+            yield f"{block}\n\n"
+            for extra_event in await _process_sse_block(service, state, block):
+                yield extra_event
 
     remainder = state["sse_buffer"].strip()
     if remainder:
-        citation_events = await _process_sse_block(service, state, remainder)
-        for citation_event in citation_events:
-            yield citation_event
+        for extra_event in await _process_sse_block(service, state, remainder):
+            yield extra_event
+        yield remainder
 
 
 async def _save_exchange(
@@ -235,16 +234,14 @@ async def _process_sse_block(service, state: dict, block: str) -> list[str]:
         state["answer_parts"].append(delta)
 
     elif event_type == "response.output_content.full":
-        full = data.get("response", {}).get("full", {})
-        if full.get("type") == "cited_documents":
+        full = data.get("response", {}).get("full") or {}
+        if isinstance(full, dict) and full.get("type") == "cited_documents":
             citations = [
                 _normalize_citation(c) for c in full.get("documents", [])
             ]
             state["citations"] = citations
             for citation_data in citations:
-                events.append(
-                    f"event: response.citation\ndata: {dumps(citation_data)}\n\n"
-                )
+                events.append(_sse_event("response.citation", citation_data))
 
     elif event_type == "response.done":
         chat_id = state["chat_id"]
