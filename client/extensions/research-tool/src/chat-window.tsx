@@ -1,9 +1,11 @@
 import * as React from "react";
-import { useMarkdown } from "./context/markdown-context";
-import { MarkdownList } from "./markdown-list";
+import { useSelectedChat } from "./context/selected-chat-context";
+import { MessageList } from "./message-list";
 
 export const ChatWindow = () => {
-  const { markdown } = useMarkdown();
+  const { chat } = useSelectedChat();
+
+  const messages = chat?.messages ?? [];
 
   const chatWindowRef = React.useRef<HTMLDivElement>(null);
 
@@ -13,7 +15,7 @@ export const ChatWindow = () => {
 
     const scrollThreshold = 500;
     const shouldScroll =
-      markdown?.[markdown.length - 1]?.value === "" ||
+      messages?.[messages.length - 1]?.value === "" ||
       container.scrollHeight - container.scrollTop <=
         container.clientHeight + scrollThreshold;
     if (shouldScroll)
@@ -21,21 +23,34 @@ export const ChatWindow = () => {
         top: container.scrollHeight,
         behavior: "smooth",
       });
-  }, [markdown]);
+  }, [messages]);
 
   return (
-    <div
-      ref={chatWindowRef}
-      style={{
-        flex: 1,
-        width: "100%",
-        display: "flex",
-        flexDirection: "column",
-        overflowY: "auto",
-        paddingRight: "1rem",
-      }}
-    >
-      <MarkdownList />
-    </div>
+    <>
+      <style>
+        {`
+          .research-tool__chat-window {
+              -ms-overflow-style: none;
+              scrollbar-width: none;
+          }
+          .research-tool__chat-window::-webkit-scrollbar {
+            display: none;
+          }
+        `}
+      </style>
+      <div
+        ref={chatWindowRef}
+        className="research-tool__chat-window"
+        style={{
+          flex: 1,
+          width: "65%",
+          display: "flex",
+          flexDirection: "column",
+          overflowY: "auto",
+        }}
+      >
+        <MessageList />
+      </div>
+    </>
   );
 };

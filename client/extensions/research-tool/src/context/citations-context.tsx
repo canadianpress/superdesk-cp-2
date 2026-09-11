@@ -1,23 +1,10 @@
 import * as React from "react";
+import type { Chat } from "../typings/chat";
+import { useSelectedChat } from "./selected-chat-context";
+import { SelectedCitationProvider } from "./selected-citation-context";
+import { SelectedCitationsProvider } from "./selected-citations-context";
 
-export type Citation = {
-  citation_id: string;
-  uri: string;
-  slugline: string;
-  headline: string;
-  description: string;
-  date_published: string;
-  language: string;
-  source: string;
-  type: string;
-};
-
-export type Citations = Record<string, Citation>;
-
-const CitationsContext = React.createContext<{
-  citations: Citations;
-  setCitations: React.Dispatch<React.SetStateAction<Citations>>;
-} | null>(null);
+const CitationsContext = React.createContext<Chat["citations"] | null>(null);
 
 export const useCitations = () => {
   const context = React.useContext(CitationsContext);
@@ -32,11 +19,18 @@ export const CitationsProvider = ({
 }: {
   children: React.ReactNode;
 }) => {
-  const [citations, setCitations] = React.useState({});
+  const { chat } = useSelectedChat();
+
+  const citations = React.useMemo(
+    () => chat?.citations ?? {},
+    [chat?.citations],
+  );
 
   return (
-    <CitationsContext.Provider value={{ citations, setCitations }}>
-      {children}
+    <CitationsContext.Provider value={citations}>
+      <SelectedCitationProvider>
+        <SelectedCitationsProvider>{children}</SelectedCitationsProvider>
+      </SelectedCitationProvider>
     </CitationsContext.Provider>
   );
 };

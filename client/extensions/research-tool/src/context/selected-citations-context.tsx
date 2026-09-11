@@ -1,10 +1,11 @@
 import * as React from "react";
-import type { Citation, Citations } from "./citations-context";
+import type { Chat } from "../typings/chat";
+import { useCitations } from "./citations-context";
 
 const SelectedCitationsContext = React.createContext<{
-  citations: Citations;
-  addCitation: (citation: Citation) => void;
-  removeCitation: (id: Citation["citation_id"]) => void;
+  citations: Chat["citations"];
+  addCitation: (id: string) => void;
+  removeCitation: (id: string) => void;
 } | null>(null);
 
 export const useSelectedCitations = () => {
@@ -22,25 +23,35 @@ export const SelectedCitationsProvider = ({
 }: {
   children: React.ReactNode;
 }) => {
-  const [citations, setCitations] = React.useState<Citations>({});
+  const citations = useCitations();
 
-  const addCitation = (citation: Citation) => {
-    setCitations((prev) => ({
-      ...prev,
-      [citation.citation_id]: citation,
-    }));
+  const [selectedCitations, setSelectedCitations] = React.useState<Set<string>>(
+    new Set(),
+  );
+
+  const filteredCitations = React.useMemo(() => {
+    const result: Chat["citations"] = {};
+    selectedCitations.forEach((id) => {
+      if (citations[id]) result[id] = citations[id];
+    });
+    return result;
+  }, [citations, selectedCitations]);
+
+  const addCitation = (id: string) => {
+    setSelectedCitations((prev) => new Set(prev).add(id));
   };
 
   const removeCitation = (id: string) => {
-    setCitations((prev) => {
-      const next = { ...prev };
-      delete next[id];
+    setSelectedCitations((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
       return next;
     });
   };
+
   return (
     <SelectedCitationsContext.Provider
-      value={{ citations, addCitation, removeCitation }}
+      value={{ citations: filteredCitations, addCitation, removeCitation }}
     >
       {children}
     </SelectedCitationsContext.Provider>

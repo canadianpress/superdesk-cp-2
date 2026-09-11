@@ -1,73 +1,89 @@
 import * as React from "react";
-import { useCitations } from "./context/citations-context";
-import { useMarkdown } from "./context/markdown-context";
-import { SearchBar } from "./search-bar";
+// import { SearchBar } from "./search-bar";
+import { SearchBar } from "superdesk-ui-framework/react";
+import { useChatsActions } from "./context/chats-context";
+import { useSelectedChat } from "./context/selected-chat-context";
 import { superdesk } from "./superdesk";
 
 export const Form = () => {
   const { url: serverUrl } = superdesk.instance.config.server;
 
-  const { setMarkdown } = useMarkdown();
-  const { setCitations } = useCitations();
+  const { chat, setSelectedChat } = useSelectedChat();
+  const { addChat, addMessages, addCitations, updateChat } = useChatsActions();
 
   const [query, setQuery] = React.useState("");
-  const [isStreaming, setIsStreaming] = React.useState(false);
 
-  const esRef = React.useRef<EventSource | null>(null);
+  const chatStreamsRef = React.useRef<Map<string, EventSource>>(new Map());
 
-  React.useEffect(() => () => esRef.current?.close(), []);
+  React.useEffect(
+    () => () => {
+      chatStreamsRef.current.forEach((es) => es.close());
+      chatStreamsRef.current.clear();
+    },
+    [],
+  );
 
-  const handleOnSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isStreaming) return;
-    if (esRef.current) esRef.current.close();
+  const handleOnSubmit = (newQuery: string) => {
+    const chatId = chat?.id ?? crypto.randomUUID();
+    if (chatStreamsRef.current.has(chatId) || !newQuery) return;
 
-    setIsStreaming(true);
-    setQuery("");
-    setMarkdown((prev) => [...prev, { query, value: "" }]);
+    setQuery(newQuery);
+    setTimeout(() => {
+      setQuery("");
+    });
 
+    if (!chat?.id) {
+      addChat(chatId, newQuery);
+      setSelectedChat(chatId);
+    } else if (!chat?.title) {
+      updateChat(chatId, { title: newQuery });
+    }
+
+    addMessages(chatId, [{ type: "QUERY", value: newQuery }]);
+    startStream(chatId, newQuery);
+  };
+
+  const startStream = (chatId: string, query: string) => {
     const es = new EventSource(
       `${serverUrl}/research_tool/stream?q=${encodeURIComponent(query)}`,
       { withCredentials: true },
     );
-    esRef.current = es;
+    chatStreamsRef.current.set(chatId, es);
+    updateChat(chatId, { isStreaming: true });
 
     es.addEventListener("response.output_text.delta", (event) => {
       const newNode = JSON.parse(event.data);
       const delta = newNode.response.delta;
-      setMarkdown((prev) => {
-        const updated = [...prev];
-        const last = prev.length - 1;
-        updated[last]["value"] = updated[last]["value"] + delta;
-        return updated;
-      });
+      addMessages(chatId, [{ type: "RESPONSE", value: delta }]);
     });
 
     es.addEventListener("response.citation", (event) => {
       const newNode = JSON.parse(event.data);
-      setCitations((prev) => ({
-        ...prev,
-        [`${newNode.citation_id}`]: newNode,
-      }));
+      addCitations(chatId, { [`${newNode.citation_id}`]: newNode });
     });
 
     es.addEventListener("done", () => {
       es.close();
-      setIsStreaming(false);
+      chatStreamsRef.current.delete(chatId);
+      updateChat(chatId, { isStreaming: false });
     });
 
     es.onerror = () => {
       es.close();
-      setIsStreaming(false);
+      chatStreamsRef.current.delete(chatId);
+      updateChat(chatId, { isStreaming: false });
     };
   };
 
   return (
-    <form
-      onSubmit={handleOnSubmit}
-      style={{ alignSelf: "center", width: "65%" }}
-    >
-      <SearchBar value={query} onChange={(v: string) => setQuery(v)} />
-    </form>
+    <div style={{ width: "65%" }}>
+      <SearchBar
+        value={query}
+        type="boxed"
+        placeholder={superdesk.localization.gettext("Ask a question")}
+        boxed
+        onSubmit={handleOnSubmit}
+      />
+    </div>
   );
 };

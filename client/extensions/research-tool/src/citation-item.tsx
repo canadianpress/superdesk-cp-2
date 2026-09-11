@@ -17,13 +17,13 @@ import {
 } from "superdesk-ui-framework/react";
 import { getMenuItems } from "./citation-details";
 import { CitationLinkPreview } from "./citation-link-preview";
-import type { Citation } from "./context/citations-context";
 import { useSelectedCitation } from "./context/selected-citation-context";
 import { useSelectedCitations } from "./context/selected-citations-context";
 import { superdesk } from "./superdesk";
+import { Citation } from "./typings/chat";
 
 export const CitationItem = ({ citation }: { citation: Citation }) => {
-  const { setCitation } = useSelectedCitation();
+  const { setSelectedCitation } = useSelectedCitation();
   const { addCitation, removeCitation } = useSelectedCitations();
 
   const [selected, setSelected] = React.useState(false);
@@ -33,7 +33,7 @@ export const CitationItem = ({ citation }: { citation: Citation }) => {
       label: superdesk.localization.gettext("View citation details"),
       icon: "icon-preview-mode",
       onClick: () => {
-        setCitation(citation);
+        setSelectedCitation(citation.citation_id);
       },
     },
     ...getMenuItems([citation]),
@@ -52,7 +52,7 @@ export const CitationItem = ({ citation }: { citation: Citation }) => {
           }}
           onChange={(value) => {
             setSelected((prev) => !prev);
-            if (value) addCitation(citation);
+            if (value) addCitation(citation.citation_id);
             else removeCitation(citation.citation_id);
           }}
         />
