@@ -1,15 +1,21 @@
 import * as React from "react";
 import {
+  Badge,
+  GridItemText,
+  GridItemTime,
+  GridItemTitle,
   IconButton,
   Menu,
   Panel,
   PanelContent,
   PanelContentBlock,
+  PanelFooter,
   PanelHeader,
+  Spacer,
 } from "superdesk-ui-framework/react";
-import type { Citation } from "./context/citations-context";
 import { useSelectedCitation } from "./context/selected-citation-context";
 import { superdesk } from "./superdesk";
+import { Citation } from "./typings/chat";
 
 type BaseFields = {
   [K in keyof Omit<Citation, "citation_id" | "uri" | "description">]: {
@@ -74,9 +80,7 @@ export const getMenuItems = (
 };
 
 export const CitationDetails = () => {
-  const { citation, setCitation } = useSelectedCitation();
-
-  const [isOpen, setIsOpen] = React.useState(false);
+  const { citation, setSelectedCitation } = useSelectedCitation();
 
   const menuItems = citation
     ? getMenuItems([citation], {
@@ -84,38 +88,63 @@ export const CitationDetails = () => {
       })
     : [];
 
-  React.useEffect(() => {
-    setIsOpen(Boolean(citation));
-  }, [citation]);
-
   return (
-    <Panel open={isOpen} side="right" background="transparent">
-      <PanelHeader
-        title={citation?.slugline}
-        onClose={() => {
-          setCitation(null);
-        }}
-        iconButtons={
-          menuItems
-            ? [
-                <Menu key="citation-details-header-menu" items={menuItems}>
-                  {(toggle) => (
-                    <IconButton
-                      icon="dots-vertical"
-                      ariaValue={superdesk.localization.gettext("Actions")}
-                      onClick={toggle}
-                    />
-                  )}
-                </Menu>,
-              ]
-            : []
-        }
-      />
-      <PanelContent>
-        <PanelContentBlock padding="1-5">
-          {citation?.description}
-        </PanelContentBlock>
-      </PanelContent>
-    </Panel>
+    <>
+      <style>
+        {`
+          .research-tool__citation-details {
+              position: absolute;
+              z-index: 2;
+              top: 0;
+              left: 0;
+              right: 0;
+          }
+          .research-tool__citation-details.hidden {
+              visibility: hidden;
+          }
+        `}
+      </style>
+      <Panel
+        open={!!citation}
+        side="right"
+        className={`research-tool__citation-details ${!citation ? "hidden" : ""}`}
+      >
+        <PanelHeader
+          title={citation?.slugline ?? ""}
+          onClose={() => {
+            setSelectedCitation(null);
+          }}
+          iconButtons={
+            menuItems
+              ? [
+                  <Menu key="citation-details-header-menu" items={menuItems}>
+                    {(toggle) => (
+                      <IconButton
+                        icon="dots-vertical"
+                        ariaValue={superdesk.localization.gettext("Actions")}
+                        onClick={toggle}
+                      />
+                    )}
+                  </Menu>,
+                ]
+              : []
+          }
+        />
+        <PanelContent>
+          <PanelContentBlock padding="1-5">
+            <Spacer v noWrap gap="8">
+              <GridItemTime time={citation?.date_published ?? ""} />
+              <GridItemTitle>{citation?.headline ?? ""}</GridItemTitle>
+              <GridItemText>{citation?.description ?? ""}</GridItemText>
+            </Spacer>
+          </PanelContentBlock>
+        </PanelContent>
+        <PanelFooter>
+          <Badge text={citation?.citation_id ?? ""} />
+          <Badge text={citation?.language ?? ""} />
+          <Badge text={citation?.type ?? ""} />
+        </PanelFooter>
+      </Panel>
+    </>
   );
 };

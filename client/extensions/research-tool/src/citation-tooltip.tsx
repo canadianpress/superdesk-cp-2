@@ -16,7 +16,7 @@ export const CitationTooltip = ({
 }) => {
   if (!href || !children) return null;
 
-  const { citations } = useCitations();
+  const citations = useCitations();
 
   const citationId = children.join("");
   const triggerRef = React.useRef<HTMLSpanElement>(null);
