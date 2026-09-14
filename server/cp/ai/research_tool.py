@@ -236,9 +236,7 @@ async def _process_sse_block(service, state: dict, block: str) -> list[str]:
     elif event_type == "response.output_content.full":
         full = data.get("response", {}).get("full") or {}
         if isinstance(full, dict) and full.get("type") == "cited_documents":
-            citations = [
-                _normalize_citation(c) for c in full.get("documents", [])
-            ]
+            citations = [_normalize_citation(c) for c in full.get("documents", [])]
             state["citations"] = citations
             for citation_data in citations:
                 events.append(_sse_event("response.citation", citation_data))
@@ -435,9 +433,7 @@ class ResearchToolService(AsyncBaseService):
             ]
         )
 
-    async def stream_proxy_async(
-        self, lookup=None
-    ) -> AsyncIterator[str]:
+    async def stream_proxy_async(self, lookup=None) -> AsyncIterator[str]:
         """Proxy SSE chunks from the research tool agent API."""
         lookup = lookup or {}
         config = lookup.get("config") or {}
