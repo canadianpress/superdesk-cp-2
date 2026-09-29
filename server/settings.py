@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "cp.ai.semaphore",
     "cp.ai.translate",
     "cp.app_config",
+    "cp.ai.research_tool",
 ]
 
 MODULES.append("planning")

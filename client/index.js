@@ -34,6 +34,10 @@ setTimeout(() => {
                 id: 'archive-search',
                 load: () => import('./extensions/archive-search'),
             },
+            {
+                id: 'research-tool',
+                load: () => import('./extensions/research-tool'),
+            },
         ],
         {},
     );
