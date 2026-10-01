@@ -239,7 +239,12 @@ async def _process_sse_block(service, state: dict, block: str) -> list[str]:
             citations = [_normalize_citation(c) for c in full.get("documents", [])]
             state["citations"] = citations
             for citation_data in citations:
-                events.append(_sse_event("response.citation", citation_data))
+                events.append(
+                    _sse_event(
+                        "response.citation",
+                        {"type": "response.citation", **citation_data},
+                    )
+                )
 
     elif event_type == "response.done":
         chat_id = state["chat_id"]
@@ -299,7 +304,7 @@ def _sse_error(
 
 
 def _sse_chat(chat_id: str) -> str:
-    return _sse_event("chat", {"chat_id": chat_id})
+    return _sse_event("chat.id", {"type": "chat.id", "value": chat_id})
 
 
 async def _proxy_error_event(resp: aiohttp.ClientResponse) -> str:
