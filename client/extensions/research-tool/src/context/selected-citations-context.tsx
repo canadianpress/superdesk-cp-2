@@ -4,8 +4,8 @@ import { useCitations } from "./citations-context";
 
 const SelectedCitationsContext = React.createContext<{
   citations: Chat["citations"];
-  addCitation: (id: string) => void;
-  removeCitation: (id: string) => void;
+  addCitations: (ids: Array<string>) => void;
+  removeCitations: (ids: Array<string>) => void;
 } | null>(null);
 
 export const useSelectedCitations = () => {
@@ -37,21 +37,25 @@ export const SelectedCitationsProvider = ({
     return result;
   }, [citations, selectedCitations]);
 
-  const addCitation = (id: string) => {
-    setSelectedCitations((prev) => new Set(prev).add(id));
-  };
-
-  const removeCitation = (id: string) => {
+  const addCitations = (ids: Array<string>) => {
     setSelectedCitations((prev) => {
       const next = new Set(prev);
-      next.delete(id);
+      for (const id of ids) next.add(id);
+      return next;
+    });
+  };
+
+  const removeCitations = (ids: Array<string>) => {
+    setSelectedCitations((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) next.delete(id);
       return next;
     });
   };
 
   return (
     <SelectedCitationsContext.Provider
-      value={{ citations: filteredCitations, addCitation, removeCitation }}
+      value={{ citations: filteredCitations, addCitations, removeCitations }}
     >
       {children}
     </SelectedCitationsContext.Provider>
