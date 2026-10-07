@@ -123,7 +123,9 @@ async def research_tool_article_lookup():
         raise SuperdeskApiError.badRequestError(_("Missing guid."))
 
     try:
-        article = await ArchiveSearchProvider({}).fetch_async(guid)
+        article = await ArchiveSearchProvider({}).fetch_async(
+            guid, include_descriptions=True
+        )
     except Exception:
         logger.exception("Article lookup failed guid=%s", guid)
         raise SuperdeskApiError.internalError(_("Archive search is unavailable."))

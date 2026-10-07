@@ -305,7 +305,7 @@ class ArchiveSearchProvider(SearchProvider):
 
         return normalized_items, int(total)
 
-    def _transform_items(self, items):
+    def _transform_items(self, items, *, include_descriptions: bool = False):
         def get_nested(obj, path, default=""):
             try:
                 for key in path:
@@ -388,37 +388,40 @@ class ArchiveSearchProvider(SearchProvider):
             sign_off = whole.get("sign_off") or data.get("sign_off")
             dateline = whole.get("located") or data.get("located")
 
-            transformed.append(
-                {
-                    "guid": data.get("uri", ""),
-                    "type": data.get("type", ""),
-                    "headline": legacy_headline or "",
-                    "headline_extended": hl_ext or "",
-                    "headline_main": hl_main or "",
-                    "description_text": (
-                        (description[:200] + "...") if description else ""
-                    ),
-                    "versioncreated": self._parse_datetime(data.get("versioncreated")),
-                    "slugline": data.get("slugline", ""),
-                    "firstcreated": data.get("firstcreated"),
-                    "urgency": data.get("urgency"),
-                    "version": data.get("version", ""),
-                    "body_html": body_html or "",
-                    "source": source,
-                    "state": "published",
-                    "language": language,
-                    "byline": byline or "",
-                    "located": located,
-                    "word_count": wordcount,
-                    "sign_off": sign_off,
-                    "dateline": {"text": dateline},
-                    **(
-                        {"anpa_category": [{"name": w} for w in wire]}
-                        if isinstance(wire, list)
-                        else {"anpa_category": [{"name": wire}]} if wire else {}
-                    ),
-                }
-            )
+            item = {
+                "guid": data.get("uri", ""),
+                "type": data.get("type", ""),
+                "headline": legacy_headline or "",
+                "headline_extended": hl_ext or "",
+                "headline_main": hl_main or "",
+                "description_text": (
+                    (description[:200] + "...") if description else ""
+                ),
+                "versioncreated": self._parse_datetime(data.get("versioncreated")),
+                "slugline": data.get("slugline", ""),
+                "firstcreated": data.get("firstcreated"),
+                "urgency": data.get("urgency"),
+                "version": data.get("version", ""),
+                "body_html": body_html or "",
+                "source": source,
+                "state": "published",
+                "language": language,
+                "byline": byline or "",
+                "located": located,
+                "word_count": wordcount,
+                "sign_off": sign_off,
+                "dateline": {"text": dateline},
+                **(
+                    {"anpa_category": [{"name": w} for w in wire]}
+                    if isinstance(wire, list)
+                    else {"anpa_category": [{"name": wire}]} if wire else {}
+                ),
+            }
+            if include_descriptions:
+                item["descriptions"] = (
+                    descriptions if isinstance(descriptions, list) else []
+                )
+            transformed.append(item)
         return transformed
 
     def _mongo_collection(self):
@@ -436,7 +439,7 @@ class ArchiveSearchProvider(SearchProvider):
 
         return _mongo_client[cluster][collection]
 
-    async def fetch_async(self, guid: str):
+    async def fetch_async(self, guid: str, *, include_descriptions: bool = False):
         """Fetch one article by guid/uri via indexed Mongo ``item.uri``."""
         guid = (guid or "").strip()
         if not guid:
@@ -447,7 +450,9 @@ class ArchiveSearchProvider(SearchProvider):
         if not doc:
             return None
 
-        transformed = self._transform_items([doc])
+        transformed = self._transform_items(
+            [doc], include_descriptions=include_descriptions
+        )
         return transformed[0] if transformed else None
 
 
