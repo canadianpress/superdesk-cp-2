@@ -1,15 +1,23 @@
 import * as React from "react";
-// import { SearchBar } from "./search-bar";
 import { SearchBar } from "superdesk-ui-framework/react";
 import { useChatsActions } from "./context/chats-context";
 import { useSelectedChat } from "./context/selected-chat-context";
+import { extractGuidFromUrl } from "./guid";
 import { superdesk } from "./superdesk";
+import { Citation } from "./typings/chat";
+
+const normalizeCitation = ({ snippets, ...citation }: Citation): Citation => ({
+  ...citation,
+  snippets: snippets ?? [],
+  content_types: citation.content_types ?? [],
+});
 
 export const Form = () => {
   const { url: serverUrl } = superdesk.instance.config.server;
 
   const { chat, setSelectedChat } = useSelectedChat();
-  const { addChat, addMessages, addCitations, updateChat } = useChatsActions();
+  const { addChat, addMessages, addCitations, updateChat, remapChat } =
+    useChatsActions();
 
   const [query, setQuery] = React.useState("");
 
@@ -43,13 +51,26 @@ export const Form = () => {
     startStream(chatId, newQuery);
   };
 
-  const startStream = (chatId: string, query: string) => {
+  const startStream = (newChatId: string, query: string) => {
+    let chatId = newChatId;
     const es = new EventSource(
-      `${serverUrl}/research_tool/stream?q=${encodeURIComponent(query)}`,
+      `${serverUrl}/research_tool/stream?q=${encodeURIComponent(query)}&chat_id=${encodeURIComponent(newChatId)}`,
       { withCredentials: true },
     );
     chatStreamsRef.current.set(chatId, es);
     updateChat(chatId, { isStreaming: true });
+
+    es.addEventListener("chat.id", (event) => {
+      const data = JSON.parse(event.data);
+      const serverChatId = data.value;
+      if (chatId === serverChatId) return;
+
+      remapChat(chatId, serverChatId);
+      setSelectedChat(serverChatId);
+      chatStreamsRef.current.set(serverChatId, es);
+      chatStreamsRef.current.delete(chatId);
+      chatId = serverChatId;
+    });
 
     es.addEventListener("response.output_text.delta", (event) => {
       const newNode = JSON.parse(event.data);
@@ -59,7 +80,8 @@ export const Form = () => {
 
     es.addEventListener("response.citation", (event) => {
       const newNode = JSON.parse(event.data);
-      addCitations(chatId, { [`${newNode.citation_id}`]: newNode });
+      const id = extractGuidFromUrl(newNode.uri) ?? newNode.citation_id;
+      addCitations(chatId, { [id]: normalizeCitation(newNode) });
     });
 
     es.addEventListener("done", () => {
