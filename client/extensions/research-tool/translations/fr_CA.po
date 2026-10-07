@@ -34,3 +34,39 @@ msgstr "Chats"
 
 msgid "Start new chat"
 msgstr "Start new chat"
+
+msgid "Select all citations"
+msgstr "Select all citations"
+
+msgid "Expand"
+msgstr "Expand"
+
+msgid "Collapse"
+msgstr "Collapse"
+
+msgid "Created"
+msgstr "Created"
+
+msgid "Modified"
+msgstr "Modified"
+
+msgid "Slugline"
+msgstr "Slugline"
+
+msgid "Headline"
+msgstr "Headline"
+
+msgid "Extended Headline"
+msgstr "Extended Headline"
+
+msgid "Byline"
+msgstr "Byline"
+
+msgid "Placeline"
+msgstr "Placeline"
+
+msgid "Description"
+msgstr "Description"
+
+msgid "Body HTML"
+msgstr "Body HTML"

@@ -1,5 +1,6 @@
 import * as React from "react";
-import type { Chat, FormChat } from "../typings/chat";
+import { superdesk } from "../superdesk";
+import type { ApiChat, Chat, FormChat } from "../typings/chat";
 import { SelectedChatProvider } from "./selected-chat-context";
 
 type ChatsAction =
@@ -15,7 +16,9 @@ type ChatsAction =
   | {
       type: "UPDATE_CHAT";
       payload: { id: string } & Partial<FormChat>;
-    };
+    }
+  | { type: "REMAP_CHAT"; payload: { id: string; newId: string } }
+  | { type: "HYDRATE_CHATS"; payload: Record<string, FormChat> };
 
 const ChatsContext = React.createContext<Record<string, FormChat> | null>(null);
 
@@ -67,9 +70,30 @@ export const useChatsActions = () => {
     [dispatch],
   );
 
+  const remapChat = React.useCallback(
+    (id: string, newId: string) => {
+      dispatch({ type: "REMAP_CHAT", payload: { id, newId } });
+    },
+    [dispatch],
+  );
+
+  const hydrateChats = React.useCallback(
+    (payload: Record<string, FormChat>) => {
+      dispatch({ type: "HYDRATE_CHATS", payload });
+    },
+    [dispatch],
+  );
+
   return React.useMemo(
-    () => ({ addChat, addMessages, addCitations, updateChat }),
-    [addChat, addMessages, addCitations, updateChat],
+    () => ({
+      addChat,
+      addMessages,
+      addCitations,
+      updateChat,
+      remapChat,
+      hydrateChats,
+    }),
+    [addChat, addMessages, addCitations, updateChat, remapChat, hydrateChats],
   );
 };
 
@@ -80,6 +104,7 @@ const chatsReducer = (state: Record<string, FormChat>, action: ChatsAction) => {
         ...state,
         [action.payload.id]: {
           ...action.payload,
+          updated: new Date().toISOString(),
           messages: [],
           citations: {},
           isStreaming: false,
@@ -114,13 +139,33 @@ const chatsReducer = (state: Record<string, FormChat>, action: ChatsAction) => {
         ...state,
         [chatId]: {
           ...state[chatId],
-          citations: { ...state[chatId].citations, ...citations },
+          citations: {
+            ...state[chatId].citations,
+            ...Object.entries(citations).reduce<Chat["citations"]>(
+              (acc, [key, value]) => ({
+                ...acc,
+                [key]: { ...state[chatId].citations?.[key], ...value },
+              }),
+              {},
+            ),
+          },
         },
       };
     }
     case "UPDATE_CHAT": {
       const { id, ...rest } = action.payload;
       return { ...state, [id]: { ...state[id], ...rest } };
+    }
+    case "REMAP_CHAT": {
+      const { id, newId } = action.payload;
+      const { [id]: old, ...rest } = state;
+      return {
+        ...rest,
+        [newId]: { ...old, id: newId },
+      };
+    }
+    case "HYDRATE_CHATS": {
+      return { ...state, ...action.payload };
     }
     default:
       return state;
@@ -129,6 +174,41 @@ const chatsReducer = (state: Record<string, FormChat>, action: ChatsAction) => {
 
 export const ChatsProvider = ({ children }: { children: React.ReactNode }) => {
   const [chats, dispatch] = React.useReducer(chatsReducer, {});
+
+  const { url: serverUrl } = superdesk.instance.config.server;
+
+  React.useEffect(() => {
+    const fetchChats = async () => {
+      try {
+        const res = await fetch(`${serverUrl}/research_tool/chat`, {
+          credentials: "include",
+        });
+        if (!res.ok) return;
+
+        const { _items: chats } = await res.json();
+        if (!Array.isArray(chats)) return;
+
+        const payload = chats.reduce<Record<string, FormChat>>(
+          (acc, { chat_id, chat_title, _updated }: ApiChat) => {
+            acc[chat_id] = {
+              id: chat_id,
+              title: chat_title,
+              updated: _updated,
+              messages: [],
+              citations: {},
+              isStreaming: false,
+            };
+            return acc;
+          },
+          {},
+        );
+        dispatch({ type: "HYDRATE_CHATS", payload });
+      } catch (err) {
+        console.error("Failed to fetch chats", err);
+      }
+    };
+    fetchChats();
+  }, [serverUrl]);
 
   return (
     <ChatsContext.Provider value={chats}>
