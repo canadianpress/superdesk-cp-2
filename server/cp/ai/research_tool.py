@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator
 from logging import getLogger
 from typing import Optional
@@ -8,15 +9,15 @@ from apps.auth import get_user
 from eve.render import send_response
 from quart import Response, current_app, request
 from quart.json import dumps, loads
+from quart_babel import gettext as _
 from superdesk import get_resource_service
 from superdesk.auth.decorator import blueprint_auth
 from superdesk.errors import SuperdeskApiError
 from superdesk.eve_async.service import AsyncBaseService
 from superdesk.flask import Blueprint
 from superdesk.resource import Resource
-from superdesk.utils import get_cors_headers
 from superdesk.utc import utcnow
-from quart_babel import gettext as _
+from superdesk.utils import get_cors_headers
 
 from cp.archive_search import ArchiveSearchProvider
 
@@ -224,10 +225,12 @@ async def _process_sse_block(service, state: dict, block: str) -> list[str]:
     if not data:
         return events
 
-    if data.get("chat_id") and not data.get("type"):
-        state["chat_id"] = data["chat_id"]
-
     event_type = data.get("type")
+
+    if event_type == "chat.id":
+        chat_id = (data.get("value") or "").strip()
+        if chat_id:
+            state["chat_id"] = chat_id
 
     if event_type == "response.output_text.delta":
         delta = data.get("response", {}).get("delta", "") or ""
@@ -265,10 +268,9 @@ async def _process_sse_block(service, state: dict, block: str) -> list[str]:
             if not saved:
                 events.append(
                     _sse_error(
-                        detail=f"Failed to save chat exchange for chat_id={chat_id}",
-                        code="persist_error",
+                        value=f"Failed to save chat exchange for chat_id={chat_id}",
+                        type="persist_error",
                         status="500",
-                        title="Failed to save chat",
                     )
                 )
         state["answer_parts"] = []
@@ -282,25 +284,13 @@ def _sse_event(event: str, data: dict) -> str:
 
 
 def _sse_error(
-    detail: str,
-    code: str = "proxy_error",
+    value: str,
+    *,
+    type: str = "proxy_error",
     status: str = "500",
-    title: str = "Research tool error",
-    errors: Optional[list] = None,
 ) -> str:
-    """Shape errors similarly to Agents/Runs API error responses."""
-    payload = {
-        "errors": errors
-        or [
-            {
-                "status": status,
-                "code": code,
-                "title": title,
-                "detail": detail,
-            }
-        ]
-    }
-    return _sse_event("error", payload)
+    """Emit error events as {type, status, value}."""
+    return _sse_event("error", {"type": type, "status": status, "value": value})
 
 
 def _sse_chat(chat_id: str) -> str:
@@ -317,20 +307,20 @@ async def _proxy_error_event(resp: aiohttp.ClientResponse) -> str:
     try:
         body = loads(body_text)
         if isinstance(body, dict) and body.get("errors"):
-            return _sse_error(
-                detail=body_text,
-                code="proxy_error",
-                status=str(resp.status),
-                errors=body["errors"],
-            )
+            first = body["errors"][0] if body["errors"] else {}
+            if isinstance(first, dict):
+                return _sse_error(
+                    value=first.get("detail") or body_text,
+                    type=first.get("code") or "proxy_error",
+                    status=str(first.get("status") or resp.status),
+                )
     except (ValueError, TypeError):
         pass
 
     return _sse_error(
-        detail=body_text or f"Proxy request failed with status {resp.status}",
-        code="proxy_error",
+        value=body_text or f"Proxy request failed with status {resp.status}",
+        type="proxy_error",
         status=str(resp.status),
-        title="Proxy request failed",
     )
 
 
@@ -445,15 +435,15 @@ class ResearchToolService(AsyncBaseService):
         query = (lookup.get("query") or "").strip()
         if not query:
             yield _sse_error(
-                detail="Missing query parameter 'q'",
-                code="bad_request",
+                value="Missing query parameter 'q'",
+                type="bad_request",
                 status="400",
-                title="Invalid request",
             )
             return
 
         # Reuse client chat_id or create one; always return it early on the stream.
         chat_id = (lookup.get("chat_id") or "").strip() or str(uuid4())
+        lookup["chat_id"] = chat_id
         yield _sse_chat(chat_id)
 
         url = (config.get("RESEARCH_TOOL_PROXY_URL") or "").rstrip("/")
@@ -462,14 +452,13 @@ class ResearchToolService(AsyncBaseService):
         timeout_seconds = int(config.get("RESEARCH_TOOL_TIMEOUT_SECONDS") or 120)
         if not url or not api_key or not agent_id:
             yield _sse_error(
-                detail=(
+                value=(
                     "Research tool proxy is not configured "
                     "(RESEARCH_TOOL_PROXY_URL, RESEARCH_TOOL_API_KEY, "
                     "RESEARCH_TOOL_AGENT_ID)"
                 ),
-                code="misconfigured",
+                type="misconfigured",
                 status="500",
-                title="Research tool misconfigured",
             )
             return
 
@@ -484,7 +473,7 @@ class ResearchToolService(AsyncBaseService):
             "stream": True,
             "thread_id": chat_id,
         }
-        timeout = aiohttp.ClientTimeout(total=timeout_seconds, connect=10)
+        timeout = aiohttp.ClientTimeout(total=timeout_seconds, connect=10, sock_read=timeout_seconds)
 
         try:
             async with (
@@ -501,18 +490,16 @@ class ResearchToolService(AsyncBaseService):
         except aiohttp.ClientError as exc:
             logger.exception("Research tool proxy request failed")
             yield _sse_error(
-                detail=str(exc),
-                code="proxy_error",
+                value=str(exc),
+                type="proxy_error",
                 status="502",
-                title="Proxy request failed",
             )
         except Exception:
             logger.exception("Unexpected research tool proxy error")
             yield _sse_error(
-                detail="Unexpected proxy error",
-                code="proxy_error",
+                value="Unexpected proxy error",
+                type="proxy_error",
                 status="500",
-                title="Unexpected proxy error",
             )
 
 
