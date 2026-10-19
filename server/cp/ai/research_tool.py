@@ -1,4 +1,3 @@
-import asyncio
 from collections.abc import AsyncIterator
 from logging import getLogger
 from typing import Optional
@@ -90,6 +89,7 @@ async def research_tool_stream():
         ),
         mimetype="text/event-stream",
     )
+    response.timeout = None
     response.headers.update([*get_cors_headers(["GET"]), ("Cache-Control", "no-cache")])
 
     return response
@@ -286,7 +286,7 @@ def _sse_event(event: str, data: dict) -> str:
 def _sse_error(
     value: str,
     *,
-    type: str = "proxy_error",
+    type: str = "error",
     status: str = "500",
 ) -> str:
     """Emit error events as {type, status, value}."""
@@ -311,7 +311,7 @@ async def _proxy_error_event(resp: aiohttp.ClientResponse) -> str:
             if isinstance(first, dict):
                 return _sse_error(
                     value=first.get("detail") or body_text,
-                    type=first.get("code") or "proxy_error",
+                    type=first.get("code") or "error",
                     status=str(first.get("status") or resp.status),
                 )
     except (ValueError, TypeError):
@@ -319,7 +319,7 @@ async def _proxy_error_event(resp: aiohttp.ClientResponse) -> str:
 
     return _sse_error(
         value=body_text or f"Proxy request failed with status {resp.status}",
-        type="proxy_error",
+        type="error",
         status=str(resp.status),
     )
 
@@ -449,7 +449,7 @@ class ResearchToolService(AsyncBaseService):
         url = (config.get("RESEARCH_TOOL_PROXY_URL") or "").rstrip("/")
         api_key = config.get("RESEARCH_TOOL_API_KEY") or ""
         agent_id = config.get("RESEARCH_TOOL_AGENT_ID") or ""
-        timeout_seconds = int(config.get("RESEARCH_TOOL_TIMEOUT_SECONDS") or 120)
+        timeout_seconds = int(config.get("RESEARCH_TOOL_TIMEOUT_SECONDS"))
         if not url or not api_key or not agent_id:
             yield _sse_error(
                 value=(
@@ -473,8 +473,7 @@ class ResearchToolService(AsyncBaseService):
             "stream": True,
             "thread_id": chat_id,
         }
-        timeout = aiohttp.ClientTimeout(total=timeout_seconds, connect=10, sock_read=timeout_seconds)
-
+        timeout = aiohttp.ClientTimeout(total=timeout_seconds)
         try:
             async with (
                 aiohttp.ClientSession(timeout=timeout) as session,
@@ -487,18 +486,35 @@ class ResearchToolService(AsyncBaseService):
                 async for chunk in resp.content.iter_any():
                     text = chunk.decode("utf-8", errors="replace")
                     yield text
-        except aiohttp.ClientError as exc:
-            logger.exception("Research tool proxy request failed")
+        except aiohttp.ServerTimeoutError:
+            logger.error(
+                "Research tool timeout after %ss chat_id=%s",
+                timeout_seconds,
+                chat_id,
+            )
             yield _sse_error(
-                value=str(exc),
-                type="proxy_error",
+                value=(
+                    "Timed out waiting for research tool "
+                    f"(limit {timeout_seconds} seconds)"
+                ),
+                type="timeout",
+                status="504",
+            )
+        except aiohttp.ClientError as exc:
+            logger.exception("Research tool proxy request failed chat_id=%s", chat_id)
+            yield _sse_error(
+                value=str(exc) or "Research tool proxy request failed",
+                type="error",
                 status="502",
             )
         except Exception:
-            logger.exception("Unexpected research tool proxy error")
+            logger.exception(
+                "Unexpected research tool proxy error chat_id=%s",
+                chat_id,
+            )
             yield _sse_error(
                 value="Unexpected proxy error",
-                type="proxy_error",
+                type="error",
                 status="500",
             )
 
