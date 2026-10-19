@@ -449,7 +449,7 @@ class ResearchToolService(AsyncBaseService):
         url = (config.get("RESEARCH_TOOL_PROXY_URL") or "").rstrip("/")
         api_key = config.get("RESEARCH_TOOL_API_KEY") or ""
         agent_id = config.get("RESEARCH_TOOL_AGENT_ID") or ""
-        timeout_seconds = int(config.get("RESEARCH_TOOL_TIMEOUT_SECONDS"))
+        timeout_seconds = config.get("RESEARCH_TOOL_TIMEOUT_SECONDS")
         if not url or not api_key or not agent_id:
             yield _sse_error(
                 value=(
