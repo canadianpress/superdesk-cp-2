@@ -31,8 +31,13 @@ export const SelectedChatProvider = ({
     return chats[selectedChat];
   }, [chats, selectedChat]);
 
+  const value = React.useMemo(
+    () => ({ chat, setSelectedChat }),
+    [chat, setSelectedChat],
+  );
+
   return (
-    <SelectedChatContext.Provider value={{ chat, setSelectedChat }}>
+    <SelectedChatContext.Provider value={value}>
       {children}
     </SelectedChatContext.Provider>
   );
