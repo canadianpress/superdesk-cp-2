@@ -11,7 +11,7 @@ import lxml.html.clean
 import superdesk
 import superdesk.etree as sd_etree
 
-from typing import List
+from typing import Final, List
 from quart import current_app as app
 from superdesk.utc import utc_to_local, get_date, utcnow
 from superdesk.media.image import get_meta_iptc
@@ -70,6 +70,9 @@ PRIORITY_MAP = {
     7: "a",
     8: "s",
 }
+
+# AP alert slugs are generic, so they must not be kept for the rest of the story
+NEWS_ALERT_RE: Final = re.compile("APNewsAlert", re.IGNORECASE)
 
 
 sess = requests.Session()
@@ -150,8 +153,9 @@ class CP_APMediaFeedParser(APMediaFeedParser):
         prev = await superdesk.get_resource_service("ingest").find_one_async(
             req=None, guid=item["guid"]
         )
-        if prev and prev.get("slugline"):
-            item["slugline"] = prev["slugline"]
+        prev_slug = (prev or {}).get("slugline")
+        if prev_slug and not NEWS_ALERT_RE.search(prev_slug):
+            item["slugline"] = prev_slug
         elif item.get("slugline"):
             item["slugline"] = self.process_slugline(item["slugline"])
 
