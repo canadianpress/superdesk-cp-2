@@ -29,7 +29,7 @@ export type ApiChat = {
   messages: Array<Message & { created: string; citations?: Array<Citation> }>;
 };
 
-export type FormChat = Chat & { isStreaming: boolean };
+export type FormChat = Chat & { isStreaming: boolean; hasError: boolean };
 
 export type Article = {
   guid: string;

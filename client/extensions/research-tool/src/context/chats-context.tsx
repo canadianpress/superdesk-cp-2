@@ -108,6 +108,7 @@ const chatsReducer = (state: Record<string, FormChat>, action: ChatsAction) => {
           messages: [],
           citations: {},
           isStreaming: false,
+          hasError: false,
         },
       };
     }
@@ -118,7 +119,10 @@ const chatsReducer = (state: Record<string, FormChat>, action: ChatsAction) => {
       const messages = [...state[chatId]["messages"]];
       for (const message of newMessages) {
         const last = messages.length - 1;
-        if (message.type !== messages[last]?.type) {
+        if (
+          message.type !== "RESPONSE" ||
+          message.type !== messages[last]?.type
+        ) {
           messages.push(message);
           continue;
         }
@@ -197,6 +201,7 @@ export const ChatsProvider = ({ children }: { children: React.ReactNode }) => {
               messages: [],
               citations: {},
               isStreaming: false,
+              hasError: false,
             };
             return acc;
           },
