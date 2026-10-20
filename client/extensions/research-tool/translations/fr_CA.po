@@ -70,3 +70,12 @@ msgstr "Description"
 
 msgid "Body HTML"
 msgstr "Body HTML"
+
+msgid "Regenerate"
+msgstr "Regenerate"
+
+msgid "Copied to clipboard"
+msgstr "Copied to clipboard"
+
+msgid "Could not copy to clipboard"
+msgstr "Could not copy to clipboard"
