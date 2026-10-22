@@ -75,6 +75,11 @@ PRIORITY_MAP = {
 NEWS_ALERT_RE: Final = re.compile("APNewsAlert", re.IGNORECASE)
 
 
+def is_news_alert(slugline: str) -> bool:
+    """Return True if the slugline belongs to an AP news alert."""
+    return bool(NEWS_ALERT_RE.search(slugline))
+
+
 sess = requests.Session()
 
 
@@ -115,6 +120,17 @@ class CP_APMediaFeedParser(APMediaFeedParser):
             dateline_date = utcnow()
         return dateline_date
 
+    async def _set_slugline(self, item):
+        """Keep the slug of the previous version, unless it was a news alert."""
+        prev = await superdesk.get_resource_service("ingest").find_one_async(
+            req=None, guid=item["guid"]
+        )
+        prev_slug = (prev or {}).get("slugline")
+        if prev_slug and not is_news_alert(prev_slug):
+            item["slugline"] = prev_slug
+        elif item.get("slugline"):
+            item["slugline"] = self.process_slugline(item["slugline"])
+
     async def parse(self, data, provider=None):
         """
         Applying custom CP mapping based on _APWebFeed-1.0-JIMI-3.0.xsl
@@ -150,14 +166,7 @@ class CP_APMediaFeedParser(APMediaFeedParser):
         except KeyError:
             pass
 
-        prev = await superdesk.get_resource_service("ingest").find_one_async(
-            req=None, guid=item["guid"]
-        )
-        prev_slug = (prev or {}).get("slugline")
-        if prev_slug and not NEWS_ALERT_RE.search(prev_slug):
-            item["slugline"] = prev_slug
-        elif item.get("slugline"):
-            item["slugline"] = self.process_slugline(item["slugline"])
+        await self._set_slugline(item)
 
         if item.get("type") == "text":
             item["profile"] = self.PROFILE_ID

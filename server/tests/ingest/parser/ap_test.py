@@ -344,6 +344,19 @@ class CP_AP_ParseTestCase(TestCase):
             resources["ingest"].service.find_one_async.return_value = None
         self.assertEqual("TEN-Virus-Outbreak-ATP-Schedule-Changes", item["slugline"])
 
+    async def test_slugline_news_alert_after_news_alert(self):
+        """Repeated alerts at the start of a chain keep the alert slug."""
+        with open(get_fixture_path("ap-sports.json", "ap")) as fp:
+            _data = json.load(fp)
+        _data["data"]["item"]["slugline"] = "AP-US-APNewsAlert"
+        with patch.dict(superdesk.resources, resources):
+            resources["ingest"].service.find_one_async.return_value = {
+                "slugline": "US-APNewsAlert",
+            }
+            item = await parser.parse(_data, {})
+            resources["ingest"].service.find_one_async.return_value = None
+        self.assertEqual("US-APNewsAlert", item["slugline"])
+
     async def test_slugline_news_alert_keeps_prev_version(self):
         """A later alert in the chain keeps the slug set before it."""
         with open(get_fixture_path("ap-sports.json", "ap")) as fp:
