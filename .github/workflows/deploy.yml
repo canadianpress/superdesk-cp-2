@@ -51,10 +51,10 @@ jobs:
 
             export AWS_DEFAULT_REGION="$AWS_REGION"
 
-            touch /var/lock/superdesk-cms-deploy.lock
-            chown "root:\$(id -gn '$TARGET_USER')" /var/lock/superdesk-cms-deploy.lock
-            chmod 660 /var/lock/superdesk-cms-deploy.lock
-            exec 8>>/var/lock/superdesk-cms-deploy.lock
+            touch /var/lock/cms-deploy.lock
+            chown "root:\$(id -gn '$TARGET_USER')" /var/lock/cms-deploy.lock
+            chmod 660 /var/lock/cms-deploy.lock
+            exec 8>>/var/lock/cms-deploy.lock
             flock -w 300 8 || { echo "Timed out waiting for another host deployment"; exit 1; }
 
             mkdir -p "$TARGET_DIR"
