@@ -8,7 +8,20 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_DIR="${SCRIPT_DIR}/../templates"
 
 # Load deploy env file if present (written by justfile push)
-[[ -f "${SCRIPT_DIR}/../deploy.env" ]] && source "${SCRIPT_DIR}/../deploy.env"
+DEPLOY_ENV_VARS=()
+if [[ -f "${SCRIPT_DIR}/../deploy.env" ]]; then
+    # Capture variable names from deploy.env before sourcing
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        # Skip comments and empty lines
+        [[ "$line" =~ ^[[:space:]]*# ]] && continue
+        [[ "$line" =~ ^[[:space:]]*$ ]] && continue
+        # Extract variable name (before =)
+        if [[ "$line" =~ ^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*= ]]; then
+            DEPLOY_ENV_VARS+=("${BASH_REMATCH[1]}")
+        fi
+    done < "${SCRIPT_DIR}/../deploy.env"
+    source "${SCRIPT_DIR}/../deploy.env"
+fi
 
 # Application configuration
 APP_NAME="${APP_NAME:-cms}"
@@ -443,16 +456,33 @@ setup_env_file() {
     local redis_url="redis://${REDIS_HOST}:${REDIS_PORT}/${REDIS_DB}"
     local contentapi_es_index="${ELASTICSEARCH_INDEX}_capi"
 
-    # Build optional vars block
+    # Build optional vars block - add everything from deploy.env that's not explicitly passed
     local optional_vars=""
-    for var in AMAZON_CONTAINER_NAME AMAZON_S3_SUBFOLDER MEDIA_PREFIX \
-               AMAZON_SERVE_DIRECT_LINKS AMAZON_S3_USE_HTTPS \
-               SUPERDESK_TESTING; do
-        if [[ -n "${!var:-}" ]]; then
-            optional_vars="${optional_vars}${var}=${!var}
+    local deploy_env_file="${SCRIPT_DIR}/../deploy.env"
+    local -a skip=(
+        SECRET_KEY AUTH_SERVER_SHARED_SECRET CLIENT_URL SUPERDESK_URL CONTENTAPI_URL
+        PRODAPI_URL SUPERDESK_WS_URL MONGO_URI LEGAL_ARCHIVE_URI ARCHIVED_URI
+        PUBLICAPI_MONGO_URI CONTENTAPI_MONGO_URI ELASTICSEARCH_URL REDIS_URL CONTENTAPI_ES_INDEX
+    )
+    if [[ -f "$deploy_env_file" ]]; then
+        local line var skip_flag s
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            # Skip comments and empty lines
+            [[ "$line" =~ ^[[:space:]]*# ]] && continue
+            [[ "$line" =~ ^[[:space:]]*$ ]] && continue
+            # Extract var name
+            [[ "$line" =~ ^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*= ]] || continue
+            var="${BASH_REMATCH[1]}"
+            # Check if in skip list
+            skip_flag=0
+            for s in "${skip[@]}"; do
+                [[ "$s" == "$var" ]] && { skip_flag=1; break; }
+            done
+            (( skip_flag )) && continue
+            optional_vars+="${line}
 "
-        fi
-    done
+        done < "$deploy_env_file"
+    fi
 
     render_template "$TEMPLATE_DIR/cms.env.template" \
         "SECRET_KEY=$secret_key" \
