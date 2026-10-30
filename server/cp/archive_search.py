@@ -443,7 +443,7 @@ class ArchiveSearchProvider(SearchProvider):
             return None
 
         bare = guid.rstrip("/").rsplit("/", 1)[-1]
-        doc = self._mongo_collection().find_one({"item.uri": f"http://cp.org/{bare}"})
+        doc = await self._mongo_collection().find_one({"item.uri": f"http://cp.org/{bare}"})
         if not doc:
             return None
 
