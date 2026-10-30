@@ -326,15 +326,14 @@ async def _proxy_error_event(resp: aiohttp.ClientResponse) -> str:
 
 class ResearchToolResource(Resource):
     endpoint_name = "research_tool"
-    resource_methods = ["GET", "POST", "DELETE"]
-    item_methods = ["GET", "PATCH", "DELETE"]
+    resource_methods = ["GET", "POST"]
+    item_methods = ["GET", "PATCH"]
     schema = CHAT_SCHEMA
     query_objectid_as_string = True
     privileges = {
         "GET": "archive",
         "POST": "archive",
         "PATCH": "archive",
-        "DELETE": "archive",
     }
     mongo_indexes = {
         "chat_id": ([("chat_id", 1)], {"unique": True, "background": True}),
