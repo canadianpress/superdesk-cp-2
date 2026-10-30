@@ -413,8 +413,16 @@ class ResearchToolService(AsyncBaseService):
         doc = await self.find_one_async(req=None, chat_id=chat_id)
         if doc:
             _assert_chat_owner(doc, user_email)
-            messages = doc.get("messages", []) + [query_message, response]
-            await self.patch_async(doc["_id"], {"messages": messages})
+            await self.system_update_async(
+                doc["_id"],
+                {
+                    "$push": {"messages": {"$each": [query_message, response]}},
+                    "$set": {"_updated": now},
+                },
+                doc,
+                change_request=True,
+                push_notification=False,
+            )
             return
 
         await self.post_async(
