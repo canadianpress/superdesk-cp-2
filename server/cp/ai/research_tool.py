@@ -171,8 +171,7 @@ async def _research_tool_generator(service, lookup):
     }
 
     async for item in service.stream_proxy_async(lookup=lookup):
-        # Upstream SSE uses CRLF; normalize so event boundaries are "\n\n".
-        state["sse_buffer"] += item.replace("\r\n", "\n")
+        state["sse_buffer"] = (state["sse_buffer"] + item).replace("\r\n", "\n")
         while "\n\n" in state["sse_buffer"]:
             block, state["sse_buffer"] = state["sse_buffer"].split("\n\n", 1)
             block = block.strip()
