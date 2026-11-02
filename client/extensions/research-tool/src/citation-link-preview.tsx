@@ -6,7 +6,7 @@ export const CitationLinkPreview = ({ href }: { href: string }) => {
   const logoUrl = `https://www.google.com/s2/favicons?sz=64&domain=${domain}`;
 
   return (
-    <a href={href}>
+    <a href={href} target="_blank">
       <img src={logoUrl} alt={`${domain} logo`} />
       <span>{domain}</span>
     </a>
