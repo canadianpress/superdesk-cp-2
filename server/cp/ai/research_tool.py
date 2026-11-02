@@ -177,9 +177,9 @@ async def _research_tool_generator(service, lookup):
             block = block.strip()
             if not block:
                 continue
-            yield f"{block}\n\n"
             for extra_event in await _process_sse_block(service, state, block):
                 yield extra_event
+            yield f"{block}\n\n"
 
     remainder = state["sse_buffer"].strip()
     if remainder:
