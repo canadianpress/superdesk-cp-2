@@ -7,7 +7,6 @@ import {
   GridItemTime,
   GridItemTitle,
   IconButton,
-  Menu,
   Panel,
   PanelContent,
   PanelContentBlock,
@@ -16,6 +15,7 @@ import {
   Spacer,
   Text,
 } from "superdesk-ui-framework/react";
+import { Dropdown } from "superdesk-ui-framework/react/components/Dropdown";
 import { useChatsActions } from "./context/chats-context";
 import { useSelectedChat } from "./context/selected-chat-context";
 import { useSelectedCitation } from "./context/selected-citation-context";
@@ -50,25 +50,25 @@ export const getMenuItems = (
   extraFields?: ExtraFields,
 ) => {
   const fields = { ...FIELDS, ...extraFields };
-
-  const copyChildren = Object.entries(fields).map(([key, { label }]) => ({
-    label,
-    onClick: () => {
-      navigator.clipboard.writeText(
-        citations
-          .map((citation) => {
-            const value = citation[key as keyof typeof citation];
-            if (Array.isArray(value)) return value.join(", ");
-            return value;
-          })
-          .join(" | "),
-      );
-    },
-  }));
-
-  const copyAll = {
-    label: superdesk.localization.gettext("All"),
-    onClick: () => {
+  const copy = {
+    label: superdesk.localization.gettext("Copy"),
+    icon: "copy",
+    type: "submenu" as const,
+    items: Object.entries(fields).map(([key, { label }]) => ({
+      label,
+      onSelect: () => {
+        navigator.clipboard.writeText(
+          citations
+            .map((citation) => {
+              const value = citation[key as keyof typeof citation];
+              if (Array.isArray(value)) return value.join(", ");
+              return value;
+            })
+            .join(" | "),
+        );
+      },
+    })),
+    onSelect: () => {
       navigator.clipboard.writeText(
         citations
           .map((citation) =>
@@ -81,13 +81,7 @@ export const getMenuItems = (
     },
   };
 
-  return [
-    {
-      label: superdesk.localization.gettext("Copy"),
-      icon: "icon-copy",
-      children: [copyAll, ...copyChildren],
-    },
-  ];
+  return [copy];
 };
 
 export const fetchArticle = async (
@@ -187,15 +181,16 @@ export const CitationDetails = () => {
           iconButtons={
             menuItems
               ? [
-                  <Menu key="citation-details-header-menu" items={menuItems}>
-                    {(toggle) => (
-                      <IconButton
-                        icon="dots-vertical"
-                        ariaValue={superdesk.localization.gettext("Actions")}
-                        onClick={toggle}
-                      />
-                    )}
-                  </Menu>,
+                  <Dropdown
+                    key="citation-details-header-menu"
+                    items={menuItems}
+                  >
+                    <IconButton
+                      icon="dots-vertical"
+                      ariaValue={superdesk.localization.gettext("Actions")}
+                      onClick={() => {}}
+                    />
+                  </Dropdown>,
                 ]
               : []
           }
