@@ -87,7 +87,9 @@ export const ChatActionsProvider = ({
       };
 
       eventSource.addEventListener("response.done", () => closeStream(false));
-      eventSource.onerror = (e) => {console.log({e}); closeStream(true)};
+      eventSource.onerror = () => {
+        closeStream(true);
+      };
     },
     [
       addCitations,
@@ -114,7 +116,10 @@ export const ChatActionsProvider = ({
         updateChat(chatId, { title: query });
       }
 
-      addMessages(chatId, [{ type: "QUERY", value: query }]);
+      addMessages(chatId, [
+        { type: "QUERY", value: query },
+        { type: "RESPONSE", value: "" },
+      ]);
       startStream(chatId, query);
       return true;
     },
