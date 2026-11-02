@@ -1,4 +1,5 @@
 import * as React from "react";
+import { Components } from "react-markdown";
 import {
   ContentListItem,
   Label,
@@ -12,13 +13,7 @@ import { useSelectedChat } from "./context/selected-chat-context";
 import { useSelectedCitation } from "./context/selected-citation-context";
 import { extractGuidFromUrl } from "./guid";
 
-export const CitationTooltip = ({
-  href,
-  children,
-}: {
-  href?: string;
-  children?: Array<React.ReactNode>;
-}) => {
+export const CitationTooltip: Components["a"] = ({ href, children }) => {
   if (!href || !children) return null;
 
   const { chat } = useSelectedChat();
