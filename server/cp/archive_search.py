@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional
 
 import requests
 from flask import current_app as app
-from pymongo import MongoClient
+from pymongo import AsyncMongoClient
 from urllib3 import Retry
 import superdesk
 from superdesk.utils import ListCursor
@@ -14,7 +14,7 @@ from requests.adapters import HTTPAdapter
 
 logger = logging.getLogger(__name__)
 
-_mongo_client: Optional[MongoClient] = None
+_mongo_client: Optional[AsyncMongoClient] = None
 
 
 class ArchiveListCursor(ListCursor):
@@ -432,7 +432,7 @@ class ArchiveSearchProvider(SearchProvider):
 
         global _mongo_client
         if _mongo_client is None:
-            _mongo_client = MongoClient(mongo_uri, serverSelectionTimeoutMS=8000)
+            _mongo_client = AsyncMongoClient(mongo_uri, serverSelectionTimeoutMS=8000)
 
         return _mongo_client[cluster][collection]
 
