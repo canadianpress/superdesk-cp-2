@@ -1,5 +1,4 @@
 import * as React from "react";
-import ReactMarkdown from "react-markdown";
 import {
   Checkbox,
   Dropdown,
@@ -24,6 +23,7 @@ import { CitationLinkPreview } from "./citation-link-preview";
 import { useSelectedCitation } from "./context/selected-citation-context";
 import { useSelectedCitations } from "./context/selected-citations-context";
 import { extractGuidFromUrl } from "./guid";
+import { ReactMarkdown } from "./react-markdown";
 import { superdesk } from "./superdesk";
 import { turndown } from "./turndown";
 import { Citation } from "./typings/chat";

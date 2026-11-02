@@ -1,5 +1,4 @@
 import * as React from "react";
-import ReactMarkdown from "react-markdown";
 import {
   Alert,
   ButtonGroup,
@@ -8,6 +7,7 @@ import {
   Spacer,
 } from "superdesk-ui-framework/react";
 import { CitationTooltip } from "./citation-tooltip";
+import { ReactMarkdown } from "./react-markdown";
 import { superdesk } from "./superdesk";
 
 export type MessageAction = {

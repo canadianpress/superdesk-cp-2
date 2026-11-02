@@ -1,5 +1,4 @@
 import * as React from "react";
-import ReactMarkdown from "react-markdown";
 import {
   Badge,
   GridItemSlug,
@@ -20,6 +19,7 @@ import { useChatsActions } from "./context/chats-context";
 import { useSelectedChat } from "./context/selected-chat-context";
 import { useSelectedCitation } from "./context/selected-citation-context";
 import { extractGuidFromUrl } from "./guid";
+import { ReactMarkdown } from "./react-markdown";
 import { superdesk } from "./superdesk";
 import { turndown } from "./turndown";
 import { Article, Citation } from "./typings/chat";
@@ -396,6 +396,7 @@ const BodyHTML = ({
   hideLabel?: boolean;
 }) => {
   if (!citation?.article?.body_html) return null;
+
   if (hideLabel)
     return (
       <ReactMarkdown>
