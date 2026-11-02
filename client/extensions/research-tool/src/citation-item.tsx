@@ -2,6 +2,7 @@ import * as React from "react";
 import ReactMarkdown from "react-markdown";
 import {
   Checkbox,
+  Dropdown,
   GridItem,
   GridItemContent,
   GridItemFooter,
@@ -10,7 +11,6 @@ import {
   GridItemText,
   GridItemTopActions,
   IconButton,
-  Menu,
   Spacer,
 } from "superdesk-ui-framework/react";
 import {
@@ -39,8 +39,8 @@ export const CitationItem = ({ citation }: { citation: Citation }) => {
     () => [
       {
         label: superdesk.localization.gettext("View citation details"),
-        icon: "icon-preview-mode",
-        onClick: () => {
+        icon: "preview-mode",
+        onSelect: () => {
           setSelectedCitation(id);
         },
       },
@@ -80,15 +80,13 @@ export const CitationItem = ({ citation }: { citation: Citation }) => {
           <CitationFooterDetails citation={citation} />
         </GridItemFooterBlock>
         <GridItemFooterActions autohide>
-          <Menu items={menuItems}>
-            {(toggle) => (
-              <IconButton
-                icon="dots-vertical"
-                ariaValue={superdesk.localization.gettext("Actions")}
-                onClick={toggle}
-              />
-            )}
-          </Menu>
+          <Dropdown items={menuItems}>
+            <IconButton
+              icon="dots-vertical"
+              ariaValue={superdesk.localization.gettext("Actions")}
+              onClick={() => {}}
+            />
+          </Dropdown>
         </GridItemFooterActions>
       </GridItemFooter>
     </GridItem>

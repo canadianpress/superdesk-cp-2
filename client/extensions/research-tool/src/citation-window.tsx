@@ -1,12 +1,12 @@
 import * as React from "react";
 import {
   Checkbox,
+  Dropdown,
   IconButton,
   Panel,
   PanelContent,
   PanelContentBlock,
   PanelHeader,
-  Menu as SuperdeskMenu,
 } from "superdesk-ui-framework/react";
 import { CitationDetails, getMenuItems } from "./citation-details";
 import { CitationList } from "./citation-list";
@@ -64,15 +64,13 @@ const Menu = () => {
   const { citations } = useSelectedCitations();
 
   return (
-    <SuperdeskMenu items={getMenuItems(Object.values(citations))}>
-      {(toggle) => (
-        <IconButton
-          icon="dots-vertical"
-          ariaValue={superdesk.localization.gettext("Actions")}
-          onClick={toggle}
-        />
-      )}
-    </SuperdeskMenu>
+    <Dropdown items={getMenuItems(Object.values(citations))}>
+      <IconButton
+        icon="dots-vertical"
+        ariaValue={superdesk.localization.gettext("Actions")}
+        onClick={() => {}}
+      />
+    </Dropdown>
   );
 };
 
