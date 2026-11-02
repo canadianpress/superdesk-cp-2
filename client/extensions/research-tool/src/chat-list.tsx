@@ -53,7 +53,7 @@ export const ChatList = () => {
           iconButtons={[
             <IconButton
               key="chat-list-add-chat-button"
-              icon="pencil"
+              icon="plus-sign"
               ariaValue={superdesk.localization.gettext("Start new chat")}
               onClick={addNewChat}
             />,
