@@ -18,7 +18,7 @@ export const ChatList = () => {
   const { addChat } = useChatsActions();
   const { setSelectedChat } = useSelectedChat();
 
-  const [isOpen, setIsOpen] = React.useState(false);
+  const [isOpen, setIsOpen] = React.useState(true);
 
   const addNewChat = () => {
     const chatId = crypto.randomUUID();

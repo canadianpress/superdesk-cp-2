@@ -18,7 +18,7 @@ import { superdesk } from "./superdesk";
 export const CitationWindow = () => {
   const { citation, setSelectedCitation } = useSelectedCitation();
 
-  const [isOpen, setIsOpen] = React.useState(false);
+  const [isOpen, setIsOpen] = React.useState(true);
 
   React.useEffect(() => {
     if (citation) setIsOpen(true);
