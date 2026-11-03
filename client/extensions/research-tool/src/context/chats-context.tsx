@@ -18,7 +18,8 @@ type ChatsAction =
       payload: { id: string } & Partial<FormChat>;
     }
   | { type: "REMAP_CHAT"; payload: { id: string; newId: string } }
-  | { type: "HYDRATE_CHATS"; payload: Record<string, FormChat> };
+  | { type: "HYDRATE_CHATS"; payload: Record<string, FormChat> }
+  | { type: "REMOVE_CHAT"; payload: { id: string } };
 
 const ChatsContext = React.createContext<Record<string, FormChat> | null>(null);
 
@@ -84,6 +85,13 @@ export const useChatsActions = () => {
     [dispatch],
   );
 
+  const removeChat = React.useCallback(
+    (id: string) => {
+      dispatch({ type: "REMOVE_CHAT", payload: { id } });
+    },
+    [dispatch],
+  );
+
   return React.useMemo(
     () => ({
       addChat,
@@ -92,8 +100,17 @@ export const useChatsActions = () => {
       updateChat,
       remapChat,
       hydrateChats,
+      removeChat,
     }),
-    [addChat, addMessages, addCitations, updateChat, remapChat, hydrateChats],
+    [
+      addChat,
+      addMessages,
+      addCitations,
+      updateChat,
+      remapChat,
+      hydrateChats,
+      removeChat,
+    ],
   );
 };
 
@@ -170,6 +187,11 @@ const chatsReducer = (state: Record<string, FormChat>, action: ChatsAction) => {
     }
     case "HYDRATE_CHATS": {
       return { ...state, ...action.payload };
+    }
+    case "REMOVE_CHAT": {
+      const { id } = action.payload;
+      const { [id]: _removed, ...rest } = state;
+      return rest;
     }
     default:
       return state;
