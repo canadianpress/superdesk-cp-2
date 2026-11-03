@@ -4,7 +4,7 @@ import { useChats } from "./chats-context";
 
 const SelectedChatContext = React.createContext<{
   chat: FormChat | null;
-  setSelectedChat: (id: string) => void;
+  setSelectedChat: (id: string | null) => void;
 } | null>(null);
 
 export const useSelectedChat = () => {
