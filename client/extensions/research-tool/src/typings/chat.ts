@@ -54,4 +54,5 @@ export type Article = {
   dateline: {
     text: string;
   };
+  descriptions: Array<{ role: string; value: string }>;
 };

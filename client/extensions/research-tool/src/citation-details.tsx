@@ -128,11 +128,7 @@ export const CitationDetails = () => {
   const { chat } = useSelectedChat();
   const { addCitations } = useChatsActions();
 
-  const menuItems = citation
-    ? getMenuItems([citation], {
-        snippets: { label: superdesk.localization.gettext("Description") },
-      })
-    : [];
+  const menuItems = citation ? getMenuItems([citation]) : [];
 
   React.useEffect(() => {
     (async () => {
@@ -206,7 +202,7 @@ export const CitationDetails = () => {
               {citation && <ExtendedHeadline citation={citation} />}
               {citation && <Byline citation={citation} />}
               {citation && <Placeline citation={citation} />}
-              {citation && <Description citation={citation} />}
+              {citation && <Descriptions citation={citation} />}
               {citation && <BodyHTML citation={citation} />}
             </Spacer>
           </PanelContentBlock>
@@ -368,23 +364,39 @@ const Placeline = ({
   );
 };
 
-const Description = ({
-  citation,
-  hideLabel,
-}: {
-  citation: Citation;
-  hideLabel?: boolean;
-}) => {
-  if (!citation?.article?.description_text) return null;
-  if (hideLabel)
-    return <GridItemText>{citation.article.description_text}</GridItemText>;
+const Descriptions = ({ citation }: { citation: Citation }) => {
+  const descriptions =
+    citation?.article?.descriptions?.filter((d) => d.value) ?? [];
+  if (!descriptions.length) return null;
+
+  const groupedByRole = descriptions.reduce<Record<string, Array<string>>>(
+    (acc, { role, value }) => {
+      acc[role] = acc[role] ? [...acc[role], value] : [value];
+      return acc;
+    },
+    {},
+  );
+
   return (
-    <Spacer v gap="4" noWrap>
-      <Text noMargin weight="medium" color="light">
-        {superdesk.localization.gettext("Description")}
-      </Text>
-      <GridItemText>{citation.article.description_text}</GridItemText>
-    </Spacer>
+    <>
+      {Object.entries(groupedByRole).map(([role, values]) => (
+        <Spacer key={`descriptions-group-${role}`} v gap="4" noWrap>
+          <Text
+            noMargin
+            weight="medium"
+            color="light"
+            className="text-capitalize"
+          >
+            {role}
+          </Text>
+          {values.map((value) => (
+            <GridItemText key={`descriptions-${role}-${value}`}>
+              {value}
+            </GridItemText>
+          ))}
+        </Spacer>
+      ))}
+    </>
   );
 };
 

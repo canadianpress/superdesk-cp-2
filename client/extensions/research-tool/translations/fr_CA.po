@@ -65,9 +65,6 @@ msgstr "Byline"
 msgid "Placeline"
 msgstr "Placeline"
 
-msgid "Description"
-msgstr "Description"
-
 msgid "Body HTML"
 msgstr "Body HTML"
 
