@@ -18,16 +18,14 @@ const fetchChat = async (
     updateChat,
   }: { updateChat: ReturnType<typeof useChatsActions>["updateChat"] },
 ) => {
-  const { url: serverUrl } = superdesk.instance.config.server;
-
   try {
-    const res = await fetch(`${serverUrl}/research_tool/chat/${id}`, {
-      credentials: "include",
+    const { messages } = await superdesk.httpRequestJsonLocal<{
+      messages: ApiChat["messages"];
+    }>({
+      method: "GET",
+      path: `/research_tool/chat/${id}`,
     });
-    if (!res.ok) return;
-
-    const { messages } = await res.json();
-    if (!Array.isArray(messages)) return;
+    if (!Array.isArray(messages)) throw new Error();
 
     const chat = messages.reduce<Pick<FormChat, "messages" | "citations">>(
       (chat, { type, value, citations }: ApiChat["messages"][number]) => {
@@ -41,13 +39,15 @@ const fetchChat = async (
       { messages: [], citations: {} },
     );
     updateChat(id, chat);
-  } catch (err) {
-    console.error("Failed to fetch chat", err);
+  } catch {
+    superdesk.ui.notify.error(
+      superdesk.localization.gettext("Failed to fetch chat."),
+    );
   }
 };
 
-const renameChat = async (id: string, newTitle: string) => {
-  return superdesk.httpRequestRawLocal({
+const renameChat = async (id: string, newTitle: string) =>
+  superdesk.httpRequestRawLocal({
     path: `/research_tool/chat/${id}`,
     method: "PATCH",
     headers: {
@@ -55,14 +55,12 @@ const renameChat = async (id: string, newTitle: string) => {
     },
     payload: { chat_title: newTitle },
   });
-};
 
-const shareChat = async (id: string) => {
-  return superdesk.httpRequestRawLocal({
+const shareChat = async (id: string) =>
+  superdesk.httpRequestRawLocal({
     method: "GET",
     path: `/research_tool/chat/${id}/share`,
   });
-};
 
 const deleteChat = async (id: string) =>
   superdesk.httpRequestRawLocal({

@@ -87,26 +87,14 @@ export const getMenuItems = (
 export const fetchArticle = async (
   href: string,
 ): Promise<Article | null | undefined> => {
-  const { url: serverUrl } = superdesk.instance.config.server;
-
   const guid = extractGuidFromUrl(href);
   if (!guid) return;
 
-  try {
-    const res = await fetch(
-      `${serverUrl}/research_tool/article_lookup?guid=${encodeURIComponent(guid)}`,
-      {
-        credentials: "include",
-      },
-    );
-    if (!res.ok) return;
-
-    const data = await res.json();
-    return data;
-  } catch (err) {
-    console.error("Failed to fetch article", err);
-    return null;
-  }
+  return superdesk.httpRequestJsonLocal<Article>({
+    method: "GET",
+    path: `/research_tool/article_lookup`,
+    urlParams: { guid },
+  });
 };
 
 export const mapArticleToCitation = (
@@ -134,17 +122,22 @@ export const CitationDetails = () => {
     (async () => {
       if (!citation || !chat) return;
 
-      const article = await fetchArticle(citation.uri);
-      if (!article) return;
-
-      const id = extractGuidFromUrl(citation.uri) ?? citation.citation_id;
-      addCitations(chat.id, {
-        [id]: {
-          citation_id: citation.citation_id,
-          ...mapArticleToCitation(article, citation),
-          article,
-        },
-      });
+      try {
+        const article = await fetchArticle(citation.uri);
+        if (!article) throw new Error();
+        const id = extractGuidFromUrl(citation.uri) ?? citation.citation_id;
+        addCitations(chat.id, {
+          [id]: {
+            citation_id: citation.citation_id,
+            ...mapArticleToCitation(article, citation),
+            article,
+          },
+        });
+      } catch {
+        superdesk.ui.notify.error(
+          superdesk.localization.gettext("Failed to fetch article."),
+        );
+      }
     })();
   }, [addCitations, chat?.id, citation?.citation_id]);
 

@@ -27,19 +27,17 @@ const getMessageActions = (
           id: "copy" as const,
           icon: "copy",
           label: superdesk.localization.gettext("Copy"),
-          onClick: () => {
-            navigator.clipboard
-              .writeText(value)
-              .then(() => {
-                superdesk.ui.notify.success(
-                  superdesk.localization.gettext("Copied to clipboard"),
-                );
-              })
-              .catch(() => {
-                superdesk.ui.notify.error(
-                  superdesk.localization.gettext("Could not copy to clipboard"),
-                );
-              });
+          onClick: async () => {
+            try {
+              await navigator.clipboard.writeText(value);
+              superdesk.ui.notify.success(
+                superdesk.localization.gettext("Copied to clipboard"),
+              );
+            } catch {
+              superdesk.ui.notify.error(
+                superdesk.localization.gettext("Could not copy to clipboard"),
+              );
+            }
           },
         },
       ]
