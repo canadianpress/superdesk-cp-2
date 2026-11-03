@@ -201,18 +201,16 @@ const chatsReducer = (state: Record<string, FormChat>, action: ChatsAction) => {
 export const ChatsProvider = ({ children }: { children: React.ReactNode }) => {
   const [chats, dispatch] = React.useReducer(chatsReducer, {});
 
-  const { url: serverUrl } = superdesk.instance.config.server;
-
   React.useEffect(() => {
     const fetchChats = async () => {
       try {
-        const res = await fetch(`${serverUrl}/research_tool/chat`, {
-          credentials: "include",
+        const { _items: chats } = await superdesk.httpRequestJsonLocal<{
+          _items: Array<ApiChat>;
+        }>({
+          method: "GET",
+          path: "/research_tool/chat",
         });
-        if (!res.ok) return;
-
-        const { _items: chats } = await res.json();
-        if (!Array.isArray(chats)) return;
+        if (!Array.isArray(chats)) throw new Error();
 
         const payload = chats.reduce<Record<string, FormChat>>(
           (acc, { chat_id, chat_title, _updated }: ApiChat) => {
@@ -230,12 +228,14 @@ export const ChatsProvider = ({ children }: { children: React.ReactNode }) => {
           {},
         );
         dispatch({ type: "HYDRATE_CHATS", payload });
-      } catch (err) {
-        console.error("Failed to fetch chats", err);
+      } catch {
+        superdesk.ui.notify.error(
+          superdesk.localization.gettext("Failed to fetch chats."),
+        );
       }
     };
     fetchChats();
-  }, [serverUrl]);
+  }, []);
 
   return (
     <ChatsContext.Provider value={chats}>
