@@ -179,7 +179,7 @@ async def research_tool_article_lookup():
     return await send_response(None, (article, utcnow(), None, 200))
 
 
-def _parse_sse_block(block: str) -> Optional[dict]:
+def _parse_sse_block(block: str) -> dict | None:
     """Parse one complete SSE event block into its JSON data payload."""
     data_parts: list[str] = []
     for line in block.split("\n"):
@@ -428,20 +428,20 @@ class ResearchToolService(AsyncBaseService):
         docs = await cursor.sort("_updated", -1).to_list(length=None)
         return [_chat_summary(doc) for doc in docs]
 
-    async def get_user_chat_detail(self, chat_id: str) -> Optional[dict]:
+    async def get_user_chat_detail(self, chat_id: str) -> dict | None:
         chat = await self.find_one_async(req=None, chat_id=chat_id)
         if not chat or not _can_read_chat(chat, _current_user_email()):
             return None
         return chat
 
-    async def _find_owned_chat(self, chat_id: str) -> Optional[dict]:
+    async def _find_owned_chat(self, chat_id: str) -> dict | None:
         return await self.find_one_async(
             req=None,
             chat_id=chat_id,
             user_email=_current_user_email(),
         )
 
-    async def share_user_chat(self, chat_id: str) -> Optional[dict]:
+    async def share_user_chat(self, chat_id: str) -> dict | None:
         chat = await self._find_owned_chat(chat_id)
         if not chat:
             return None
@@ -458,7 +458,7 @@ class ResearchToolService(AsyncBaseService):
         await self.post_async([clone])
         return clone
 
-    async def rename_user_chat(self, chat_id: str, chat_title: Any) -> Optional[dict]:
+    async def rename_user_chat(self, chat_id: str, chat_title: Any) -> dict | None:
         chat = await self._find_owned_chat(chat_id)
         if not chat:
             return None
@@ -480,7 +480,7 @@ class ResearchToolService(AsyncBaseService):
         user_email: str,
         query: str,
         answer: str,
-        citations: Optional[list] = None,
+        citations: list | None = None,
     ) -> None:
         now = utcnow()
         query_message = {"type": "QUERY", "value": query, "created": now}
