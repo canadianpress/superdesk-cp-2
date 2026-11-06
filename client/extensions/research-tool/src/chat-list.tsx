@@ -63,7 +63,7 @@ export const ChatList = () => {
           <PanelContentBlock padding="1-5">
             <Spacer v gap="4">
               {Object.values(chats)
-                .filter((chat) => chat.title)
+                .filter((chat) => chat.title && !chat.readonly)
                 .sort((a, b) => b.updated.localeCompare(a.updated))
                 .map((chat) => (
                   <ChatListItem key={`chat-list-item-${chat.id}`} chat={chat} />

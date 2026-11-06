@@ -8,8 +8,8 @@ import {
 } from "superdesk-ui-framework/react";
 import { useChatsActions } from "./context/chats-context";
 import { useSelectedChat } from "./context/selected-chat-context";
-import { extractGuidFromUrl } from "./guid";
 import { superdesk } from "./superdesk";
+import { toFormChat } from "./transform";
 import type { ApiChat, FormChat } from "./typings/chat";
 
 const fetchChat = async (
@@ -27,18 +27,7 @@ const fetchChat = async (
     });
     if (!Array.isArray(messages)) throw new Error();
 
-    const chat = messages.reduce<Pick<FormChat, "messages" | "citations">>(
-      (chat, { type, value, citations }: ApiChat["messages"][number]) => {
-        chat.messages.push({ type, value });
-        for (const citation of citations ?? []) {
-          const id = extractGuidFromUrl(citation.uri) ?? citation.citation_id;
-          chat.citations[id] = citation;
-        }
-        return chat;
-      },
-      { messages: [], citations: {} },
-    );
-    updateChat(id, chat);
+    updateChat(id, toFormChat({ messages }));
   } catch {
     superdesk.ui.notify.error(
       superdesk.localization.gettext("Failed to fetch chat."),
@@ -101,10 +90,8 @@ export const ChatListItem = ({ chat }: { chat: FormChat }) => {
       const updatedChat = await renameChat(chat.id, newTitle);
       if (!updatedChat) throw new Error();
 
-      updateChat(chat.id, {
-        title: updatedChat.chat_title,
-        updated: updatedChat._updated,
-      });
+      const { chat_title, _updated } = updatedChat;
+      updateChat(chat.id, toFormChat({ chat_title, _updated }));
       setIsEditing(false);
     } catch {
       superdesk.ui.notify.error(
