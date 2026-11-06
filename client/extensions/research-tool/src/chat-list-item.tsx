@@ -47,7 +47,9 @@ const fetchChat = async (
 };
 
 const renameChat = async (id: string, newTitle: string) =>
-  superdesk.httpRequestRawLocal({
+  superdesk.httpRequestJsonLocal<
+    Pick<ApiChat, "_id" | "_updated" | "chat_id" | "chat_title">
+  >({
     path: `/research_tool/chat/${id}`,
     method: "PATCH",
     headers: {
@@ -96,8 +98,13 @@ export const ChatListItem = ({ chat }: { chat: FormChat }) => {
     }
 
     try {
-      if (!(await renameChat(chat.id, newTitle)).ok) throw new Error();
-      updateChat(chat.id, { title: newTitle });
+      const updatedChat = await renameChat(chat.id, newTitle);
+      if (!updatedChat) throw new Error();
+
+      updateChat(chat.id, {
+        title: updatedChat.chat_title,
+        updated: updatedChat._updated,
+      });
       setIsEditing(false);
     } catch {
       superdesk.ui.notify.error(
