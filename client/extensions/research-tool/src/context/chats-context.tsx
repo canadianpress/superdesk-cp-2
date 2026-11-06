@@ -1,5 +1,6 @@
 import * as React from "react";
 import { superdesk } from "../superdesk";
+import { toFormChat } from "../transform";
 import type { ApiChat, Chat, FormChat } from "../typings/chat";
 import { SelectedChatProvider } from "./selected-chat-context";
 
@@ -15,7 +16,7 @@ type ChatsAction =
     }
   | {
       type: "UPDATE_CHAT";
-      payload: { id: string } & Partial<FormChat>;
+      payload: { id: string } & Partial<Omit<FormChat, "id" | "readonly">>;
     }
   | { type: "REMAP_CHAT"; payload: { id: string; newId: string } }
   | { type: "HYDRATE_CHATS"; payload: Record<string, FormChat> }
@@ -126,6 +127,7 @@ const chatsReducer = (state: Record<string, FormChat>, action: ChatsAction) => {
           citations: {},
           isStreaming: false,
           hasError: false,
+          readonly: false,
         },
       };
     }
@@ -201,6 +203,8 @@ const chatsReducer = (state: Record<string, FormChat>, action: ChatsAction) => {
 export const ChatsProvider = ({ children }: { children: React.ReactNode }) => {
   const [chats, dispatch] = React.useReducer(chatsReducer, {});
 
+  const shareId = superdesk.browser.location.urlParams.getString("shareId");
+
   React.useEffect(() => {
     const fetchChats = async () => {
       try {
@@ -213,16 +217,8 @@ export const ChatsProvider = ({ children }: { children: React.ReactNode }) => {
         if (!Array.isArray(chats)) throw new Error();
 
         const payload = chats.reduce<Record<string, FormChat>>(
-          (acc, { chat_id, chat_title, _updated }: ApiChat) => {
-            acc[chat_id] = {
-              id: chat_id,
-              title: chat_title,
-              updated: _updated,
-              messages: [],
-              citations: {},
-              isStreaming: false,
-              hasError: false,
-            };
+          (acc, chat: ApiChat) => {
+            acc[chat.chat_id] = toFormChat(chat) as FormChat;
             return acc;
           },
           {},
@@ -236,6 +232,28 @@ export const ChatsProvider = ({ children }: { children: React.ReactNode }) => {
     };
     fetchChats();
   }, []);
+
+  React.useEffect(() => {
+    if (!shareId) return;
+
+    const fetchSharedChat = async () => {
+      try {
+        const chat = await superdesk.httpRequestJsonLocal<ApiChat>({
+          method: "GET",
+          path: `/research_tool/chat/${shareId}`,
+        });
+        if (!chat) throw new Error();
+
+        const payload = { [chat.chat_id]: toFormChat(chat) as FormChat };
+        dispatch({ type: "HYDRATE_CHATS", payload });
+      } catch {
+        superdesk.ui.notify.error(
+          superdesk.localization.gettext("Failed to fetch shared chat."),
+        );
+      }
+    };
+    fetchSharedChat();
+  }, [shareId]);
 
   return (
     <ChatsContext.Provider value={chats}>

@@ -19,6 +19,7 @@ export type Chat = {
   messages: Array<Message>;
   citations: Record<string, Citation>;
   updated: string;
+  readonly: boolean;
 };
 
 export type ApiChat = {
@@ -27,6 +28,7 @@ export type ApiChat = {
   chat_id: string;
   chat_title: string;
   messages: Array<Message & { created: string; citations?: Array<Citation> }>;
+  _readonly: boolean;
 };
 
 export type FormChat = Chat & { isStreaming: boolean; hasError: boolean };

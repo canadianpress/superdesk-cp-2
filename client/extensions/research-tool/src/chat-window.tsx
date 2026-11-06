@@ -1,18 +1,31 @@
 import * as React from "react";
+import { Alert } from "superdesk-ui-framework/react";
 import { useSelectedChat } from "./context/selected-chat-context";
 import { MessageList } from "./message-list";
+import { superdesk } from "./superdesk";
 
 const REPIN_AT = 4;
 const UNPIN_AT = 40;
+
+const SharedChatBanner = () => (
+  <span style={{ alignSelf: "center", paddingTop: "1rem" }}>
+    <Alert type="primary" style="hollow" size="small" margin="none">
+      {superdesk.localization.gettext(
+        "This is a shared chat, for reference only.",
+      )}
+    </Alert>
+  </span>
+);
 
 export const ChatWindow = () => {
   const { chat } = useSelectedChat();
 
   const messages = chat?.messages ?? [];
+  const readonly = chat?.readonly ?? false;
 
   const chatWindowRef = React.useRef<HTMLDivElement>(null);
 
-  const stickToBottomRef = React.useRef(true);
+  const stickToBottomRef = React.useRef(!readonly);
 
   React.useEffect(() => {
     const container = chatWindowRef.current;
@@ -61,6 +74,7 @@ export const ChatWindow = () => {
           overflowY: "auto",
         }}
       >
+        {readonly && <SharedChatBanner />}
         <MessageList />
       </div>
     </>

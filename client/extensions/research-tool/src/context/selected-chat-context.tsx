@@ -1,4 +1,5 @@
 import * as React from "react";
+import { superdesk } from "../superdesk";
 import type { FormChat } from "../typings/chat";
 import { useChats } from "./chats-context";
 
@@ -24,11 +25,15 @@ export const SelectedChatProvider = ({
 }) => {
   const chats = useChats();
 
-  const [selectedChat, setSelectedChat] = React.useState<string | null>(null);
+  const shareId = superdesk.browser.location.urlParams.getString("shareId");
+
+  const [selectedChat, setSelectedChat] = React.useState<string | null>(
+    shareId ?? null,
+  );
 
   const chat = React.useMemo(() => {
     if (!selectedChat) return null;
-    return chats[selectedChat];
+    return chats[selectedChat] ?? null;
   }, [chats, selectedChat]);
 
   const value = React.useMemo(
