@@ -1,6 +1,6 @@
 from collections.abc import AsyncIterator
 from logging import getLogger
-from typing import Optional
+from typing import Any, Optional
 from uuid import uuid4
 
 import aiohttp
@@ -25,6 +25,7 @@ logger = getLogger(__name__)
 bp = Blueprint("research_tool", __name__, url_prefix="/api")
 
 CHAT_TITLE_MAX_LENGTH = 80
+CHAT_SUMMARY_FIELDS = ("_id", "chat_id", "chat_title", "_updated")
 
 CITATION_SCHEMA = {
     "citation_id": {"type": "string"},
@@ -113,6 +114,29 @@ async def research_tool_chat_detail(chat_id: str):
     if not chat:
         raise SuperdeskApiError.notFoundError(_("Chat not found."))
     return await send_response(None, (chat, utcnow(), None, 200))
+
+
+@bp.route("/research_tool/chat/<chat_id>", methods=["PATCH"])
+@blueprint_auth()
+async def research_tool_chat_rename(chat_id: str):
+    payload = await request.get_json(silent=True)
+    if not isinstance(payload, dict) or "chat_title" not in payload:
+        raise SuperdeskApiError.badRequestError(_("Missing chat_title."))
+
+    service = get_resource_service("research_tool")
+    chat = await service.rename_user_chat(chat_id, payload["chat_title"])
+    if not chat:
+        raise SuperdeskApiError.notFoundError(_("Chat not found."))
+    return await send_response(None, (_chat_summary(chat), utcnow(), None, 200))
+
+
+@bp.route("/research_tool/chat/<chat_id>", methods=["DELETE"])
+@blueprint_auth()
+async def research_tool_chat_delete(chat_id: str):
+    service = get_resource_service("research_tool")
+    if not await service.delete_user_chat(chat_id):
+        raise SuperdeskApiError.notFoundError(_("Chat not found."))
+    return await send_response(None, (Response(status=204),))
 
 
 @bp.route("/research_tool/article_lookup", methods=["GET", "OPTIONS"])
@@ -364,11 +388,16 @@ class ResearchToolService(AsyncBaseService):
     async def on_update_async(self, updates: dict, original: dict) -> None:
         # Skip when called from stream persistence (no request user); callers
         # like append_exchange already enforce ownership with the captured email.
-        email = ((get_user() or {}).get("email") or "").strip()
+        email = _request_user_email()
         if email:
             _assert_chat_owner(original, email)
         if "chat_title" in updates:
-            updates["chat_title"] = updates["chat_title"]
+            updates["chat_title"] = _validate_chat_title(updates["chat_title"])
+
+    async def on_delete_async(self, doc: dict) -> None:
+        email = _request_user_email()
+        if email:
+            _assert_chat_owner(doc, email)
 
     async def on_fetched_item_async(self, doc: dict) -> None:
         _assert_chat_owner(doc, _current_user_email())
@@ -376,14 +405,7 @@ class ResearchToolService(AsyncBaseService):
     async def list_user_chat_summaries(self, user_email: str) -> list[dict]:
         cursor = await self.find_async(where={"user_email": user_email})
         docs = await cursor.sort("_updated", -1).to_list(length=None)
-        return [
-            {
-                key: doc[key]
-                for key in ("_id", "chat_id", "chat_title", "_updated")
-                if key in doc
-            }
-            for doc in docs
-        ]
+        return [_chat_summary(doc) for doc in docs]
 
     async def get_user_chat_detail(self, chat_id: str) -> Optional[dict]:
         return await self.find_one_async(
@@ -391,6 +413,21 @@ class ResearchToolService(AsyncBaseService):
             chat_id=chat_id,
             user_email=_current_user_email(),
         )
+
+    async def rename_user_chat(self, chat_id: str, chat_title: Any) -> Optional[dict]:
+        chat = await self.get_user_chat_detail(chat_id)
+        if not chat:
+            return None
+        updates = {"chat_title": chat_title}
+        await self.patch_async(chat["_id"], updates)
+        return {**chat, **updates}
+
+    async def delete_user_chat(self, chat_id: str) -> bool:
+        chat = await self.get_user_chat_detail(chat_id)
+        if not chat:
+            return False
+        await self.delete_docs_async([chat])
+        return True
 
     async def append_exchange(
         self,
@@ -545,8 +582,12 @@ def _normalize_citation(citation: dict) -> dict:
     }
 
 
+def _request_user_email() -> str:
+    return ((get_user() or {}).get("email") or "").strip()
+
+
 def _current_user_email() -> str:
-    email = ((get_user() or {}).get("email") or "").strip()
+    email = _request_user_email()
     if not email:
         raise SuperdeskApiError.badRequestError(_("Missing user email."))
     return email
@@ -555,6 +596,26 @@ def _current_user_email() -> str:
 def _assert_chat_owner(doc: dict, email: str) -> None:
     if doc.get("user_email") != email:
         raise SuperdeskApiError.forbiddenError(_("Not allowed to access this chat."))
+
+
+def _chat_summary(doc: dict) -> dict:
+    return {key: doc[key] for key in CHAT_SUMMARY_FIELDS if key in doc}
+
+
+def _validate_chat_title(title: Any) -> str:
+    if not isinstance(title, str):
+        raise SuperdeskApiError.badRequestError(_("chat_title must be a string."))
+    title = " ".join(title.split())
+    if not title:
+        raise SuperdeskApiError.badRequestError(_("chat_title cannot be empty."))
+    if len(title) > CHAT_TITLE_MAX_LENGTH:
+        raise SuperdeskApiError.badRequestError(
+            _(
+                "chat_title cannot exceed %(max)s characters.",
+                max=CHAT_TITLE_MAX_LENGTH,
+            )
+        )
+    return title
 
 
 def _chat_title_from_query(query: str) -> str:
