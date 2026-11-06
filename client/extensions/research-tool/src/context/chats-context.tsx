@@ -1,5 +1,7 @@
 import * as React from "react";
-import type { Chat, FormChat } from "../typings/chat";
+import { superdesk } from "../superdesk";
+import { toFormChat } from "../transform";
+import type { ApiChat, Chat, FormChat } from "../typings/chat";
 import { SelectedChatProvider } from "./selected-chat-context";
 
 type ChatsAction =
@@ -14,8 +16,11 @@ type ChatsAction =
     }
   | {
       type: "UPDATE_CHAT";
-      payload: { id: string } & Partial<FormChat>;
-    };
+      payload: { id: string } & Partial<Omit<FormChat, "id" | "readonly">>;
+    }
+  | { type: "REMAP_CHAT"; payload: { id: string; newId: string } }
+  | { type: "HYDRATE_CHATS"; payload: Record<string, FormChat> }
+  | { type: "REMOVE_CHAT"; payload: { id: string } };
 
 const ChatsContext = React.createContext<Record<string, FormChat> | null>(null);
 
@@ -67,9 +72,46 @@ export const useChatsActions = () => {
     [dispatch],
   );
 
+  const remapChat = React.useCallback(
+    (id: string, newId: string) => {
+      dispatch({ type: "REMAP_CHAT", payload: { id, newId } });
+    },
+    [dispatch],
+  );
+
+  const hydrateChats = React.useCallback(
+    (payload: Record<string, FormChat>) => {
+      dispatch({ type: "HYDRATE_CHATS", payload });
+    },
+    [dispatch],
+  );
+
+  const removeChat = React.useCallback(
+    (id: string) => {
+      dispatch({ type: "REMOVE_CHAT", payload: { id } });
+    },
+    [dispatch],
+  );
+
   return React.useMemo(
-    () => ({ addChat, addMessages, addCitations, updateChat }),
-    [addChat, addMessages, addCitations, updateChat],
+    () => ({
+      addChat,
+      addMessages,
+      addCitations,
+      updateChat,
+      remapChat,
+      hydrateChats,
+      removeChat,
+    }),
+    [
+      addChat,
+      addMessages,
+      addCitations,
+      updateChat,
+      remapChat,
+      hydrateChats,
+      removeChat,
+    ],
   );
 };
 
@@ -80,9 +122,12 @@ const chatsReducer = (state: Record<string, FormChat>, action: ChatsAction) => {
         ...state,
         [action.payload.id]: {
           ...action.payload,
+          updated: new Date().toISOString(),
           messages: [],
           citations: {},
           isStreaming: false,
+          hasError: false,
+          readonly: false,
         },
       };
     }
@@ -93,7 +138,10 @@ const chatsReducer = (state: Record<string, FormChat>, action: ChatsAction) => {
       const messages = [...state[chatId]["messages"]];
       for (const message of newMessages) {
         const last = messages.length - 1;
-        if (message.type !== messages[last]?.type) {
+        if (
+          message.type !== "RESPONSE" ||
+          message.type !== messages[last]?.type
+        ) {
           messages.push(message);
           continue;
         }
@@ -114,13 +162,38 @@ const chatsReducer = (state: Record<string, FormChat>, action: ChatsAction) => {
         ...state,
         [chatId]: {
           ...state[chatId],
-          citations: { ...state[chatId].citations, ...citations },
+          citations: {
+            ...state[chatId].citations,
+            ...Object.entries(citations).reduce<Chat["citations"]>(
+              (acc, [key, value]) => ({
+                ...acc,
+                [key]: { ...state[chatId].citations?.[key], ...value },
+              }),
+              {},
+            ),
+          },
         },
       };
     }
     case "UPDATE_CHAT": {
       const { id, ...rest } = action.payload;
       return { ...state, [id]: { ...state[id], ...rest } };
+    }
+    case "REMAP_CHAT": {
+      const { id, newId } = action.payload;
+      const { [id]: old, ...rest } = state;
+      return {
+        ...rest,
+        [newId]: { ...old, id: newId },
+      };
+    }
+    case "HYDRATE_CHATS": {
+      return { ...state, ...action.payload };
+    }
+    case "REMOVE_CHAT": {
+      const { id } = action.payload;
+      const { [id]: _removed, ...rest } = state;
+      return rest;
     }
     default:
       return state;
@@ -129,6 +202,58 @@ const chatsReducer = (state: Record<string, FormChat>, action: ChatsAction) => {
 
 export const ChatsProvider = ({ children }: { children: React.ReactNode }) => {
   const [chats, dispatch] = React.useReducer(chatsReducer, {});
+
+  const shareId = superdesk.browser.location.urlParams.getString("shareId");
+
+  React.useEffect(() => {
+    const fetchChats = async () => {
+      try {
+        const { _items: chats } = await superdesk.httpRequestJsonLocal<{
+          _items: Array<ApiChat>;
+        }>({
+          method: "GET",
+          path: "/research_tool/chat",
+        });
+        if (!Array.isArray(chats)) throw new Error();
+
+        const payload = chats.reduce<Record<string, FormChat>>(
+          (acc, chat: ApiChat) => {
+            acc[chat.chat_id] = toFormChat(chat) as FormChat;
+            return acc;
+          },
+          {},
+        );
+        dispatch({ type: "HYDRATE_CHATS", payload });
+      } catch {
+        superdesk.ui.notify.error(
+          superdesk.localization.gettext("Failed to fetch chats."),
+        );
+      }
+    };
+    fetchChats();
+  }, []);
+
+  React.useEffect(() => {
+    if (!shareId) return;
+
+    const fetchSharedChat = async () => {
+      try {
+        const chat = await superdesk.httpRequestJsonLocal<ApiChat>({
+          method: "GET",
+          path: `/research_tool/chat/${shareId}`,
+        });
+        if (!chat) throw new Error();
+
+        const payload = { [chat.chat_id]: toFormChat(chat) as FormChat };
+        dispatch({ type: "HYDRATE_CHATS", payload });
+      } catch {
+        superdesk.ui.notify.error(
+          superdesk.localization.gettext("Failed to fetch shared chat."),
+        );
+      }
+    };
+    fetchSharedChat();
+  }, [shareId]);
 
   return (
     <ChatsContext.Provider value={chats}>
