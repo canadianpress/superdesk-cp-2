@@ -25,7 +25,14 @@ logger = getLogger(__name__)
 bp = Blueprint("research_tool", __name__, url_prefix="/api")
 
 CHAT_TITLE_MAX_LENGTH = 80
-CHAT_SUMMARY_FIELDS = ("_id", "chat_id", "chat_title", "_updated")
+CHAT_SUMMARY_FIELDS = (
+    "_id",
+    "chat_id",
+    "chat_title",
+    "shared",
+    "source_chat_id",
+    "_updated",
+)
 
 CITATION_SCHEMA = {
     "citation_id": {"type": "string"},
@@ -59,6 +66,8 @@ CHAT_SCHEMA = {
     "chat_id": {"type": "string", "required": True, "unique": True},
     "chat_title": {"type": "string", "required": True},
     "user_email": {"type": "string", "readonly": True},
+    "shared": {"type": "boolean", "default": False},
+    "source_chat_id": {"type": "string"},
     "messages": {
         "type": "list",
         "schema": {"type": "dict", "schema": MESSAGE_SCHEMA},
@@ -76,6 +85,7 @@ async def research_tool_stream():
         existing = await service.find_one_async(req=None, chat_id=chat_id)
         if existing:
             _assert_chat_owner(existing, user_email)
+            _assert_chat_writable(existing)
 
     response = Response(
         _research_tool_generator(
@@ -128,6 +138,16 @@ async def research_tool_chat_rename(chat_id: str):
     if not chat:
         raise SuperdeskApiError.notFoundError(_("Chat not found."))
     return await send_response(None, (_chat_summary(chat), utcnow(), None, 200))
+
+
+@bp.route("/research_tool/chat/<chat_id>/share", methods=["POST"])
+@blueprint_auth()
+async def research_tool_chat_share(chat_id: str):
+    service = get_resource_service("research_tool")
+    chat = await service.share_user_chat(chat_id)
+    if not chat:
+        raise SuperdeskApiError.notFoundError(_("Chat not found."))
+    return await send_response(None, (_chat_summary(chat), utcnow(), None, 201))
 
 
 @bp.route("/research_tool/chat/<chat_id>", methods=["DELETE"])
@@ -364,6 +384,7 @@ class ResearchToolService(AsyncBaseService):
     async def get_async(self, req, lookup):
         lookup = lookup or {}
         lookup["user_email"] = _current_user_email()
+        lookup["shared"] = {"$ne": True}
         return await super().get_async(req, lookup)
 
     async def on_create_async(self, docs: list[dict]) -> None:
@@ -385,6 +406,7 @@ class ResearchToolService(AsyncBaseService):
         email = _request_user_email()
         if email:
             _assert_chat_owner(original, email)
+            _assert_chat_writable(original)
         if "chat_title" in updates:
             updates["chat_title"] = _validate_chat_title(updates["chat_title"])
 
@@ -394,22 +416,50 @@ class ResearchToolService(AsyncBaseService):
             _assert_chat_owner(doc, email)
 
     async def on_fetched_item_async(self, doc: dict) -> None:
-        _assert_chat_owner(doc, _current_user_email())
+        if not _can_read_chat(doc, _current_user_email()):
+            raise SuperdeskApiError.forbiddenError(
+                _("Not allowed to access this chat.")
+            )
 
     async def list_user_chat_summaries(self, user_email: str) -> list[dict]:
-        cursor = await self.find_async(where={"user_email": user_email})
+        cursor = await self.find_async(
+            where={"user_email": user_email, "shared": {"$ne": True}}
+        )
         docs = await cursor.sort("_updated", -1).to_list(length=None)
         return [_chat_summary(doc) for doc in docs]
 
     async def get_user_chat_detail(self, chat_id: str) -> Optional[dict]:
+        chat = await self.find_one_async(req=None, chat_id=chat_id)
+        if not chat or not _can_read_chat(chat, _current_user_email()):
+            return None
+        return chat
+
+    async def _find_owned_chat(self, chat_id: str) -> Optional[dict]:
         return await self.find_one_async(
             req=None,
             chat_id=chat_id,
             user_email=_current_user_email(),
         )
 
+    async def share_user_chat(self, chat_id: str) -> Optional[dict]:
+        chat = await self._find_owned_chat(chat_id)
+        if not chat:
+            return None
+        if chat.get("shared"):
+            raise SuperdeskApiError.badRequestError(_("Cannot share a shared copy."))
+        clone = {
+            "chat_id": str(uuid4()),
+            "chat_title": chat.get("chat_title") or _("Untitled"),
+            "user_email": chat["user_email"],
+            "messages": list(chat.get("messages") or []),
+            "shared": True,
+            "source_chat_id": chat["chat_id"],
+        }
+        await self.post_async([clone])
+        return clone
+
     async def rename_user_chat(self, chat_id: str, chat_title: Any) -> Optional[dict]:
-        chat = await self.get_user_chat_detail(chat_id)
+        chat = await self._find_owned_chat(chat_id)
         if not chat:
             return None
         updates = {"chat_title": chat_title}
@@ -417,7 +467,7 @@ class ResearchToolService(AsyncBaseService):
         return {**chat, **updates}
 
     async def delete_user_chat(self, chat_id: str) -> bool:
-        chat = await self.get_user_chat_detail(chat_id)
+        chat = await self._find_owned_chat(chat_id)
         if not chat:
             return False
         await self.delete_docs_async([chat])
@@ -444,6 +494,7 @@ class ResearchToolService(AsyncBaseService):
         doc = await self.find_one_async(req=None, chat_id=chat_id)
         if doc:
             _assert_chat_owner(doc, user_email)
+            _assert_chat_writable(doc)
             await self.system_update_async(
                 doc["_id"],
                 {
@@ -587,9 +638,18 @@ def _current_user_email() -> str:
     return email
 
 
+def _can_read_chat(doc: dict, email: str) -> bool:
+    return doc.get("user_email") == email or bool(doc.get("shared"))
+
+
 def _assert_chat_owner(doc: dict, email: str) -> None:
     if doc.get("user_email") != email:
         raise SuperdeskApiError.forbiddenError(_("Not allowed to access this chat."))
+
+
+def _assert_chat_writable(doc: dict) -> None:
+    if doc.get("shared"):
+        raise SuperdeskApiError.forbiddenError(_("Shared copies are read-only."))
 
 
 def _chat_summary(doc: dict) -> dict:
