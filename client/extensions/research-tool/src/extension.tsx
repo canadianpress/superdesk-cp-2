@@ -1,6 +1,6 @@
 import * as React from "react";
 import { IExtension, IExtensionActivationResult, IPage } from "superdesk-api";
-import { Spacer, SpacerBlock } from "superdesk-ui-framework/react";
+import { Spacer } from "superdesk-ui-framework/react";
 import { ChatList } from "./chat-list";
 import { ChatWindow } from "./chat-window";
 import { CitationWindow } from "./citation-window";
@@ -49,7 +49,6 @@ const ResearchToolContent = () => (
     <Spacer v noWrap gap="0" alignItems="center" style={{ flex: 1 }}>
       <ChatWindow />
       <Form />
-      <SpacerBlock v gap="32" />
     </Spacer>
     <CitationWindow />
   </Spacer>

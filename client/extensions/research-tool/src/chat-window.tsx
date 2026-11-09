@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Alert } from "superdesk-ui-framework/react";
+import { Alert, SpacerBlock } from "superdesk-ui-framework/react";
 import { useSelectedChat } from "./context/selected-chat-context";
 import { MessageList } from "./message-list";
 import { superdesk } from "./superdesk";
@@ -8,13 +8,18 @@ const REPIN_AT = 4;
 const UNPIN_AT = 40;
 
 const SharedChatBanner = () => (
-  <span style={{ alignSelf: "center", paddingTop: "1rem" }}>
-    <Alert type="primary" style="hollow" size="small" margin="none">
-      {superdesk.localization.gettext(
-        "This is a shared chat, for reference only.",
-      )}
-    </Alert>
-  </span>
+  <>
+    <span style={{ flexShrink: 0 }}>
+      <SpacerBlock v gap="16" />
+    </span>
+    <span style={{ alignSelf: "center" }}>
+      <Alert type="primary" style="hollow" size="small" margin="none">
+        {superdesk.localization.gettext(
+          "This is a shared chat, for reference only.",
+        )}
+      </Alert>
+    </span>
+  </>
 );
 
 const ChatWindowContent = () => {
