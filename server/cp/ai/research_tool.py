@@ -140,7 +140,7 @@ async def research_tool_chat_rename(chat_id: str):
     return await send_response(None, (_chat_summary(chat), utcnow(), None, 200))
 
 
-@bp.route("/research_tool/chat/<chat_id>/share", methods=["POST"])
+@bp.route("/research_tool/chat/<chat_id>/share", methods=["POST", "OPTIONS"])
 @blueprint_auth()
 async def research_tool_chat_share(chat_id: str):
     service = get_resource_service("research_tool")
@@ -150,7 +150,7 @@ async def research_tool_chat_share(chat_id: str):
     return await send_response(None, (_chat_summary(chat), utcnow(), None, 201))
 
 
-@bp.route("/research_tool/chat/<chat_id>", methods=["DELETE"])
+@bp.route("/research_tool/chat/<chat_id>", methods=["DELETE", "OPTIONS"])
 @blueprint_auth()
 async def research_tool_chat_delete(chat_id: str):
     service = get_resource_service("research_tool")
