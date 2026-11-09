@@ -76,3 +76,72 @@ msgstr "Copied to clipboard"
 
 msgid "Could not copy to clipboard"
 msgstr "Could not copy to clipboard"
+
+msgid "Something went wrong. Please try again."
+msgstr "Something went wrong. Please try again."
+
+msgid "This is a shared chat, for reference only."
+msgstr "This is a shared chat, for reference only."
+
+msgid "Actions"
+msgstr "Actions"
+
+msgid "Select citation #{{n}}"
+msgstr "Select citation #{{n}}"
+
+msgid "Date published"
+msgstr "Date published"
+
+msgid "Language"
+msgstr "Language"
+
+msgid "Source"
+msgstr "Source"
+
+msgid "Type"
+msgstr "Type"
+
+msgid "Failed to fetch article."
+msgstr "Failed to fetch article."
+
+msgid "Failed to fetch chat."
+msgstr "Failed to fetch chat."
+
+msgid "Failed to rename chat."
+msgstr "Failed to rename chat."
+
+msgid "Cancel"
+msgstr "Cancel"
+
+msgid "Save"
+msgstr "Save"
+
+msgid "Rename"
+msgstr "Rename"
+
+msgid "Share"
+msgstr "Share"
+
+msgid "Share link copied to clipboard"
+msgstr "Share link copied to clipboard"
+
+msgid "Failed to share chat."
+msgstr "Failed to share chat."
+
+msgid "Delete"
+msgstr "Delete"
+
+msgid "Shared links will be disabled."
+msgstr "Shared links will be disabled."
+
+msgid "Delete this chat?"
+msgstr "Delete this chat?"
+
+msgid "Failed to delete chat."
+msgstr "Failed to delete chat."
+
+msgid "Failed to fetch chats."
+msgstr "Failed to fetch chats."
+
+msgid "Failed to fetch shared chat."
+msgstr "Failed to fetch shared chat."
