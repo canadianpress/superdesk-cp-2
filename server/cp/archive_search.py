@@ -1,9 +1,10 @@
 import logging
 from datetime import datetime, timedelta, timezone, date
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import requests
 from flask import current_app as app
+from pymongo import AsyncMongoClient
 from urllib3 import Retry
 import superdesk
 from superdesk.utils import ListCursor
@@ -12,6 +13,8 @@ from superdesk.utc import utc_to_local
 from requests.adapters import HTTPAdapter
 
 logger = logging.getLogger(__name__)
+
+_mongo_client: Optional[AsyncMongoClient] = None
 
 
 class ArchiveListCursor(ListCursor):
@@ -87,6 +90,10 @@ class ArchiveSearchProvider(SearchProvider):
         )
 
     def _parse_datetime(self, value):
+        if isinstance(value, datetime):
+            dt = value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+            return utc_to_local(self.TZ, dt)
+
         for fmt in self.DATETIME_FORMATS:
             try:
                 dt = datetime.strptime(str(value).strip(), fmt)
@@ -298,7 +305,7 @@ class ArchiveSearchProvider(SearchProvider):
 
         return normalized_items, int(total)
 
-    def _transform_items(self, items):
+    def _transform_items(self, items, *, include_descriptions: bool = False):
         def get_nested(obj, path, default=""):
             try:
                 for key in path:
@@ -381,38 +388,72 @@ class ArchiveSearchProvider(SearchProvider):
             sign_off = whole.get("sign_off") or data.get("sign_off")
             dateline = whole.get("located") or data.get("located")
 
-            transformed.append(
-                {
-                    "guid": data.get("uri", ""),
-                    "type": data.get("type", ""),
-                    "headline": legacy_headline or "",
-                    "headline_extended": hl_ext or "",
-                    "headline_main": hl_main or "",
-                    "description_text": (
-                        (description[:200] + "...") if description else ""
-                    ),
-                    "versioncreated": self._parse_datetime(data.get("versioncreated")),
-                    "slugline": data.get("slugline", ""),
-                    "firstcreated": data.get("firstcreated"),
-                    "urgency": data.get("urgency"),
-                    "version": data.get("version", ""),
-                    "body_html": body_html or "",
-                    "source": source,
-                    "state": "published",
-                    "language": language,
-                    "byline": byline or "",
-                    "located": located,
-                    "word_count": wordcount,
-                    "sign_off": sign_off,
-                    "dateline": {"text": dateline},
-                    **(
-                        {"anpa_category": [{"name": w} for w in wire]}
-                        if isinstance(wire, list)
-                        else {"anpa_category": [{"name": wire}]} if wire else {}
-                    ),
-                }
-            )
+            item = {
+                "guid": data.get("uri", ""),
+                "type": data.get("type", ""),
+                "headline": legacy_headline or "",
+                "headline_extended": hl_ext or "",
+                "headline_main": hl_main or "",
+                "description_text": (
+                    (description[:200] + "...") if description else ""
+                ),
+                "versioncreated": self._parse_datetime(data.get("versioncreated")),
+                "slugline": data.get("slugline", ""),
+                "firstcreated": data.get("firstcreated"),
+                "urgency": data.get("urgency"),
+                "version": data.get("version", ""),
+                "body_html": body_html or "",
+                "source": source,
+                "state": "published",
+                "language": language,
+                "byline": byline or "",
+                "located": located,
+                "word_count": wordcount,
+                "sign_off": sign_off,
+                "dateline": {"text": dateline},
+                **(
+                    {"anpa_category": [{"name": w} for w in wire]}
+                    if isinstance(wire, list)
+                    else {"anpa_category": [{"name": wire}]} if wire else {}
+                ),
+            }
+            if include_descriptions:
+                item["descriptions"] = (
+                    descriptions if isinstance(descriptions, list) else []
+                )
+            transformed.append(item)
         return transformed
+
+    def _mongo_collection(self):
+        mongo_uri = app.config.get("ARCHIVE_SEARCH_MONGO_URI")
+        cluster = app.config.get("ARCHIVE_SEARCH_MONGO_CLUSTER")
+        collection = app.config.get("ARCHIVE_SEARCH_MONGO_COLLECTION")
+        if not mongo_uri or not cluster or not collection:
+            raise RuntimeError(
+                "ARCHIVE_SEARCH_MONGO_URI/CLUSTER/COLLECTION are not configured"
+            )
+
+        global _mongo_client
+        if _mongo_client is None:
+            _mongo_client = AsyncMongoClient(mongo_uri, serverSelectionTimeoutMS=8000)
+
+        return _mongo_client[cluster][collection]
+
+    async def fetch_async(self, guid: str, *, include_descriptions: bool = False):
+        """Fetch one article by guid/uri via indexed Mongo ``item.uri``."""
+        guid = (guid or "").strip()
+        if not guid:
+            return None
+
+        bare = guid.rstrip("/").rsplit("/", 1)[-1]
+        doc = await self._mongo_collection().find_one({"item.uri": f"http://cp.org/{bare}"})
+        if not doc:
+            return None
+
+        transformed = self._transform_items(
+            [doc], include_descriptions=include_descriptions
+        )
+        return transformed[0] if transformed else None
 
 
 def init_app(app):

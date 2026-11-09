@@ -1,43 +1,53 @@
 import * as React from "react";
+import ReactMarkdown from "react-markdown";
 import {
-  Badge,
   Checkbox,
   GridItem,
   GridItemContent,
   GridItemFooter,
   GridItemFooterActions,
   GridItemFooterBlock,
-  GridItemSlug,
   GridItemText,
-  GridItemTime,
-  GridItemTitle,
   GridItemTopActions,
   IconButton,
   Menu,
+  Spacer,
 } from "superdesk-ui-framework/react";
-import { getMenuItems } from "./citation-details";
+import {
+  CitationFooterDetails,
+  getMenuItems,
+  Headline,
+  Modified,
+  Slugline,
+} from "./citation-details";
 import { CitationLinkPreview } from "./citation-link-preview";
 import { useSelectedCitation } from "./context/selected-citation-context";
 import { useSelectedCitations } from "./context/selected-citations-context";
+import { extractGuidFromUrl } from "./guid";
 import { superdesk } from "./superdesk";
+import { turndown } from "./turndown";
 import { Citation } from "./typings/chat";
 
 export const CitationItem = ({ citation }: { citation: Citation }) => {
   const { setSelectedCitation } = useSelectedCitation();
-  const { addCitation, removeCitation } = useSelectedCitations();
+  const { citations, addCitations, removeCitations } = useSelectedCitations();
 
-  const [selected, setSelected] = React.useState(false);
+  const id = extractGuidFromUrl(citation.uri) ?? citation.citation_id;
+  const selected = !!citations[id];
 
-  const menuItems = [
-    {
-      label: superdesk.localization.gettext("View citation details"),
-      icon: "icon-preview-mode",
-      onClick: () => {
-        setSelectedCitation(citation.citation_id);
+  const menuItems = React.useMemo(
+    () => [
+      {
+        label: superdesk.localization.gettext("View citation details"),
+        icon: "icon-preview-mode",
+        onClick: () => {
+          setSelectedCitation(id);
+        },
       },
-    },
-    ...getMenuItems([citation]),
-  ];
+      ...getMenuItems([citation]),
+    ],
+    [id, citation],
+  );
 
   return (
     <GridItem>
@@ -51,26 +61,23 @@ export const CitationItem = ({ citation }: { citation: Citation }) => {
             hidden: true,
           }}
           onChange={(value) => {
-            setSelected((prev) => !prev);
-            if (value) addCitation(citation.citation_id);
-            else removeCitation(citation.citation_id);
+            if (value) addCitations([id]);
+            else removeCitations([id]);
           }}
         />
       </GridItemTopActions>
       <GridItemContent>
-        <GridItemTime time={citation.date_published} />
-        <GridItemSlug>{citation.slugline}</GridItemSlug>
-        <GridItemTitle>{citation.headline}</GridItemTitle>
+        <Modified citation={citation} hideLabel />
+        <Slugline citation={citation} hideLabel />
+        <Headline citation={citation} hideLabel />
         <GridItemText>
           <CitationLinkPreview href={citation.uri} />
         </GridItemText>
-        <GridItemText>{citation.description}</GridItemText>
+        <Description citation={citation} />
       </GridItemContent>
       <GridItemFooter>
         <GridItemFooterBlock align="left">
-          <Badge text={citation.citation_id} />
-          <Badge text={citation.language} />
-          <Badge text={citation.type} />
+          <CitationFooterDetails citation={citation} />
         </GridItemFooterBlock>
         <GridItemFooterActions autohide>
           <Menu items={menuItems}>
@@ -85,5 +92,60 @@ export const CitationItem = ({ citation }: { citation: Citation }) => {
         </GridItemFooterActions>
       </GridItemFooter>
     </GridItem>
+  );
+};
+
+const Description = ({ citation }: { citation: Citation }) => {
+  const citationSnippetsCount = citation.snippets.length;
+  if (citationSnippetsCount === 0 && citation.article?.body_html) {
+    const doc = new DOMParser().parseFromString(
+      citation.article.body_html,
+      "text/html",
+    );
+    const firstSection = doc.body.firstElementChild;
+    if (!firstSection) return null;
+
+    return (
+      <ReactMarkdown>{turndown.turndown(firstSection.outerHTML)}</ReactMarkdown>
+    );
+  }
+
+  if (citationSnippetsCount === 1)
+    return <ReactMarkdown>{citation.snippets[0]}</ReactMarkdown>;
+
+  const [showFullSnippets, setShowFullSnippets] = React.useState(false);
+
+  return (
+    <>
+      <ReactMarkdown>{`${citation.snippets[0]}\n\n`}</ReactMarkdown>
+      {showFullSnippets ? (
+        <>
+          <ReactMarkdown>
+            {citation.snippets.slice(1).join("\n\n")}
+          </ReactMarkdown>
+          <Spacer v gap="0" noWrap alignItems="center">
+            <IconButton
+              icon="chevron-up-thin"
+              ariaValue={superdesk.localization.gettext("Collapse")}
+              onClick={() => {
+                setShowFullSnippets(false);
+              }}
+            ></IconButton>
+            <></>
+          </Spacer>
+        </>
+      ) : (
+        <Spacer v gap="0" noWrap alignItems="center">
+          <IconButton
+            icon="chevron-down-thin"
+            ariaValue={superdesk.localization.gettext("Expand")}
+            onClick={() => {
+              setShowFullSnippets(true);
+            }}
+          ></IconButton>
+          <></>
+        </Spacer>
+      )}
+    </>
   );
 };

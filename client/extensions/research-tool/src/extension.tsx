@@ -4,6 +4,7 @@ import { Spacer, SpacerBlock } from "superdesk-ui-framework/react";
 import { ChatList } from "./chat-list";
 import { ChatWindow } from "./chat-window";
 import { CitationWindow } from "./citation-window";
+import { ChatActionsProvider } from "./context/chat-actions-context";
 import { ChatsProvider } from "./context/chats-context";
 import { CitationsProvider } from "./context/citations-context";
 import { Form } from "./form";
@@ -35,23 +36,23 @@ const extension: IExtension = {
 const ResearchTool: IPage["component"] = () => (
   <ChatsProvider>
     <CitationsProvider>
-      <Spacer
-        h
-        gap="0"
-        noWrap
-        alignItems="stretch"
-        style={{ overflowY: "auto" }}
-      >
-        <ChatList />
-        <Spacer v noWrap gap="0" alignItems="center" style={{ flex: 1 }}>
-          <ChatWindow />
-          <Form />
-          <SpacerBlock v gap="32" />
-        </Spacer>
-        <CitationWindow />
-      </Spacer>
+      <ChatActionsProvider>
+        <ResearchToolContent />
+      </ChatActionsProvider>
     </CitationsProvider>
   </ChatsProvider>
+);
+
+const ResearchToolContent = () => (
+  <Spacer h gap="0" noWrap alignItems="stretch" style={{ overflowY: "auto" }}>
+    <ChatList />
+    <Spacer v noWrap gap="0" alignItems="center" style={{ flex: 1 }}>
+      <ChatWindow />
+      <Form />
+      <SpacerBlock v gap="32" />
+    </Spacer>
+    <CitationWindow />
+  </Spacer>
 );
 
 export default extension;
