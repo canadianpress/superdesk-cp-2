@@ -5,13 +5,13 @@ export const toFormChat = ({
   chat_id,
   chat_title,
   _updated,
-  _readonly,
+  shared,
   messages,
 }: Partial<ApiChat>): Partial<FormChat> => ({
   ...(chat_id && { id: chat_id }),
   ...(chat_title && { title: chat_title }),
   ...(_updated && { updated: _updated }),
-  ...(_readonly && { readonly: _readonly }),
+  ...(shared && { readonly: shared }),
   isStreaming: false,
   hasError: false,
   ...(messages || []).reduce<Pick<FormChat, "messages" | "citations">>(

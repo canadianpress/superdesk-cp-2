@@ -17,7 +17,7 @@ const SharedChatBanner = () => (
   </span>
 );
 
-export const ChatWindow = () => {
+const ChatWindowContent = () => {
   const { chat } = useSelectedChat();
 
   const messages = chat?.messages ?? [];
@@ -80,3 +80,7 @@ export const ChatWindow = () => {
     </>
   );
 };
+
+export const ChatWindow = () => (
+  <ChatWindowContent key={useSelectedChat().chat?.id} />
+);

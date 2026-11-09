@@ -48,8 +48,8 @@ const renameChat = async (id: string, newTitle: string) =>
   });
 
 const shareChat = async (id: string) =>
-  superdesk.httpRequestRawLocal({
-    method: "GET",
+  superdesk.httpRequestJsonLocal<ApiChat>({
+    method: "POST",
     path: `/research_tool/chat/${id}/share`,
   });
 
@@ -58,6 +58,15 @@ const deleteChat = async (id: string) =>
     method: "DELETE",
     path: `/research_tool/chat/${id}`,
   });
+
+const generateShareLink = (chatId: string) => {
+  const url = new URL(window.location.href);
+  const [route, existingParams = ""] = url.hash.split("?");
+  const params = new URLSearchParams(existingParams);
+  params.set("shareId", chatId);
+  url.hash = `${route}?${params.toString()}`;
+  return url.toString();
+};
 
 export const ChatListItem = ({ chat }: { chat: FormChat }) => {
   const { chat: selectedChat, setSelectedChat } = useSelectedChat();
@@ -170,11 +179,12 @@ export const ChatListItem = ({ chat }: { chat: FormChat }) => {
               icon: "share-alt",
               onSelect: async () => {
                 try {
-                  const res = await shareChat(chat.id);
-                  if (!res.ok) throw new Error();
+                  const sharedChat = await shareChat(chat.id);
+                  if (!sharedChat) throw new Error();
 
-                  const data = await res.text();
-                  await navigator.clipboard.writeText(data);
+                  await navigator.clipboard.writeText(
+                    generateShareLink(sharedChat.chat_id),
+                  );
                   superdesk.ui.notify.success(
                     superdesk.localization.gettext(
                       "Share link copied to clipboard",

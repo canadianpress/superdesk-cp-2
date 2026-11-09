@@ -28,7 +28,7 @@ export type ApiChat = {
   chat_id: string;
   chat_title: string;
   messages: Array<Message & { created: string; citations?: Array<Citation> }>;
-  _readonly: boolean;
+  shared: boolean;
 };
 
 export type FormChat = Chat & { isStreaming: boolean; hasError: boolean };
