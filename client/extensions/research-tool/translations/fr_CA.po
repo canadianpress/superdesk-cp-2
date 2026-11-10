@@ -3,97 +3,97 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 
 msgid "Research Tool"
-msgstr "Research Tool"
+msgstr "Outil de recherche"
 
 msgid "Ask a question"
-msgstr "Ask a question"
+msgstr "Poser une question"
 
 msgid "Copy"
-msgstr "Copy"
+msgstr "Copier"
 
 msgid "Search bar"
-msgstr "Search bar"
+msgstr "Barre de recherche"
 
 msgid "Show citations"
-msgstr "Show citations"
+msgstr "Afficher les sources"
 
 msgid "Citations"
-msgstr "Citations"
+msgstr "Sources"
 
 msgid "View citation details"
-msgstr "View citation details"
+msgstr "Voir les détails de la source"
 
 msgid "Show citation #{{n}}"
-msgstr "Show citation ${{n}}"
+msgstr "Afficher la source # {{n}}"
 
 msgid "Show chats"
-msgstr "Show chats"
+msgstr "Afficher les conversations"
 
 msgid "Chats"
-msgstr "Chats"
+msgstr "Conversations"
 
 msgid "Start new chat"
-msgstr "Start new chat"
+msgstr "Démarrer une nouvelle conversation"
 
 msgid "Select all citations"
-msgstr "Select all citations"
+msgstr "Sélectionner toutes les sources"
 
 msgid "Expand"
-msgstr "Expand"
+msgstr "Développer"
 
 msgid "Collapse"
-msgstr "Collapse"
+msgstr "Réduire"
 
 msgid "Created"
-msgstr "Created"
+msgstr "Date de création"
 
 msgid "Modified"
-msgstr "Modified"
+msgstr "Date de modification"
 
 msgid "Slugline"
-msgstr "Slugline"
+msgstr "Titre de rappel"
 
 msgid "Headline"
-msgstr "Headline"
+msgstr "Titre"
 
 msgid "Extended Headline"
-msgstr "Extended Headline"
+msgstr "Titre long"
 
 msgid "Byline"
-msgstr "Byline"
+msgstr "Signature"
 
 msgid "Placeline"
-msgstr "Placeline"
+msgstr "Locatif"
 
 msgid "Body HTML"
-msgstr "Body HTML"
+msgstr "Corps du texte (HTML)"
 
 msgid "Regenerate"
-msgstr "Regenerate"
+msgstr "Régénérer"
 
 msgid "Copied to clipboard"
-msgstr "Copied to clipboard"
+msgstr "Copié dans le presse-papiers"
 
 msgid "Could not copy to clipboard"
-msgstr "Could not copy to clipboard"
+msgstr "Impossible de copier dans le presse-papiers"
 
 msgid "Something went wrong. Please try again."
-msgstr "Something went wrong. Please try again."
+msgstr "Une erreur est survenue. Veuillez réessayer."
 
 msgid "This is a shared chat, for reference only."
-msgstr "This is a shared chat, for reference only."
+msgstr "Cette conversation a été partagée à titre de référence seulement."
 
 msgid "Actions"
 msgstr "Actions"
 
 msgid "Select citation #{{n}}"
-msgstr "Select citation #{{n}}"
+msgstr "Sélectionner la source # {{n}}"
 
 msgid "Date published"
-msgstr "Date published"
+msgstr "Date de publication"
 
 msgid "Language"
-msgstr "Language"
+msgstr "Langue"
 
 msgid "Source"
 msgstr "Source"
@@ -102,46 +102,46 @@ msgid "Type"
 msgstr "Type"
 
 msgid "Failed to fetch article."
-msgstr "Failed to fetch article."
+msgstr "Impossible de charger l’article."
 
 msgid "Failed to fetch chat."
-msgstr "Failed to fetch chat."
+msgstr "Impossible de charger la conversation."
 
 msgid "Failed to rename chat."
-msgstr "Failed to rename chat."
+msgstr "Impossible de renommer la conversation."
 
 msgid "Cancel"
-msgstr "Cancel"
+msgstr "Annuler"
 
 msgid "Save"
-msgstr "Save"
+msgstr "Enregistrer"
 
 msgid "Rename"
-msgstr "Rename"
+msgstr "Renommer"
 
 msgid "Share"
-msgstr "Share"
+msgstr "Partager"
 
 msgid "Share link copied to clipboard"
-msgstr "Share link copied to clipboard"
+msgstr "Lien de partage copié dans le presse-papiers"
 
 msgid "Failed to share chat."
-msgstr "Failed to share chat."
+msgstr "Impossible de partager la conversation."
 
 msgid "Delete"
-msgstr "Delete"
+msgstr "Supprimer"
 
 msgid "Shared links will be disabled."
-msgstr "Shared links will be disabled."
+msgstr "Les liens de partage seront désactivés."
 
 msgid "Delete this chat?"
-msgstr "Delete this chat?"
+msgstr "Supprimer cette conversation?"
 
 msgid "Failed to delete chat."
-msgstr "Failed to delete chat."
+msgstr "Impossible de supprimer la conversation."
 
 msgid "Failed to fetch chats."
-msgstr "Failed to fetch chats."
+msgstr "Impossible de charger les conversations."
 
 msgid "Failed to fetch shared chat."
-msgstr "Failed to fetch shared chat."
+msgstr "Impossible de charger la conversation partagée."
