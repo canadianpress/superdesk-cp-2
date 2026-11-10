@@ -38,6 +38,7 @@ services:
       - .env
     environment:
       - WEB_CONCURRENCY=2
+      - WEB_TIMEOUT=330
       - MONGO_URI=mongodb://mongo/superdesk
       - CONTENTAPI_MONGO_URI=mongodb://mongo/superdesk_capi
       - PUBLICAPI_MONGO_URI=mongodb://mongo/superdesk_papi

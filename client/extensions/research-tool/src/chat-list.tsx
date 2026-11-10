@@ -18,7 +18,7 @@ export const ChatList = () => {
   const { addChat } = useChatsActions();
   const { setSelectedChat } = useSelectedChat();
 
-  const [isOpen, setIsOpen] = React.useState(false);
+  const [isOpen, setIsOpen] = React.useState(true);
 
   const addNewChat = () => {
     const chatId = crypto.randomUUID();
@@ -53,7 +53,7 @@ export const ChatList = () => {
           iconButtons={[
             <IconButton
               key="chat-list-add-chat-button"
-              icon="pencil"
+              icon="plus-sign"
               ariaValue={superdesk.localization.gettext("Start new chat")}
               onClick={addNewChat}
             />,
@@ -63,7 +63,8 @@ export const ChatList = () => {
           <PanelContentBlock padding="1-5">
             <Spacer v gap="4">
               {Object.values(chats)
-                .filter((chat) => chat.title)
+                .filter((chat) => chat.title && !chat.readonly)
+                .sort((a, b) => b.updated.localeCompare(a.updated))
                 .map((chat) => (
                   <ChatListItem key={`chat-list-item-${chat.id}`} chat={chat} />
                 ))}

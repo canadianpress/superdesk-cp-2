@@ -1,28 +1,58 @@
 import * as React from "react";
+import { Alert, SpacerBlock } from "superdesk-ui-framework/react";
 import { useSelectedChat } from "./context/selected-chat-context";
 import { MessageList } from "./message-list";
+import { superdesk } from "./superdesk";
 
-export const ChatWindow = () => {
+const REPIN_AT = 4;
+const UNPIN_AT = 40;
+
+const SharedChatBanner = () => (
+  <>
+    <span style={{ flexShrink: 0 }}>
+      <SpacerBlock v gap="16" />
+    </span>
+    <span style={{ alignSelf: "center" }}>
+      <Alert type="primary" style="hollow" size="small" margin="none">
+        {superdesk.localization.gettext(
+          "This is a shared chat, for reference only.",
+        )}
+      </Alert>
+    </span>
+  </>
+);
+
+const ChatWindowContent = () => {
   const { chat } = useSelectedChat();
 
   const messages = chat?.messages ?? [];
+  const readonly = chat?.readonly ?? false;
 
   const chatWindowRef = React.useRef<HTMLDivElement>(null);
+
+  const stickToBottomRef = React.useRef(!readonly);
 
   React.useEffect(() => {
     const container = chatWindowRef.current;
     if (!container) return;
 
-    const scrollThreshold = 500;
-    const shouldScroll =
-      messages?.[messages.length - 1]?.value === "" ||
-      container.scrollHeight - container.scrollTop <=
-        container.clientHeight + scrollThreshold;
-    if (shouldScroll)
-      container.scrollTo({
-        top: container.scrollHeight,
-        behavior: "smooth",
-      });
+    const onScroll = () => {
+      const distanceFromBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight;
+      if (distanceFromBottom > UNPIN_AT) stickToBottomRef.current = false;
+      else if (distanceFromBottom <= REPIN_AT) stickToBottomRef.current = true;
+    };
+
+    container.addEventListener("scroll", onScroll, { passive: true });
+    return () => container.removeEventListener("scroll", onScroll);
+  }, []);
+
+  React.useEffect(() => {
+    const container = chatWindowRef.current;
+    if (!container) return;
+    if (!stickToBottomRef.current) return;
+
+    container.scrollTop = container.scrollHeight;
   }, [messages]);
 
   return (
@@ -49,8 +79,13 @@ export const ChatWindow = () => {
           overflowY: "auto",
         }}
       >
+        {readonly && <SharedChatBanner />}
         <MessageList />
       </div>
     </>
   );
 };
+
+export const ChatWindow = () => (
+  <ChatWindowContent key={useSelectedChat().chat?.id} />
+);
