@@ -38,6 +38,10 @@ setTimeout(() => {
                 id: 'research-tool',
                 load: () => import('./extensions/research-tool'),
             },
+            {
+                id: 'summarization',
+                load: () => import('./extensions/summarization'),
+            },
         ],
         {},
     );

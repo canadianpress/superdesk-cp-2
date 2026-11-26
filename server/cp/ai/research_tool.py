@@ -1,6 +1,6 @@
 from collections.abc import AsyncIterator
 from logging import getLogger
-from typing import Any, Optional
+from typing import Any
 from uuid import uuid4
 
 import aiohttp
@@ -15,6 +15,7 @@ from superdesk.errors import SuperdeskApiError
 from superdesk.eve_async.service import AsyncBaseService
 from superdesk.flask import Blueprint
 from superdesk.resource import Resource
+from superdesk.text_utils import get_text
 from superdesk.utc import utcnow
 from superdesk.utils import get_cors_headers
 
@@ -75,12 +76,55 @@ CHAT_SCHEMA = {
 }
 
 
+@bp.route("/research_tool/summarize", methods=["POST", "OPTIONS"])
+@blueprint_auth()
+async def research_tool_summarize():
+    payload = await request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        raise SuperdeskApiError.badRequestError(_("Expected a JSON object."))
+
+    fields: dict[str, str] = {}
+    for field in ("headline", "slugline", "body_html"):
+        value = payload.get(field, "")
+        if not isinstance(value, str):
+            raise SuperdeskApiError.badRequestError(
+                _("%(field)s must be a string.", field=field)
+            )
+        fields[field] = value.strip()
+
+    return await _get_research_tool_chat_response(
+        query=_generate_prompt(
+            headline=fields["headline"],
+            slugline=fields["slugline"],
+            body_html=fields["body_html"],
+        ),
+        chat_id=(request.args.get("chat_id") or "").strip() or None,
+        user_email=_current_user_email(),
+        cors_methods=["POST"],
+    )
+
+
 @bp.route("/research_tool/stream", methods=["GET", "OPTIONS"])
 @blueprint_auth()
 async def research_tool_stream():
     user_email = _current_user_email()
-    service = get_resource_service("research_tool")
     chat_id = (request.args.get("chat_id") or "").strip() or None
+    return await _get_research_tool_chat_response(
+        query=request.args.get("q", ""),
+        chat_id=chat_id,
+        user_email=user_email,
+        cors_methods=["GET"],
+    )
+
+
+async def _get_research_tool_chat_response(
+    *,
+    query: str,
+    chat_id: str | None,
+    user_email: str,
+    cors_methods: list[str] | None = None,
+) -> Response:
+    service = get_resource_service("research_tool")
     if chat_id:
         existing = await service.find_one_async(req=None, chat_id=chat_id)
         if existing:
@@ -91,7 +135,7 @@ async def research_tool_stream():
         _research_tool_generator(
             service,
             {
-                "query": request.args.get("q", ""),
+                "query": query,
                 "chat_id": chat_id,
                 "user_email": user_email,
                 "config": current_app.config,
@@ -101,7 +145,12 @@ async def research_tool_stream():
         mimetype="text/event-stream",
     )
     response.timeout = None
-    response.headers.update([*get_cors_headers(["GET"]), ("Cache-Control", "no-cache")])
+    response.headers.update(
+        [
+            *get_cors_headers(cors_methods),
+            ("Cache-Control", "no-cache"),
+        ]
+    )
 
     return response
 
@@ -679,6 +728,25 @@ def _chat_title_from_query(query: str) -> str:
     if len(title) <= CHAT_TITLE_MAX_LENGTH:
         return title
     return title[: CHAT_TITLE_MAX_LENGTH - 1].rstrip() + "…"
+
+
+def _generate_prompt(*, headline: str, slugline: str, body_html: str) -> str:
+    body = get_text(body_html, "html", True).strip()
+    if not body:
+        raise SuperdeskApiError.badRequestError(_("Missing article body."))
+
+    prompt_parts = [
+        "Write a broadcast separate from the following article elements. Do not provide citations.",
+        "Follow these broadcast style rules unless CP Style says otherwise:",
+        "- One idea per sentence. Split long sentences with multiple clauses into separate sentences.",
+        "- Avoid repeating the same key word twice in one sentence (e.g., don't say 'fire' twice).",
+        "- Don't state a number or count (e.g., 'three investigations') unless the reason is clear from context; otherwise use the general term ('under investigation').",
+        "- Put attribution and background in their own sentence rather than embedding it mid-sentence.",
+        f"Headline: {headline}",
+        f"Slugline: {slugline}",
+        f"Body: {body}",
+    ]
+    return "\n".join(prompt_parts)
 
 
 def init_app(app):
